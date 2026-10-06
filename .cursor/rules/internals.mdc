@@ -1,9 +1,0 @@
----
-description: axi internals stay in this package
-globs: internals/**/*.md
-alwaysApply: false
----
-
-# Agent internals
-
-`internals/` is local-only (gitignored). Checklists for **this package** (chat, spawn, skills/MCP runtime). Do not copy or link framework (`aq`) internals here. Talk to `aq` only via CLI (`AQ_ROOT` / `AQ_BIN`).
