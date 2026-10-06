@@ -6,6 +6,14 @@ import path from "node:path"
 import { pythonBin } from "../core/python.js"
 import { agentRoot, frameworkRoot, kernelRoot } from "../core/root.js"
 
+function kernelEnv(): string {
+  try {
+    return kernelRoot()
+  } catch {
+    return process.env.AQ_KERNEL ?? ""
+  }
+}
+
 export function runFileCaptured(train: string, file: string, extra: string[] = []): string {
   const ext = path.extname(file)
   let cmd = file
@@ -35,7 +43,7 @@ export function runFileCaptured(train: string, file: string, extra: string[] = [
     cwd: train,
     encoding: "utf8",
     timeout: 120_000,
-    env: { ...process.env, AQ_TRAIN: train, AQ_KERNEL: kernelRoot() },
+    env: { ...process.env, AQ_TRAIN: train, AQ_KERNEL: kernelEnv() },
   })
   const out = `${r.stdout ?? ""}${r.stderr ?? ""}`.trim()
   if (r.status !== 0) throw new Error(out || `exit ${r.status}`)

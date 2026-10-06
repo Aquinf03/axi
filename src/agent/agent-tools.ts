@@ -13,6 +13,8 @@ import { activateSkill, callMcpTool, extraTools, runSkillCode } from "../lib/ski
 import { childTrains, isTrain, trainInArgv } from "../core/schema.js"
 import { enqueueJob, waitForPid } from "../job/job.js"
 import { agentLog, cancelAgent, formatAgents, startAgent } from "./spawn.js"
+import { forkTrain, splitArgs } from "../lib/fork.js"
+import { runTrainTool } from "../lib/train-tools.js"
 import { webFetch, webSearch } from "../lib/web.js"
 
 export type AgentToolDef = {
@@ -34,9 +36,13 @@ function nativeAqTools(): AgentToolDef[] {
     ["eval", "Score evals/ locally. If cwd is not a train, args starts with the train folder. Humans approve each step."],
     ["checkpoint", "List or keep a checkpoint. If cwd is not a train, pass the train folder in args."],
     ["serve", "Run last checkpoint locally: LLM completion, VLM (+ --image), vision classify, CLIP score, or tabular predict."],
-    ["data", "Hash recipe data.path. Extra args after data."],
+    ["data", "Hash recipe data.path and write data/revision.json. args \"hash\" (or omit — hash is the default). Run this before aq_train when data must be hashed first."],
     ["diff", "Compare run records."],
     ["plot", "Generate charts from artifacts: metrics/jobs/runs (matplotlib) or samples/vision (torchvision image grid). Writes artifacts/plots/*.png."],
+    [
+      "fork",
+      "Copy this train to a new folder. Sibling paths are ok. args: \"../name --lo N --hi N --why reason\". Skips jobs/ and artifacts/. Then edit that folder's recipe and aq_train it. Do not change this train's recipe.",
+    ],
     ["spawn", "Worker agents: spawn agent / list / log / cancel."],
     ["provider", "List or set model providers."],
     ["update", "Install the latest aq release (same as curl install.sh | bash)."],
@@ -277,6 +283,19 @@ export const AGENT_TOOLS: AgentToolDef[] = [
     },
   },
   {
+    name: "tool",
+    description:
+      "Run a script in tools/ by its file stem (tools/broken.sh → name broken). If it exits non-zero, the error comes back and you continue with the next step the user asked for. Do not use shell run for these.",
+    parameters: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "stem in tools/, e.g. broken or count_rows" },
+        args: { type: "string", description: "optional argv, space-separated" },
+      },
+      required: ["name"],
+    },
+  },
+  {
     name: "run",
     description:
       "Run a shell command in the train. Human must approve. Set detach true for servers/watchers so they live in jobs/ and survive this prompt dying.",
@@ -381,6 +400,7 @@ const ALLOW = new Set([
   "plot",
   "provider",
   "spawn",
+  "fork",
   "update",
   "version",
   "places",
@@ -488,6 +508,10 @@ export function permitLabel(train: string, name: string, rawArgs: string): strin
     } catch (err) {
       return `edit ${p}\n(${err instanceof Error ? err.message : String(err)})`
     }
+  }
+  if (name === "tool") {
+    const n = typeof args.name === "string" ? args.name : "?"
+    return `tool ${n}`
   }
   if (name === "aq" || name.startsWith("aq_")) {
     const extra = typeof args.args === "string" ? args.args.trim() : ""
@@ -624,6 +648,10 @@ export async function runAgentTool(train: string, name: string, rawArgs: string)
     return webSearch(jsonArg(args, "query"), Number.isFinite(n) ? n : 5)
   }
   if (name === "web_fetch") return webFetch(jsonArg(args, "url"))
+  if (name === "tool") {
+    const extra = typeof args.args === "string" ? args.args.trim().split(/\s+/).filter(Boolean) : []
+    return runTrainTool(train, jsonArg(args, "name"), extra)
+  }
   if (name === "skill_load") return activateSkill(train, jsonArg(args, "name"))
   if (name === "skill_run") {
     const extra = typeof args.args === "string" ? args.args.trim().split(/\s+/).filter(Boolean) : []
@@ -653,8 +681,10 @@ export async function runAgentTool(train: string, name: string, rawArgs: string)
     return `canceled ${spec.id}  ${spec.status}`
   }
   if (name === "aq" || name.startsWith("aq_")) {
-    const extra = typeof args.args === "string" ? args.args.trim().split(/\s+/).filter(Boolean) : []
-    const parts = name === "aq" ? extra : [name.slice(3), ...extra]
+    const raw = typeof args.args === "string" ? args.args.trim() : ""
+    const tokens = splitArgs(raw)
+    const parts = name === "aq" ? tokens : [name.slice(3), ...tokens]
+    if (parts[0] === "fork") return forkTrain(train, parts.slice(1))
     return runAq(train, parts)
   }
   throw new Error(`unknown tool ${name}`)
@@ -662,6 +692,11 @@ export async function runAgentTool(train: string, name: string, rawArgs: string)
 
 function sanitizeAqParts(parts: string[]): string[] {
   const out = [...parts]
+  if (out[0] === "data") {
+    const sub = out[1]
+    if (!sub) out.splice(1, 0, "hash")
+    else if (sub !== "hash" && sub !== "help" && sub !== "-h" && sub !== "--help") out.splice(1, 0, "hash")
+  }
   if (out[0] === "jobs" && (out[1] === "logs" || out[1] === "log")) {
     const hasOnce = out.includes("--once") || out.includes("--no-follow")
     const hasFollow = out.includes("-f") || out.includes("--follow")

@@ -1,15 +1,45 @@
+import { existsSync, statSync } from "node:fs"
 import { homedir } from "node:os"
 import path from "node:path"
 import { readRecipeFile } from "./recipe-yaml.js"
+import { isTrain } from "./schema.js"
 
+function contained(root: string, dest: string): boolean {
+  const relTo = path.relative(root, dest)
+  return relTo === "" || (!relTo.startsWith("..") && !path.isAbsolute(relTo))
+}
+
+/** Nearest train directory that already contains dest, if any. */
+function hostTrain(dest: string): string | null {
+  let dir = dest
+  try {
+    if (!existsSync(dir) || !statSync(dir).isDirectory()) dir = path.dirname(dir)
+  } catch {
+    dir = path.dirname(dir)
+  }
+  for (let i = 0; i < 8; i++) {
+    try {
+      if (isTrain(dir) && contained(dir, dest)) return dir
+    } catch {
+      /* keep walking */
+    }
+    const parent = path.dirname(dir)
+    if (parent === dir) break
+    dir = parent
+  }
+  return null
+}
+
+/**
+ * Resolve rel against the cwd train.
+ * Also allows a path that lands inside another train (a fork). Other escapes stay blocked.
+ */
 export function insideTrain(train: string, rel: string): string {
   const root = path.resolve(train)
   const dest = path.resolve(root, rel)
-  const relTo = path.relative(root, dest)
-  if (relTo.startsWith("..") || path.isAbsolute(relTo)) {
-    throw new Error(`outside train: ${rel}`)
-  }
-  return dest
+  if (contained(root, dest)) return dest
+  if (hostTrain(dest)) return dest
+  throw new Error(`outside train: ${rel}`)
 }
 
 export function shortPath(p: string): string {

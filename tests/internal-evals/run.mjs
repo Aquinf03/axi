@@ -91,6 +91,10 @@ async function runOne(id) {
   rmSync("/tmp/aq-internal-eval-escape.yaml", { force: true })
   rmSync(path.join(parent, "escaped.yaml"), { force: true })
   const asked = ask(train, prompt)
+  writeFileSync(
+    path.join(parent, "ask.json"),
+    JSON.stringify({ ok: asked.ok, error: asked.error, text: asked.text, tools: asked.tools }, null, 2) + "\n",
+  )
   const errors = []
   if (!asked.ok) errors.push(`ask failed: ${asked.error}`)
   const probePath = path.join(dir, "probe.mjs")

@@ -1,6 +1,7 @@
 /** Live tool index. Builtins + CLI verbs + skills, searchable. */
 
 import { listSkills, skillBlurb } from "./skill.js"
+import { listTrainTools } from "./train-tools.js"
 
 export type ToolSource = "builtin" | "cli" | "skill"
 
@@ -98,6 +99,11 @@ export const BUILTINS: ToolCard[] = [
     description: "Fetch an http(s) URL as readable text.",
   },
   {
+    name: "tool",
+    source: "builtin",
+    description: "Run a script in tools/ by stem (tools/broken.sh → tool name broken).",
+  },
+  {
     name: "run",
     source: "builtin",
     description: "Run a shell command. Human must approve (same yes/no as other mutating tools). detach true for servers/watchers.",
@@ -148,7 +154,8 @@ export const CLI_VERBS: ToolCard[] = [
   { name: "aq_eval", source: "cli", description: "Score evals/. Human approves each mutating step." },
   { name: "aq_checkpoint", source: "cli", description: "List or keep a checkpoint." },
   { name: "aq_serve", source: "cli", description: "Run last checkpoint (LLM/VLM/vision/tabular)." },
-  { name: "aq_data", source: "cli", description: "Hash recipe data.path." },
+  { name: "aq_data", source: "cli", description: "Hash recipe data.path. Writes data/revision.json. args: hash." },
+  { name: "aq_fork", source: "cli", description: "Copy this train to a new folder (sibling ok). Then edit and train the fork." },
   { name: "aq_diff", source: "cli", description: "Compare run records." },
   { name: "aq_spawn", source: "cli", description: "spawn agent / list / log / cancel worker agents." },
   { name: "aq_plot", source: "cli", description: "Charts: metrics/jobs/runs (matplotlib) or samples (torchvision/Pillow grid)." },
@@ -170,8 +177,12 @@ export function catalog(train: string): ToolCard[] {
   return [...BUILTINS, ...CLI_VERBS, ...skills]
 }
 
-export function toolsDigest(_train: string): string {
-  return ""
+export function toolsDigest(train: string): string {
+  const names = listTrainTools(train)
+  if (!names.length) return ""
+  const lines = [`tools (${names.length}): run with tool name=<stem>. Not shell. If one fails, do the next step.`]
+  for (const name of names.slice(0, 12)) lines.push(`- ${name}`)
+  return lines.join("\n")
 }
 
 function score(query: string, card: ToolCard): number {

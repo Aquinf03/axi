@@ -30,6 +30,14 @@ function norm(rel: string): string {
   return rel.replace(/\\/g, "/").replace(/^\.\/+/, "").replace(/\/+$/, "") || "."
 }
 
+function located(train: string, rel: string): string | null {
+  try {
+    return insideTrain(train, rel)
+  } catch {
+    return null
+  }
+}
+
 export function beginUndo(historyLen: number): void {
   batch = []
   seen = new Set()
@@ -53,7 +61,8 @@ export function recordFile(train: string, rel: string): void {
   const n = norm(rel)
   if (seen.has("f:" + n)) return
   seen.add("f:" + n)
-  const p = insideTrain(train, n)
+  const p = located(train, n)
+  if (!p) return
   if (!existsSync(p) || statSync(p).isDirectory()) {
     batch.push({ kind: "file", rel: n, prev: null })
     return
@@ -70,7 +79,8 @@ export function recordParents(train: string, rel: string): void {
   let top: string | null = null
   for (const p of parts) {
     acc = acc ? acc + "/" + p : p
-    const abs = insideTrain(train, acc)
+    const abs = located(train, acc)
+    if (!abs) continue
     if (!existsSync(abs)) {
       if (!top) top = acc
     }
@@ -89,7 +99,8 @@ export function recordDir(train: string, rel: string): void {
   let top: string | null = null
   for (const p of parts) {
     acc = acc ? acc + "/" + p : p
-    const abs = insideTrain(train, acc)
+    const abs = located(train, acc)
+    if (!abs) continue
     if (!existsSync(abs)) {
       if (!top) top = acc
     }
@@ -108,8 +119,8 @@ export function recordMv(from: string, to: string): void {
 export function recordRm(train: string, rel: string): void {
   if (!batch) return
   const n = norm(rel)
-  const p = insideTrain(train, n)
-  if (!existsSync(p)) return
+  const p = located(train, n)
+  if (!p || !existsSync(p)) return
   const files: { rel: string; body: Buffer }[] = []
   const dirs: string[] = []
   const walk = (r: string) => {
