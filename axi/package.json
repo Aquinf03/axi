@@ -1,0 +1,29 @@
+{
+  "name": "axi",
+  "version": "0.0.2",
+  "description": "axi — Aquin agent chat. Separate from the aq framework CLI.",
+  "type": "module",
+  "bin": {
+    "axi": "./bin/axi"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "assets",
+    "scripts"
+  ],
+  "scripts": {
+    "build": "tsc && node scripts/copy-job-wait.mjs",
+    "prepare": "npm run build",
+    "axi": "node dist/cli.js",
+    "test": "node tests/internal-evals/run.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

@@ -1,0 +1,5 @@
+internals/
+tests/
+src/
+tsconfig.json
+.cursor/

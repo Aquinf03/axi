@@ -1,0 +1,53 @@
+# Local only. Not on the remote.
+
+internals/
+.tools/
+
+# Node
+node_modules/
+dist/
+
+# Virtualenvs
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.egg-info/
+
+# Test / coverage
+.pytest_cache/
+.coverage
+coverage.xml
+tests/internal-evals/.work/
+
+# Editors / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Secrets and local env
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+secrets.json
+
+# Local runs / caches
+.cache/
+wandb/
+mlruns/
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
