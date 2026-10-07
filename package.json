@@ -16,7 +16,7 @@
     "build": "tsc && node scripts/copy-job-wait.mjs",
     "prepare": "npm run build",
     "axi": "node dist/cli.js",
-    "test": "node tests/internal-evals/run.mjs"
+    "test": "node tests/run.mjs"
   },
   "engines": {
     "node": ">=18"

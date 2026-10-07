@@ -22,7 +22,7 @@ __pycache__/
 .pytest_cache/
 .coverage
 coverage.xml
-tests/internal-evals/.work/
+tests/.work/
 
 # Editors / OS
 .idea/

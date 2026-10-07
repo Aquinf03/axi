@@ -7,7 +7,7 @@ import path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
-const agentRoot = path.resolve(here, "../..")
+const agentRoot = path.resolve(here, "..")
 const casesDir = path.join(here, "cases")
 const fixture = path.join(here, "fixtures", "tiny")
 const workRoot = path.join(here, ".work")
