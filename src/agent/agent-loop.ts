@@ -18,9 +18,9 @@ export { type ChatMsg }
 const MAX_ROUNDS = 24
 
 const ACT =
-  /\b(train|eval|status|generate|init|write|change|run|serve|spawn|launch|jobs?|pull|place|ssh|housing|california)\b/i
+  /\b(train|eval|status|generate|init|write|change|run|serve|spawn|launch|jobs?|pull|place|ssh|housing|california|fix|refactor|implement|debug|test|build|commit|search|read|edit|create|add|remove|delete|patch|ship|deploy|investigate|research|analyze|explain|fork|hash|skill|load|summarize|review|trace|profile)\b/i
 const GO =
-  /\b(yeah|yep|yes|ok|okay|sure|fine|go ahead|go on|do it|do that|try it|train it|build it|fix it|proceed|please do|let'?s go|ship it|run it|learn from)\b/i
+  /\b(yeah|yep|yes|ok|okay|sure|fine|go ahead|go on|do it|do that|try it|train it|build it|fix it|implement it|proceed|please do|let'?s go|ship it|run it|learn from)\b/i
 const WISH =
   /\b(wanna|want to|want a|what'?s a|what is|how do i|could we|maybe|idk|i don'?t know|thinking|curious)\b/i
 
@@ -172,7 +172,7 @@ export async function runTurn(
       msgs.push({
         role: "user",
         content:
-          "Answer the user now in a few sentences. Cite files as markdown links like [recipe.yaml](recipe.yaml). Do not invent scores or pass/fail. Do not only list filenames. Do not claim a train is missing if this turn created one.",
+          "Answer the user now in a few sentences. Cite files as markdown links like [src/cli.ts](src/cli.ts). Do not invent scores, test results, or pass/fail. Do not only list filenames. Do not claim a folder is missing if this turn created one.",
       })
       continue
     }
@@ -185,7 +185,7 @@ export async function runTurn(
       msgs.push({
         role: "user",
         content:
-          "Recover: that last tool failed. Retry once with the train folder in args if cwd is not a train, or tell the user the exact command using the folder already in this turn's progress. Do not say nothing was built if progress shows init or writes.",
+          "Recover: that last tool failed. Retry once with a corrected path or args, or tell the user the exact next command using folders already in this turn's progress. Do not say nothing was built if progress shows writes or creates.",
       })
       continue
     }

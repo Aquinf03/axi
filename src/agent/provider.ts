@@ -119,7 +119,7 @@ const SLASH_ALIAS: Record<string, string> = {
 }
 
 const SYSTEM =
-  "You are axi, the Aquin agent. The current directory is the workspace. Be concise. Unix. No markdown tables."
+  "You are axi — a coding, research, and development agent. The current directory is the workspace. Be concise. Unix. No markdown tables."
 
 function configDir(): string {
   return axiHome()

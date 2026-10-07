@@ -566,14 +566,13 @@ export function workspaceLines(train: string): string[] {
   const kids = childTrains(train)
   const lines = [
     `Workspace path: ${train}`,
-    `This folder is a train: ${isTrain(train) ? "yes" : "no"}`,
+    `Workspace kind: ${isTrain(train) ? "aq train (recipe.yaml)" : "project"}`,
   ]
   if (!isTrain(train)) {
+    lines.push("Code and research in this folder. Use aq_* only if they want a model train.")
     if (kids.length) {
       lines.push(`Child trains: ${kids.join(", ")}`)
-      lines.push(`Use aq_* with args set to one of those names. Example: aq_train args "${kids[0]}"`)
-    } else {
-      lines.push("No child trains. aq_init a subfolder, then pass that name to aq_train / aq_status.")
+      lines.push(`For those, aq_* args must include the folder. Example: aq_train args "${kids[0]}"`)
     }
   } else if (kids.length) {
     lines.push(`Nested trains: ${kids.join(", ")}`)

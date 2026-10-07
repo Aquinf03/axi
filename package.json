@@ -1,7 +1,7 @@
 {
   "name": "axi",
   "version": "0.0.2",
-  "description": "axi — Aquin agent chat. Separate from the aq framework CLI.",
+  "description": "axi — coding / research agent. Optional aq train tools via the framework CLI.",
   "type": "module",
   "bin": {
     "axi": "./bin/axi"

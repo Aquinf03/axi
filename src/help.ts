@@ -4,7 +4,8 @@ export function help(): string {
   return [
     "axi  chat · ask · spawn",
     "",
-    "Train / eval / jobs / fleet: the aq CLI (AQ_ROOT / AQ_BIN).",
+    "Coding / research agent for the current folder.",
+    "Model train / eval / fleet: aq CLI when cwd (or a child) has recipe.yaml.",
     "",
     "  axi                 chat (TTY)",
     "  axi agent           same",
@@ -18,14 +19,14 @@ export function help(): string {
     "  axi provider        list openai / anthropic / grok / ollama",
     "  axi provider <name> save key (hidden) and use it",
     "  axi provider use <name>  switch",
-    "  axi doctor [dir]    health check (agent, provider, train, skills, mcp, aq framework)",
+    "  axi doctor [dir]    health check (agent, provider, workspace, skills, mcp, aq)",
     "  axi spawn agent [dir] -- <prompt>  start a worker agent",
     "  axi spawn agent --kill -- <prompt>  critic: cheapest disproof",
     "  axi spawn list [dir]",
     "  axi spawn log [dir] <id>",
     "  axi spawn cancel [dir] <id>",
     "",
-    "Framework (install separately): aq train | eval | jobs | …",
+    "Framework (optional): aq train | eval | jobs | …",
     "  Docs: https://aq.aquin.app/docs",
   ].join("\n")
 }

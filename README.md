@@ -1,7 +1,7 @@
 # axi
 
-Chat / ask / spawn / provider / doctor for train folders.  
-Train / eval / fleet stay in the **aq** CLI (separate install). axi only shells out to `aq`.
+Coding / research / chat agent for the current folder.  
+Model **train / eval / fleet** stay in the **aq** CLI (separate install). axi shells out to `aq` when you work in a train (`recipe.yaml`).
 
 Chats, keys, and memory live in **`~/.axi`** (first run migrates `~/.aq` if present).
 
@@ -27,8 +27,9 @@ axi doctor
 ## Use
 
 ```bash
-axi                 # TTY chat (cwd should be a train with recipe.yaml)
-axi ask "summarize recipe.yaml"
+cd /path/to/project   # any folder — or a train with recipe.yaml
+axi                   # TTY chat
+axi ask "how does src/cli.ts wire commands?"
 axi provider openai
 axi doctor
 ```
@@ -52,4 +53,4 @@ npm run build
 npm test                 # or: node tests/internal-evals/run.mjs follow-skill
 ```
 
-Needs a configured provider (`axi provider …`) and a reachable `aq`.
+Needs a configured provider (`axi provider …`). Train-related evals also need a reachable `aq`.
