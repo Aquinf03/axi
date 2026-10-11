@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from "node:fs"
 import path from "node:path"
-import { axiHome } from "../core/home.js"
+import { axiHome } from "../home.js"
 
 const EXTS = [".md", ".txt"]
 

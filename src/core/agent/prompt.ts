@@ -1,6 +1,6 @@
 /** Agent system prompt. Coding / research first; aq trains are a specialty when present. */
 
-import { isTrain } from "../core/schema.js"
+import { isTrain } from "../schema.js"
 
 export type PromptBits = {
   extra?: string

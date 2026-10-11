@@ -1,7 +1,7 @@
 /** Stdio MCP client. Skills start servers; aq talks JSON-RPC. */
 
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process"
-import { frameworkVersion } from "../core/version.js"
+import { frameworkVersion } from "../version.js"
 
 export type McpSpec = {
   command: string

@@ -1,8 +1,8 @@
 /** Context-window occupancy. Char/4 estimate, no tokenizer. */
 
-import { AGENT_TOOLS, contextBlock } from "./agent-tools.js"
+import { AGENT_TOOLS, contextBlock } from "../tooling.js"
 import { systemPrompt } from "./prompt.js"
-import type { ChatMsg } from "./provider.js"
+import type { ChatMsg } from "../../gateway.js"
 
 export type ContextPart = { id: string; label: string; tokens: number }
 

@@ -5,7 +5,7 @@ import { existsSync } from "node:fs"
 import path from "node:path"
 import { stripControls } from "../core/bytes.js"
 import { agentRoot } from "../core/root.js"
-import { notifyEnabled } from "./provider.js"
+import { notifyEnabled } from "../gateway.js"
 
 function quiet(): boolean {
   return process.env.AQ_QUIET === "1" || !notifyEnabled()

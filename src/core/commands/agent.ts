@@ -1,8 +1,8 @@
 /** Terminal chat. `axi` and `axi agent` are the same entry. */
 
 import { stdin, stdout } from "node:process"
-import { startChatUi } from "./chat-ui.js"
-import { help } from "../help.js"
+import { startChatUi } from "../../ui/chat-ui.js"
+import { help } from "./help.js"
 
 export type ChatDecision = "help" | "chat" | "usage" | "skip"
 

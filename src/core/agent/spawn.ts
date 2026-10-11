@@ -4,9 +4,9 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { randomBytes } from "node:crypto"
 import path from "node:path"
 import { cancelJob, enqueueJob, jobLogPath, waitForPid } from "../job/job.js"
-import { assertTrain, isTrain } from "../core/schema.js"
-import { agentRoot } from "../core/root.js"
-import { artifactsDir } from "../core/paths.js"
+import { assertTrain, isTrain } from "../schema.js"
+import { agentRoot } from "../root.js"
+import { artifactsDir } from "../paths.js"
 
 const KILLER_PREAMBLE = [
   "Your job is the cheapest disproof, not agreement.",

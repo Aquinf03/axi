@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 /** axi CLI — chat / ask / spawn. Framework verbs live in the separate `aq` package. */
 
-import { runAgent } from "./agent/agent.js"
-import { ask } from "./agent/ask.js"
-import { chatCmd } from "./agent/chat.js"
-import { providerCmd } from "./agent/provider.js"
-import { doctorCmd } from "./agent/doctor.js"
-import { spawnCmd } from "./agent/spawn.js"
+import { runAgent } from "./core/commands/agent.js"
+import { ask } from "./core/commands/ask.js"
+import { chatCmd } from "./core/commands/chat.js"
+import { providerCmd } from "./gateway.js"
+import { doctorCmd } from "./core/commands/doctor.js"
+import { spawnCmd } from "./core/agent/spawn.js"
 import { versionReport } from "./core/version.js"
-import { help } from "./help.js"
+import { help } from "./core/commands/help.js"
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2)

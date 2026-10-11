@@ -12,7 +12,7 @@ import {
 } from "node:fs"
 import path from "node:path"
 import { insideTrain, pathRel } from "../core/paths.js"
-import { recordDir, recordFile, recordMv, recordParents, recordRm } from "../agent/undo.js"
+import { recordDir, recordFile, recordMv, recordParents, recordRm } from "../core/agent/undo.js"
 import { formatUnifiedDiff } from "./textdiff.js"
 
 function norm(rel: string): string {

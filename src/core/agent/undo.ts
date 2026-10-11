@@ -11,7 +11,7 @@ import {
   writeFileSync,
 } from "node:fs"
 import path from "node:path"
-import { insideTrain } from "../core/paths.js"
+import { insideTrain } from "../paths.js"
 
 type Rev =
   | { kind: "file"; rel: string; prev: Buffer | null }

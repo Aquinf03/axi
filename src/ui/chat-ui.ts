@@ -1,12 +1,12 @@
 /** fx-form shell chat: inline ❯ composer in the transcript, no bottom dock, no alt-screen. */
 
 import { stdin, stdout } from "node:process"
-import { runTurn, type ChatMsg } from "./agent-loop.js"
-import { clipToolLog, formatPermitDisplay } from "./agent-tools.js"
+import { runTurn, type ChatMsg } from "../core/agent/agent-loop.js"
+import { clipToolLog, formatPermitDisplay } from "../core/tooling.js"
 import { renderMarkdown } from "./markdown.js"
-import { compactHistory } from "./compact.js"
-import { beginUndo, clearUndo, commitUndo, undoLast } from "./undo.js"
-import { measureContext, contextFull } from "./context.js"
+import { compactHistory } from "../core/compact.js"
+import { beginUndo, clearUndo, commitUndo, undoLast } from "../core/agent/undo.js"
+import { measureContext, contextFull } from "../core/agent/context.js"
 import {
   activeId,
   activeLabel,
@@ -22,15 +22,14 @@ import {
   runSlash,
   setKey,
   slashMatches,
-} from "./provider.js"
+} from "../gateway.js"
 import { shortPath } from "../core/paths.js"
 import { notifyReply } from "./notify.js"
 import { playCue } from "./sound.js"
-import { loadImage, type ChatImage } from "./image.js"
-import { extraTools, shutdownSkills } from "../lib/skill-runtime.js"
-import { agentLog, cancelAgent, formatAgents, listAgents, startAgent } from "./spawn.js"
-import { listSkills } from "../lib/skill.js"
-import { formatDoctor, runDoctor } from "./doctor.js"
+import { loadImage, type ChatImage } from "../core/agent/image.js"
+import { extraTools, listSkills, shutdownSkills } from "../core/skills.js"
+import { agentLog, cancelAgent, formatAgents, listAgents, startAgent } from "../core/agent/spawn.js"
+import { formatDoctor, runDoctor } from "../core/commands/doctor.js"
 import { isTrain } from "../core/schema.js"
 import {
   createChat,
@@ -44,7 +43,7 @@ import {
   saveChat,
   setTabTitle,
   type ChatSpec,
-} from "./chat-store.js"
+} from "../core/session.js"
 import { frameworkVersion } from "../core/version.js"
 
 const RESET = "\x1b[0m"

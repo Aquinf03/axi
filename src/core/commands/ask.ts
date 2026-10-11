@@ -3,10 +3,10 @@
 import { createInterface } from "node:readline"
 import { stdin, stdout, stderr } from "node:process"
 import path from "node:path"
-import { runTurn } from "./agent-loop.js"
-import { clipToolLog, formatPermitDisplay } from "./agent-tools.js"
-import { renderMarkdown } from "./markdown.js"
-import { isTrain } from "../core/schema.js"
+import { runTurn } from "../agent/agent-loop.js"
+import { clipToolLog, formatPermitDisplay } from "../tooling.js"
+import { renderMarkdown } from "../../ui/markdown.js"
+import { isTrain } from "../schema.js"
 
 function parseAsk(argv: string[]): { train: string; prompt: string; json: boolean; yes: boolean } {
   const flags = new Set<string>()

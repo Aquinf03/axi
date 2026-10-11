@@ -5,11 +5,11 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs"
 import { randomBytes } from "node:crypto"
 import path from "node:path"
-import { isTrain } from "../core/schema.js"
-import type { ChatMsg } from "./provider.js"
-import { streamTurn } from "./provider.js"
-import { artifactsDir } from "../core/paths.js"
-import { axiHome } from "../core/home.js"
+import { isTrain } from "../schema.js"
+import type { ChatMsg } from "../../gateway.js"
+import { streamTurn } from "../../gateway.js"
+import { artifactsDir } from "../paths.js"
+import { axiHome } from "../home.js"
 
 export type ChatSpec = {
   id: string

@@ -1,9 +1,9 @@
 /** Active skills for this process: extra tools from MCP, code via skill_run. */
 
-import { withErrDefer } from "../core/cleanup.js"
+import { withErrDefer } from "../cleanup.js"
 import { startMcp, type McpClient, type McpToolInfo } from "./mcp.js"
 import { loadSkill } from "./skill.js"
-import { runFileCaptured } from "./run-file.js"
+import { runFileCaptured } from "../../tools/run-file.js"
 
 export type ExtraTool = {
   name: string

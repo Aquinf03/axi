@@ -3,7 +3,7 @@
 import { spawn } from "node:child_process"
 import { existsSync } from "node:fs"
 import path from "node:path"
-import { soundEnabled } from "./provider.js"
+import { soundEnabled } from "../gateway.js"
 import { agentRoot } from "../core/root.js"
 
 const assets = path.join(agentRoot(), "assets")

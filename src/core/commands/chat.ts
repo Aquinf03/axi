@@ -1,6 +1,6 @@
-import { startChatUi } from "./chat-ui.js"
-import { latestChat, listAllChats, listChats, loadSpec } from "./chat-store.js"
-import { shortPath } from "../core/paths.js"
+import { startChatUi } from "../../ui/chat-ui.js"
+import { latestChat, listAllChats, listChats, loadSpec } from "../session.js"
+import { shortPath } from "../paths.js"
 
 export async function chatCmd(argv: string[]): Promise<void> {
   const cwd = process.cwd()

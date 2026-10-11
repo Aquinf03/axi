@@ -9,11 +9,11 @@ import {
   runDetached,
   runShell,
   toolNeedsPermit,
-} from "./agent-tools.js"
-import { axMessage } from "../core/errors.js"
-import { createScratch } from "../core/scratch.js"
+} from "../tooling.js"
+import { axMessage } from "../errors.js"
+import { createScratch } from "../scratch.js"
 import { systemPrompt } from "./prompt.js"
-import { streamTurn, type ChatMsg } from "./provider.js"
+import { streamTurn, type ChatMsg } from "../../gateway.js"
 
 export { type ChatMsg }
 

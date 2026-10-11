@@ -1,7 +1,7 @@
 /** Fold older chat turns into a recap so the same session can continue. */
 
-import { measureContext, contextFull } from "./context.js"
-import { streamTurn, type ChatMsg } from "./provider.js"
+import { measureContext, contextFull } from "../agent/context.js"
+import { streamTurn, type ChatMsg } from "../../gateway.js"
 
 export type CompactResult =
   | { ok: true; history: ChatMsg[]; pct: string }

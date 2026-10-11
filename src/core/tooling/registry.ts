@@ -1,7 +1,7 @@
 /** Live tool index. Builtins + CLI verbs + skills, searchable. */
 
-import { listSkills, skillBlurb } from "./skill.js"
-import { listTrainTools } from "./train-tools.js"
+import { listSkills, skillBlurb } from "../skills.js"
+import { listTrainTools } from "../../tools/train-tools.js"
 
 export type ToolSource = "builtin" | "cli" | "skill"
 

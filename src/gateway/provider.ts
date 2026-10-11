@@ -4,7 +4,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "n
 import { axiHome } from "../core/home.js"
 import path from "node:path"
 import { stdin, stderr } from "node:process"
-import { dataUrl, type ChatImage } from "./image.js"
+import { dataUrl, type ChatImage } from "../core/agent/image.js"
 
 export type { ChatImage }
 

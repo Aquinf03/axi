@@ -40,9 +40,26 @@ Ported from the fx (Zig) style into TypeScript:
 | Naming | camelCase functions, PascalCase types, kebab-case CLI flags |
 | Unit tests beside code | `src/**/*.test.ts` — `npm run test:unit` |
 
+## Module boundaries
+
+| Layer | Owns |
+| --- | --- |
+| `cli.ts` | Composition root — wire commands, no leaf logic |
+| `core/` | Contracts, sessions, skills, tooling specs + dispatch, agent loop |
+| `tools/` | Tool implementations only |
+| `ui/` | Render / input / transcript — call into core for product state |
+| `gateway/` | Provider transport + keys |
+
+Import fat subsystems only through front doors (`core/tooling.ts`, `core/skills.ts`, `core/session.ts`, `core/compact.ts`, `gateway.ts`). Before a feature, see `src/core/FEATURE.md`.
+
+```bash
+npm run check:boundaries
+```
+
 ## Tests
 
 ```bash
+npm run check:boundaries   # front-door import rules
 npm run test:unit          # node:test next to modules
 npm test                   # agent evals (needs provider + aq)
 node scripts/tests/run.mjs follow-skill

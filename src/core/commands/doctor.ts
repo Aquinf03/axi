@@ -2,16 +2,14 @@
 
 import { existsSync, accessSync, constants } from "node:fs"
 import path from "node:path"
-import { axiHome } from "../core/home.js"
-import { isTrain, REQUIRED } from "../core/schema.js"
-import { frameworkRoot, kernelRoot } from "../core/root.js"
-import { listSkills, loadSkill } from "../lib/skill.js"
-import { startMcp } from "../lib/mcp.js"
-import { extraTools } from "../lib/skill-runtime.js"
-import { activeId, activeLabel, entry, hasCreds } from "./provider.js"
-import { pythonBin } from "../core/python.js"
-import { frameworkVersion } from "../core/version.js"
-import { artifactsDir } from "../core/paths.js"
+import { axiHome } from "../home.js"
+import { isTrain, REQUIRED } from "../schema.js"
+import { frameworkRoot, kernelRoot } from "../root.js"
+import { extraTools, listSkills, loadSkill, startMcp } from "../skills.js"
+import { activeId, activeLabel, entry, hasCreds } from "../../gateway.js"
+import { pythonBin } from "../python.js"
+import { frameworkVersion } from "../version.js"
+import { artifactsDir } from "../paths.js"
 
 export type Check = { ok: "ok" | "warn" | "fail"; name: string; detail: string }
 
