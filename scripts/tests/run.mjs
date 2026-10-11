@@ -21,12 +21,10 @@ function maybeSetAqRoot() {
 function agentCmd() {
   const fromEnv = process.env.AXI?.trim() || process.env.AQ_AGENT?.trim()
   if (fromEnv) return fromEnv.split(/\s+/).filter(Boolean)
+  // Always verify the built binary — never a global `axi` on PATH.
   const dist = path.join(agentRoot, "dist", "cli.js")
   if (existsSync(dist)) return [process.execPath, dist]
-  const tsx = path.join(agentRoot, "node_modules", "tsx", "dist", "cli.mjs")
-  const src = path.join(agentRoot, "src", "cli.ts")
-  if (existsSync(tsx) && existsSync(src)) return [process.execPath, tsx, src]
-  throw new Error("build axi first (npm run build) or set AXI")
+  throw new Error("build axi first (npm run build) so dist/cli.js exists, or set AXI to an explicit command")
 }
 
 function listCases() {

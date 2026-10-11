@@ -1,5 +1,6 @@
 /** Active skills for this process: extra tools from MCP, code via skill_run. */
 
+import { withErrDefer } from "../core/cleanup.js"
 import { startMcp, type McpClient, type McpToolInfo } from "./mcp.js"
 import { loadSkill } from "./skill.js"
 import { runFileCaptured } from "./run-file.js"
@@ -68,12 +69,15 @@ export async function activateSkill(train: string, name: string): Promise<string
     sessions.get(k)?.client.close()
     sessions.delete(k)
     try {
-      const client = await startMcp(train, mcp.spec)
-      const tools = await client.listTools()
-      sessions.set(k, { skill: skill.name, server: mcp.name, client, tools })
-      const names = tools.map((t) => mcpToolName(skill.name, t.name))
-      lines.push("", `mcp ${mcp.name}  (${mcp.spec.command})`)
-      lines.push(names.length ? names.map((n) => `  ${n}`).join("\n") : "  (no tools)")
+      await withErrDefer(async (defer) => {
+        const client = await startMcp(train, mcp.spec)
+        defer(() => client.close())
+        const tools = await client.listTools()
+        sessions.set(k, { skill: skill.name, server: mcp.name, client, tools })
+        const names = tools.map((t) => mcpToolName(skill.name, t.name))
+        lines.push("", `mcp ${mcp.name}  (${mcp.spec.command})`)
+        lines.push(names.length ? names.map((n) => `  ${n}`).join("\n") : "  (no tools)")
+      })
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       lines.push("", `mcp ${mcp.name} failed: ${msg}`)

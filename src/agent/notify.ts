@@ -3,6 +3,7 @@
 import { spawn, spawnSync } from "node:child_process"
 import { existsSync } from "node:fs"
 import path from "node:path"
+import { stripControls } from "../core/bytes.js"
 import { agentRoot } from "../core/root.js"
 import { notifyEnabled } from "./provider.js"
 
@@ -50,8 +51,8 @@ function iconIco(): string | null {
 /** OSC sequences: many terminals only surface these when the window is not focused. */
 function writeOsc(title: string, body: string): void {
   if (!process.stdout.isTTY) return
-  const t = title.replace(/[\x00-\x1f\x7f]/g, " ")
-  const b = body.replace(/[\x00-\x1f\x7f]/g, " ")
+  const t = stripControls(title)
+  const b = stripControls(body)
   try {
     process.stdout.write(`\x1b]9;${b}\x07`)
     process.stdout.write(`\x1b]777;notify;${t};${b}\x07`)

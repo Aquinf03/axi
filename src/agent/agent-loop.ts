@@ -10,6 +10,8 @@ import {
   runShell,
   toolNeedsPermit,
 } from "./agent-tools.js"
+import { axMessage } from "../core/errors.js"
+import { createScratch } from "../core/scratch.js"
 import { systemPrompt } from "./prompt.js"
 import { streamTurn, type ChatMsg } from "./provider.js"
 
@@ -88,7 +90,25 @@ export async function runTurn(
   onPermit?: (command: string) => Promise<boolean>,
   onToolDone?: ToolDoneFn,
 ): Promise<string> {
+  const scratch = createScratch()
+  try {
+    return await runTurnInner(train, history, onDelta, onTool, onPermit, onToolDone, scratch)
+  } finally {
+    scratch.clear()
+  }
+}
+
+async function runTurnInner(
+  train: string,
+  history: ChatMsg[],
+  onDelta: (chunk: string) => void,
+  onTool: ToolStartFn | undefined,
+  onPermit: ((command: string) => Promise<boolean>) | undefined,
+  onToolDone: ToolDoneFn | undefined,
+  scratch: ReturnType<typeof createScratch>,
+): Promise<string> {
   const objective = lastUserRequest(history)
+  scratch.push("objective", objective)
   const msgs: ChatMsg[] = history.map((m) => ({ ...m }))
   const progress: string[] = []
   let usedTools = false
@@ -146,15 +166,15 @@ export async function runTurn(
           }
         } catch (err) {
           failed = true
-          result = err instanceof Error ? err.message : String(err)
+          result = axMessage(err)
         }
         onToolDone?.({ name: call.name, label, result, failed })
         lastFailed = lastFailed || (failed && isRecoverable(result))
-        progress.push(
-          failed
-            ? `${call.name} failed: ${clip(result)}`
-            : `${call.name} ${clip(call.args, 80)} → ${clip(result)}`,
-        )
+        const line = failed
+          ? `${call.name} failed: ${clip(result)}`
+          : `${call.name} ${clip(call.args, 80)} → ${clip(result)}`
+        progress.push(line)
+        scratch.push(`tool.${progress.length}`, line)
         msgs.push({ role: "tool", content: result, tool_call_id: call.id })
       }
       if (denied) {

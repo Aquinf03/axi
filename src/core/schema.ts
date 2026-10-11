@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, renameSync, statSync } from "node:fs"
 import path from "node:path"
+import { fail } from "./errors.js"
 
 /**
  * A run is recipe.yaml (+ runtime dir from paths.artifacts, default artifacts/).
@@ -54,11 +55,11 @@ export function hasTrainBrief(dir: string): boolean {
 export function assertTrain(dir: string): string {
   const root = path.resolve(dir)
   if (!existsSync(root) || !statSync(root).isDirectory()) {
-    throw new Error(`not a directory: ${root}`)
+    fail("train", `not a directory: ${root}`)
   }
   migrateLegacyIdentity(root)
   if (!isTrain(root)) {
-    throw new Error(`not a run (need recipe.yaml): ${root}`)
+    fail("train", `not a run (need recipe.yaml): ${root}`)
   }
   return root
 }

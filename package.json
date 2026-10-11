@@ -16,6 +16,7 @@
     "build": "tsc && node scripts/copy-job-wait.mjs && python3 scripts/build-app-icon.py",
     "prepare": "npm run build",
     "axi": "node dist/cli.js",
+    "test:unit": "tsx --test src/**/*.test.ts",
     "test": "node scripts/tests/run.mjs"
   },
   "engines": {
