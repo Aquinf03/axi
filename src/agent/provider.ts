@@ -30,6 +30,8 @@ type Saved = { key?: string; base?: string; model?: string }
 type Config = {
   active?: ProviderId
   sound?: boolean
+  /** Desktop / terminal notify when a reply finishes. Omitted → on. */
+  notify?: boolean
   /** Sampling temperature for agent turns. Omitted → provider default. */
   temperature?: number
   providers: Partial<Record<ProviderId, Saved>>
@@ -105,6 +107,7 @@ export const SLASH = [
   { name: "/temp", hint: "sampling temperature 0–2 · /temp show|reset" },
   { name: "/key", hint: "paste an api key · /api" },
   { name: "/sound", hint: "on · off" },
+  { name: "/notify", hint: "on · off · reply desktop alerts" },
   { name: "/exit", hint: "leave" },
 ] as const
 
@@ -216,6 +219,25 @@ export function setSound(on: boolean): string {
   return on ? "sound on" : "sound off"
 }
 
+export function notifyEnabled(): boolean {
+  if (process.env.AQ_QUIET === "1") return false
+  return load().notify !== false
+}
+
+export function toggleNotify(): boolean {
+  const cfg = load()
+  cfg.notify = cfg.notify === false
+  save(cfg)
+  return cfg.notify !== false
+}
+
+export function setNotify(on: boolean): string {
+  const cfg = load()
+  cfg.notify = on
+  save(cfg)
+  return on ? "notify on" : "notify off"
+}
+
 const TEMP_MIN = 0
 const TEMP_MAX = 2
 
@@ -296,6 +318,7 @@ export type Choice = {
     | "set-model"
     | "ask-key"
     | "toggle-sound"
+    | "toggle-notify"
     | "help"
     | "quit"
     | "back"
@@ -507,6 +530,12 @@ export function menuChoices(
       hint: soundEnabled() ? "on" : "off",
       kind: "toggle-sound",
     },
+    {
+      id: "notify",
+      label: "notify",
+      hint: notifyEnabled() ? "on" : "off",
+      kind: "toggle-notify",
+    },
     { id: "help", label: "help", hint: "what this agent can do", kind: "help" },
     { id: "exit", label: "exit", hint: "leave", kind: "quit" },
   ]
@@ -549,6 +578,10 @@ export function applyChoice(c: Choice): {
     const on = toggleSound()
     return { text: on ? "sound on" : "sound off", open: "root" }
   }
+  if (c.kind === "toggle-notify") {
+    const on = toggleNotify()
+    return { text: on ? "notify on" : "notify off", open: "root" }
+  }
   if (c.kind === "ask-key") {
     const id = parseProvider(c.id)
     if (!id) return { text: "unknown provider", open: "key" }
@@ -577,8 +610,9 @@ export function applyChoice(c: Choice): {
         "  context    how full the context window is",
         "  compact    summarize older chat",
         "  sound      click + message cues",
+        "  notify     desktop alert when a reply finishes (if terminal unfocused)",
         "",
-        "slash: /new /rename /open /delete [/delete all] /compact /undo /image /status /doctor /spawn /provider /model /temp /key /sound",
+        "slash: /new /rename /open /delete [/delete all] /compact /undo /image /status /doctor /spawn /provider /model /temp /key /sound /notify",
         "",
         "keys: axi provider openai",
         "now: " + activeLabel(),
@@ -791,6 +825,15 @@ export function runSlash(line: string): SlashResult {
     if (arg === "on") return { text: setSound(true) }
     if (arg === "off") return { text: setSound(false) }
     return { text: "usage: /sound on|off" }
+  }
+  if (cmd === "/notify") {
+    if (!arg || arg === "toggle") {
+      const on = toggleNotify()
+      return { text: on ? "notify on" : "notify off" }
+    }
+    if (arg === "on") return { text: setNotify(true) }
+    if (arg === "off") return { text: setNotify(false) }
+    return { text: "usage: /notify on|off" }
   }
   if (cmd === "/help") {
     return {

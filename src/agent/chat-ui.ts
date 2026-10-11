@@ -14,6 +14,7 @@ import {
   contextWindow,
   hasCreds,
   soundEnabled,
+  notifyEnabled,
   menuChoices,
   temperatureLabel,
   type MenuId,
@@ -23,6 +24,7 @@ import {
   slashMatches,
 } from "./provider.js"
 import { shortPath } from "../core/paths.js"
+import { notifyReply } from "./notify.js"
 import { playCue } from "./sound.js"
 import { loadImage, type ChatImage } from "./image.js"
 import { extraTools, shutdownSkills } from "../lib/skill-runtime.js"
@@ -435,6 +437,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       row("context", snap.line),
       ...snap.parts.map((p) => `  ${("ctx." + p.label).padEnd(12)}  ${p.tokens}`),
       row("sound", soundEnabled() ? "on" : "off"),
+      row("notify", notifyEnabled() ? "on" : "off"),
       row("chat", `${spec.name}  ${spec.id}`),
       row("created", spec.created),
       row("updated", spec.updated),
@@ -1261,6 +1264,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         if (!started) write(`\r\x1b[K`)
         flushPending()
         playCue("message")
+        notifyReply(reply, spec.name ? `axi · ${spec.name}` : "axi")
         history.push({ role: "assistant", content: reply })
         commitUndo()
         saveChat(train, spec, history)

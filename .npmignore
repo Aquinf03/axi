@@ -1,5 +1,5 @@
 internals/
-tests/
+scripts/tests/
 src/
 tsconfig.json
 .cursor/

@@ -42,7 +42,7 @@ src/agent/       chat UI, tools, spawn, provider
 src/lib/         files / skills / memory / mcp
 src/job/         detached worker queue for spawn
 src/core/        train schema + paths + locate aq
-tests/           agent evals (ours only, not user evals/)
+scripts/tests/   agent evals (ours only, not user evals/)
 internals/       local checklists (gitignored — not published)
 ```
 
@@ -50,7 +50,7 @@ internals/       local checklists (gitignored — not published)
 
 ```bash
 npm run build
-npm test                 # or: node tests/run.mjs follow-skill
+npm test                 # or: node scripts/tests/run.mjs follow-skill
 ```
 
 Needs a configured provider (`axi provider …`). Train-related evals also need a reachable `aq`.

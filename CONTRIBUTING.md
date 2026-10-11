@@ -17,7 +17,7 @@ Set `AQ_ROOT` (or keep a sibling `../aq` checkout) so doctor and tools can find 
 Internal evals (not a user `evals/` slot):
 
 ```bash
-node tests/run.mjs
+node scripts/tests/run.mjs
 ```
 
 ## Internals
