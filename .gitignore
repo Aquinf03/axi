@@ -43,6 +43,7 @@ credentials.json
 secrets.json
 
 # Local runs / caches
+temp/
 .cache/
 wandb/
 mlruns/

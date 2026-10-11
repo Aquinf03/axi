@@ -3,6 +3,7 @@
 import { spawn, spawnSync } from "node:child_process"
 import { existsSync } from "node:fs"
 import path from "node:path"
+import { agentRoot } from "../core/root.js"
 import { notifyEnabled } from "./provider.js"
 
 function quiet(): boolean {
@@ -28,15 +29,31 @@ function onPath(name: string): string | undefined {
   return undefined
 }
 
+function asset(...parts: string[]): string {
+  return path.join(agentRoot(), "assets", ...parts)
+}
+
+/** Packaged Aquin mark — png for linux/mac helpers, ico for windows. */
+function iconPng(): string | null {
+  for (const name of ["icon-256.png", "icon.png"]) {
+    const p = asset(name)
+    if (existsSync(p)) return p
+  }
+  return null
+}
+
+function iconIco(): string | null {
+  const p = asset("icon.ico")
+  return existsSync(p) ? p : null
+}
+
 /** OSC sequences: many terminals only surface these when the window is not focused. */
 function writeOsc(title: string, body: string): void {
   if (!process.stdout.isTTY) return
   const t = title.replace(/[\x00-\x1f\x7f]/g, " ")
   const b = body.replace(/[\x00-\x1f\x7f]/g, " ")
   try {
-    // iTerm2 / WezTerm / some others
     process.stdout.write(`\x1b]9;${b}\x07`)
-    // kitty / Ghostty / libvte-style
     process.stdout.write(`\x1b]777;notify;${t};${b}\x07`)
   } catch {
     /* ignore */
@@ -77,39 +94,80 @@ function fire(cmd: string, args: string[]): void {
   }
 }
 
+function fileUrl(p: string): string {
+  const abs = path.resolve(p).replace(/\\/g, "/")
+  const withSlash = abs.startsWith("/") ? abs : `/${abs}`
+  return `file://${encodeURI(withSlash)}`
+}
+
+function macNotify(title: string, body: string): void {
+  const png = iconPng()
+  const helper = asset("Axi.app", "Contents", "MacOS", "axi-notify")
+  // Prefer the tiny Axi.app helper so Notification Center uses AppIcon.icns (Aquin mark).
+  if (existsSync(helper) && existsSync(asset("Axi.app", "Contents", "Resources", "AppIcon.icns"))) {
+    fire(helper, [title, body])
+    return
+  }
+  // terminal-notifier can take a PNG app icon when the .app helper is incomplete.
+  const tn = onPath("terminal-notifier")
+  if (tn && png) {
+    fire(tn, ["-title", title, "-message", body, "-appIcon", png, "-sender", "app.aquin.axi.notify"])
+    return
+  }
+  if (!existsSync("/usr/bin/osascript")) return
+  const esc = (s: string) => s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')
+  fire("/usr/bin/osascript", [
+    "-e",
+    `display notification "${esc(body)}" with title "${esc(title)}"`,
+  ])
+}
+
+function winNotify(title: string, body: string): void {
+  const ps = onPath("powershell") ?? onPath("powershell.exe")
+  if (!ps) return
+  const lit = (s: string) => s.replace(/'/g, "''")
+  const img = iconPng() ?? iconIco()
+  const imgUrl = img ? fileUrl(img) : ""
+  const template = img
+    ? "[Windows.UI.Notifications.ToastTemplateType]::ToastImageAndText02"
+    : "[Windows.UI.Notifications.ToastTemplateType]::ToastText02"
+  const imgLine = img
+    ? `$img = $t.GetElementsByTagName('image').Item(0); $img.SetAttribute('src', '${lit(imgUrl)}'); `
+    : ""
+  fire(ps, [
+    "-NoProfile",
+    "-NonInteractive",
+    "-WindowStyle",
+    "Hidden",
+    "-Command",
+    `[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null; ` +
+      `$t = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent(${template}); ` +
+      `$t.GetElementsByTagName('text').Item(0).AppendChild($t.CreateTextNode('${lit(title)}')) > $null; ` +
+      `$t.GetElementsByTagName('text').Item(1).AppendChild($t.CreateTextNode('${lit(body)}')) > $null; ` +
+      imgLine +
+      `[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('app.aquin.axi').Show([Windows.UI.Notifications.ToastNotification]::new($t))`,
+  ])
+}
+
+function linuxNotify(title: string, body: string): void {
+  const notifySend = onPath("notify-send")
+  if (!notifySend) return
+  const png = iconPng()
+  const args = ["-a", "axi", title, body]
+  if (png) args.splice(2, 0, "-i", png)
+  fire(notifySend, args)
+}
+
 function systemNotify(title: string, body: string): void {
   if (process.platform === "darwin") {
-    if (!existsSync("/usr/bin/osascript")) return
-    const esc = (s: string) => s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')
-    fire("/usr/bin/osascript", [
-      "-e",
-      `display notification "${esc(body)}" with title "${esc(title)}"`,
-    ])
+    macNotify(title, body)
     return
   }
   if (process.platform === "win32") {
-    const ps = onPath("powershell") ?? onPath("powershell.exe")
-    if (!ps) return
-    const lit = (s: string) => s.replace(/'/g, "''")
-    fire(ps, [
-      "-NoProfile",
-      "-NonInteractive",
-      "-WindowStyle",
-      "Hidden",
-      "-Command",
-      `[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null; ` +
-        `$t = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02); ` +
-        `$t.GetElementsByTagName('text').Item(0).AppendChild($t.CreateTextNode('${lit(title)}')) > $null; ` +
-        `$t.GetElementsByTagName('text').Item(1).AppendChild($t.CreateTextNode('${lit(body)}')) > $null; ` +
-        `[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('axi').Show([Windows.UI.Notifications.ToastNotification]::new($t))`,
-    ])
+    winNotify(title, body)
     return
   }
-  const notifySend = onPath("notify-send")
-  if (notifySend) {
-    fire(notifySend, ["-a", "axi", title, body])
-    return
-  }
+  linuxNotify(title, body)
 }
 
 /** Notify that axi finished a reply. Prefer when the terminal is not focused. */
