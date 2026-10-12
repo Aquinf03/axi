@@ -1,7 +1,7 @@
 /** fx-form shell chat: inline ❯ composer in the transcript, no bottom dock, no alt-screen. */
 
 import { stdin, stdout } from "node:process"
-import { runTurn, type ChatMsg } from "../core/agent/agent-loop.js"
+import { runTurn, type AgentHost, type ChatMsg } from "../core/agent/agent-loop.js"
 import { clipToolLog, formatPermitDisplay } from "../core/tooling.js"
 import { renderMarkdown } from "./markdown.js"
 import { compactHistory } from "../core/compact.js"
@@ -1163,10 +1163,9 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         pending = ""
       }
       try {
-        const reply = await runTurn(
-          train,
-          history,
-          (chunk) => {
+        const host: AgentHost = {
+          workspace: train,
+          onDelta: (chunk) => {
             if (!started) {
               started = true
               stopSpin()
@@ -1182,7 +1181,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
             pending = parts.pop() ?? ""
             for (const line of parts) write(renderMarkdown(line, md, { baseDir: train }) + "\n")
           },
-          (name, args) => {
+          onToolStart: (name, args) => {
             stopSpin()
             if (started) flushPending()
             started = false
@@ -1202,7 +1201,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
             }
             // No spinner ticks while the tool runs — avoids fighting live stdout (e.g. jobs wait).
           },
-          async (command) => {
+          askPermit: async (command) => {
             if (timer) {
               clearInterval(timer)
               timer = null
@@ -1224,8 +1223,8 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
                 resolve: (v) => {
                   permit = null
                   write("\r\x1b[K")
-                  const shown = v === "once" ? "yes" : v === "always" ? "always" : "no"
-                  write(`${DIM}· allow ${shown}${RESET}\x1b[K\n`)
+                  const label = v === "once" ? "yes" : v === "always" ? "always" : "no"
+                  write(`${DIM}· allow ${label}${RESET}\x1b[K\n`)
                   resolvePermit(v)
                 },
               }
@@ -1237,7 +1236,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
             }
             return choice
           },
-          ({ name, label, result, failed }) => {
+          onToolDone: ({ name, label, result, failed }) => {
             stopSpin()
             if (started) flushPending()
             started = false
@@ -1267,7 +1266,8 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
               tick()
             }
           },
-        )
+        }
+        const reply = await runTurn(history, host)
         stopSpin()
         if (!started) write(`\r\x1b[K`)
         flushPending()

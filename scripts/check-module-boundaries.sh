@@ -42,6 +42,7 @@ check_front_door "src/core/session" "src/core/session.ts" "session"
 check_front_door "src/core/output" "src/core/output.ts" "output"
 check_front_door "src/core/permissions" "src/core/permissions.ts" "permissions" "types|mode"
 check_front_door "src/core/config" "src/core/config.ts" "config" "types|defaults"
+check_front_door "src/core/hosts" "src/core/hosts.ts" "hosts"
 check_front_door "src/gateway" "src/gateway.ts" "gateway"
 
 # tools = implementations; ui = render. Cross-imports reverse the dependency.

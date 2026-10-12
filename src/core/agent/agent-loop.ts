@@ -14,9 +14,11 @@ import { resolveConfig } from "../config.js"
 import { axMessage } from "../errors.js"
 import { createScratch } from "../scratch.js"
 import { systemPrompt } from "./prompt.js"
+import type { AgentHost, PermitAskFn, ToolDoneFn, ToolStartFn } from "./host.js"
 import { streamTurn, type ChatMsg } from "../../gateway.js"
 
 export { type ChatMsg }
+export type { AgentHost, PermitAskFn, ToolDoneFn, ToolDoneInfo, ToolStartFn } from "./host.js"
 
 const ACT =
   /\b(train|eval|status|generate|init|write|change|run|serve|spawn|launch|jobs?|pull|place|ssh|housing|california|fix|refactor|implement|debug|test|build|commit|search|read|edit|create|add|remove|delete|patch|ship|deploy|investigate|research|analyze|explain|fork|hash|skill|load|summarize|review|trace|profile)\b/i
@@ -73,48 +75,31 @@ function isRecoverable(result: string): boolean {
   return m.includes("not a train") || m.includes("need experiment.md") || m.includes("outside train")
 }
 
-export type ToolStartFn = (name: string, args?: string) => void
-export type ToolDoneFn = (info: {
-  name: string
-  label: string
-  result: string
-  failed: boolean
-}) => void
-
-/** Host asks the human for once / always / deny. Tool text must not drive this. */
-export type PermitAskFn = (command: string) => Promise<PermitChoice | boolean>
-
 function asChoice(v: PermitChoice | boolean): PermitChoice {
   if (v === true || v === "once") return "once"
   if (v === "always") return "always"
   return "deny"
 }
 
-export async function runTurn(
-  train: string,
-  history: ChatMsg[],
-  onDelta: (chunk: string) => void,
-  onTool?: ToolStartFn,
-  onPermit?: PermitAskFn,
-  onToolDone?: ToolDoneFn,
-): Promise<string> {
+/**
+ * Shared agent core for TTY chat and one-shot ask.
+ * Hosts only supply I/O via `AgentHost` — they do not own the turn loop.
+ */
+export async function runTurn(history: ChatMsg[], host: AgentHost): Promise<string> {
   const scratch = createScratch()
   try {
-    return await runTurnInner(train, history, onDelta, onTool, onPermit, onToolDone, scratch)
+    return await runTurnInner(history, host, scratch)
   } finally {
     scratch.clear()
   }
 }
 
 async function runTurnInner(
-  train: string,
   history: ChatMsg[],
-  onDelta: (chunk: string) => void,
-  onTool: ToolStartFn | undefined,
-  onPermit: PermitAskFn | undefined,
-  onToolDone: ToolDoneFn | undefined,
+  host: AgentHost,
   scratch: ReturnType<typeof createScratch>,
 ): Promise<string> {
+  const train = host.workspace
   const objective = lastUserRequest(history)
   scratch.push("objective", objective)
   const msgs: ChatMsg[] = history.map((m) => ({ ...m }))
@@ -135,7 +120,7 @@ async function runTurnInner(
     })
 
   for (let i = 0; i < maxRounds; i++) {
-    const out = await streamTurn(msgs, onDelta, {
+    const out = await streamTurn(msgs, host.onDelta, {
       system: system(),
       tools: act ? toolsForTrain(train) : [],
     })
@@ -155,8 +140,8 @@ async function runTurnInner(
           const decision = await authorizeTool(
             { train, tool: call.name, rawArgs: call.args, label },
             {
-              ask: onPermit
-                ? async (cmd) => asChoice(await onPermit(cmd))
+              ask: host.askPermit
+                ? async (cmd) => asChoice(await host.askPermit!(cmd))
                 : undefined,
             },
           )
@@ -165,18 +150,18 @@ async function runTurnInner(
             failed = true
             denied = true
             progress.push(`${call.name} denied`)
-            onToolDone?.({ name: call.name, label, result, failed: true })
+            host.onToolDone?.({ name: call.name, label, result, failed: true })
             msgs.push({ role: "tool", content: result, tool_call_id: call.id })
             continue
           }
           if (call.name === "run") {
             const spec = parseRunCommand(call.args)
-            onTool?.("run", spec.detach ? `${spec.command} detach=true` : spec.command)
+            host.onToolStart?.("run", spec.detach ? `${spec.command} detach=true` : spec.command)
             result = spec.detach
               ? await runDetached(train, spec.command)
               : runShell(train, spec.command)
           } else {
-            onTool?.(call.name, call.args)
+            host.onToolStart?.(call.name, call.args)
             result = await runAgentTool(train, call.name, call.args)
           }
         } catch (err) {
@@ -184,7 +169,7 @@ async function runTurnInner(
           result = axMessage(err)
         }
         // Result is evidence for the model only — never fed back into authorizeTool.
-        onToolDone?.({ name: call.name, label, result, failed })
+        host.onToolDone?.({ name: call.name, label, result, failed })
         lastFailed = lastFailed || (failed && isRecoverable(result))
         const line = failed
           ? `${call.name} failed: ${clip(result)}`
@@ -236,7 +221,7 @@ async function runTurnInner(
           "Stop calling tools. Tell the user what you already did this turn, the train folder if any, and the exact next command. Do not claim nothing was created if progress shows otherwise.",
       },
     ],
-    onDelta,
+    host.onDelta,
     { system: system(), tools: [] },
   )
   return wrap.text

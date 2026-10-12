@@ -37,6 +37,16 @@ Precedence (highest wins): **env > profile workspace > profile global > project 
 Project `.axi.json` accepts only repo-safe keys (`max_agent_steps`, `max_tool_result_bytes`, `context`).
 Secrets, providers, and permission rules stay in the profile (`~/.axi`).
 
+## Agent core + hosts
+
+TTY chat and `axi ask` both call `runTurn(history, host)`.
+
+- Core: `core/agent/agent-loop.ts` — model, tools, permissions, recovery
+- Host: `AgentHost` — `workspace`, `onDelta`, `onToolStart`, `onToolDone`, `askPermit`
+- Ask host: `core/hosts` (`createAskHost`); chat builds a TTY host inline in `ui/chat-ui.ts`
+
+Hosts only supply I/O. Do not put turn-loop logic in ui/ or commands/ask.
+
 Import fat subsystems only through their front doors:
 
 | Subsystem | Front door |
@@ -48,4 +58,5 @@ Import fat subsystems only through their front doors:
 | Output | `core/output.ts` |
 | Permissions | `core/permissions.ts` |
 | Config | `core/config.ts` |
+| Hosts | `core/hosts.ts` |
 | Gateway | `gateway.ts` |

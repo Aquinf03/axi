@@ -1,12 +1,11 @@
 /** One-shot agent. No chat UI. stdout is the answer. */
 
-import { createInterface } from "node:readline"
-import { stdin, stdout, stderr } from "node:process"
+import { stdout } from "node:process"
 import path from "node:path"
 import { runTurn } from "../agent/agent-loop.js"
-import { clipToolLog, formatPermitDisplay } from "../tooling.js"
+import { createAskHost } from "../hosts.js"
 import { AskSnapshot, renderSnapshot } from "../output.js"
-import { parsePermissionMode, type PermitChoice, type PermissionMode } from "../permissions.js"
+import { parsePermissionMode, type PermissionMode } from "../permissions.js"
 import { renderMarkdown } from "../../ui/markdown.js"
 import { isTrain } from "../schema.js"
 
@@ -56,29 +55,6 @@ function parseAsk(argv: string[]): {
   return { train, prompt, json: flags.has("json"), yes: flags.has("yes"), mode }
 }
 
-function askPermit(cmd: string): Promise<PermitChoice> {
-  if (stdin.isTTY !== true) return Promise.resolve("deny")
-  const lines = cmd.split("\n")
-  const head = lines[0] ?? cmd
-  stderr.write(`allow  ${head}\n`)
-  if (lines.length > 1) {
-    const body = formatPermitDisplay(cmd)
-    const rest = body.includes("\n") ? body.slice(body.indexOf("\n") + 1) : ""
-    if (rest) stderr.write(`${rest}\n`)
-  }
-  stderr.write(`  yes / always / no? `)
-  return new Promise((resolve) => {
-    const rl = createInterface({ input: stdin, output: stderr })
-    rl.question("", (line) => {
-      rl.close()
-      const s = line.trim().toLowerCase()
-      if (s === "a" || s === "always") resolve("always")
-      else if (s === "y" || s === "yes") resolve("once")
-      else resolve("deny")
-    })
-  })
-}
-
 export async function ask(argv: string[]): Promise<void> {
   const { train, prompt, json, yes, mode } = parseAsk(argv)
   const prevMode = process.env.AXI_PERMISSION_MODE
@@ -86,29 +62,11 @@ export async function ask(argv: string[]): Promise<void> {
   if (yes) process.env.AXI_PERMISSION_MODE = "full-access"
   const tools: { name: string; args: string }[] = []
   try {
-    const text = await runTurn(
-      train,
-      [{ role: "user", content: prompt }],
-      () => {},
-      (name, args) => {
-        tools.push({ name, args: args ?? "" })
-        if (!json) stderr.write(`${name}\n`)
-      },
-      async (command) => {
-        if (yes) return "once"
-        return askPermit(command)
-      },
-      ({ name, label, result, failed }) => {
-        if (json) return
-        const head = (label.split("\n")[0] || name).replace(/\s+/g, " ")
-        stderr.write(`${failed ? "fail" : "ok"}  ${head}\n`)
-        if (name === "write" || name === "edit") return
-        if (!result || result === "denied by user") return
-        for (const ln of clipToolLog(result, 40, 6000).split("\n")) {
-          stderr.write(`  ${ln}\n`)
-        }
-      },
+    const host = createAskHost(
+      { workspace: train, quiet: json, autoYes: yes },
+      tools,
     )
+    const text = await runTurn([{ role: "user", content: prompt }], host)
     const snap = new AskSnapshot(text.trim(), tools)
     if (json) {
       stdout.write(renderSnapshot(snap, "json"))
