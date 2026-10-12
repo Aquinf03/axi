@@ -70,6 +70,12 @@ Import fat subsystems only through their front doors:
 | Compact | `core/compact.ts` |
 | Session | `core/session.ts` |
 
+## CI gates
+
+- `npm run check:boundaries` — front-door import greps (no reaching into fat folders)
+- `npm run check:budgets` — `dist/` byte cap + median startup for `version` / `help` / `doctor --json`
+- `.github/workflows/ci.yml` runs build → boundaries → budgets → unit tests
+
 ## Sessions & subagents
 
 Sessions live under `~/.axi/chats/<id>/` with portable hex ids.

@@ -47,7 +47,7 @@ scripts/tests/       agent evals (ours only, not user evals/)
 internals/           local checklists (gitignored — not published)
 ```
 
-Fat subsystems have front doors (`core/tooling.ts`, `core/skills.ts`, `core/session.ts`, `core/compact.ts`, `core/output.ts`, `core/permissions.ts`, `core/config.ts`, `gateway.ts`). `npm run check:boundaries` forbids reaching past them.
+Fat subsystems have front doors (`core/tooling.ts`, `core/skills.ts`, `core/session.ts`, `core/compact.ts`, `core/output.ts`, `core/permissions.ts`, `core/config.ts`, `gateway.ts`). `npm run check:boundaries` forbids reaching past them. `npm run check:budgets` fails CI if `dist/` or fast CLI startup exceeds `scripts/budgets.json`.
 
 Permission mode: `AXI_PERMISSION_MODE=ask|auto|full-access` (or `/mode` in chat). Project `.axi.json` is repo-safe keys only; keys stay in `~/.axi`.
 

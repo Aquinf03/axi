@@ -17,6 +17,8 @@
     "prepare": "npm run build",
     "axi": "node dist/cli.js",
     "check:boundaries": "bash scripts/check-module-boundaries.sh",
+    "check:budgets": "node scripts/check-budgets.mjs",
+    "check": "npm run check:boundaries && npm run check:budgets",
     "test:unit": "tsx --test 'src/**/*.test.ts'",
     "test": "node scripts/tests/run.mjs"
   },
