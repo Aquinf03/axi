@@ -69,9 +69,11 @@ npm run check:public-surface  # no personal paths / real-looking secrets in trac
 npm run check:budgets         # dist size + fast-command startup (scripts/budgets.json)
 npm run check:corpus          # every E2E case classified in scripts/tests/corpus.json
 npm run check                 # all of the above
+npm run smoke                 # happy-path on built bin/axi (not PATH / not tsx)
+npm run ready                 # build + check + unit + smoke — “ready” bar
 ```
 
-CI (`.github/workflows/ci.yml`) runs build, those checks, and `test:unit` on every PR/push to main.
+CI (`.github/workflows/ci.yml`) runs build, those checks, `test:unit`, and `smoke` on every PR/push to main. Unit tests alone are not enough to call a change ready.
 
 E2E cases must live in exactly one of `training` / `verification` / `excluded` with a reason — see `scripts/tests/README.md`.
 

@@ -76,7 +76,9 @@ Import fat subsystems only through their front doors:
 - `npm run check:public-surface` — no personal home paths / API-key-shaped secrets in tracked files
 - `npm run check:budgets` — `dist/` byte cap + median startup for `version` / `help` / `doctor --json`
 - `npm run check:corpus` — every `scripts/tests/cases/*` classified training / verification / excluded
-- `.github/workflows/ci.yml` runs build → boundaries → public surface → budgets → corpus → unit tests
+- `npm run smoke` — exercise built `bin/axi` (version / help / provider / doctor); not PATH, not tsx
+- `npm run ready` — build + check + unit + smoke (tests alone are not “ready”)
+- `.github/workflows/ci.yml` runs build → gates → unit → smoke
 
 ## Sessions & subagents
 

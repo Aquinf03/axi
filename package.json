@@ -21,10 +21,12 @@
     "check:public-surface": "bash scripts/check-public-surface.sh",
     "check:corpus": "node scripts/tests/check-corpus.mjs",
     "check": "npm run check:boundaries && npm run check:public-surface && npm run check:budgets && npm run check:corpus",
+    "smoke": "node scripts/smoke-binary.mjs",
     "test:unit": "tsx --test 'src/**/*.test.ts'",
     "test": "node scripts/tests/run.mjs",
     "test:training": "node scripts/tests/run.mjs --class training",
-    "test:verification": "node scripts/tests/run.mjs --class verification"
+    "test:verification": "node scripts/tests/run.mjs --class verification",
+    "ready": "npm run build && npm run check && npm run test:unit && npm run smoke"
   },
   "engines": {
     "node": ">=18"

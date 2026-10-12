@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   check:
-    name: Build, boundaries, budgets, unit
+    name: Build, gates, unit, smoke
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -43,3 +43,6 @@ jobs:
 
       - name: Unit tests
         run: npm run test:unit
+
+      - name: Smoke built binary (happy path)
+        run: npm run smoke
