@@ -17,7 +17,7 @@
     "prepare": "npm run build",
     "axi": "node dist/cli.js",
     "check:boundaries": "bash scripts/check-module-boundaries.sh",
-    "test:unit": "tsx --test src/**/*.test.ts",
+    "test:unit": "tsx --test 'src/**/*.test.ts'",
     "test": "node scripts/tests/run.mjs"
   },
   "engines": {

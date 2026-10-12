@@ -30,6 +30,7 @@ check_front_door "src/core/tooling" "src/core/tooling.ts" "tooling"
 check_front_door "src/core/skills" "src/core/skills.ts" "skills"
 check_front_door "src/core/compact" "src/core/compact.ts" "compact"
 check_front_door "src/core/session" "src/core/session.ts" "session"
+check_front_door "src/core/output" "src/core/output.ts" "output"
 check_front_door "src/gateway" "src/gateway.ts" "gateway"
 
 # tools = implementations; ui = render. Cross-imports reverse the dependency.

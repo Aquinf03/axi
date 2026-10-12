@@ -3,8 +3,8 @@
  * Outside code imports this file only — not `tooling/*.ts` internals (except tests).
  */
 
-export type { AgentToolDef } from "./tooling/specs.js"
-export { AGENT_TOOLS } from "./tooling/specs.js"
+export type { AgentToolDef } from "./tooling/tool_specs.js"
+export { AGENT_TOOLS } from "./tooling/tool_specs.js"
 export {
   clipToolLog,
   contextBlock,

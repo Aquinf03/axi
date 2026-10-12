@@ -5,25 +5,23 @@ import { axiHome } from "../core/home.js"
 import path from "node:path"
 import { stdin, stderr } from "node:process"
 import { dataUrl, type ChatImage } from "../core/agent/image.js"
+import { SLASH_SPECS, slashAliasMap } from "../builtins/commands.js"
+import {
+  PROVIDER_CATALOG,
+  type ProviderEntry,
+  type ProviderId,
+} from "../builtins/providers.js"
+import { NAMING_SYSTEM } from "../builtins/system_prompt.js"
+import {
+  ProviderListSnapshot,
+  SlashHelpSnapshot,
+  renderSnapshot,
+} from "../core/output.js"
 
 export type { ChatImage }
+export type { ProviderId }
 
-export type ProviderId = "openai" | "anthropic" | "grok" | "ollama"
-
-type Kind = "openai" | "anthropic"
-
-type Entry = {
-  id: ProviderId
-  aliases: string[]
-  title: string
-  kind: Kind
-  base: string
-  env: string[]
-  model: string
-  models: string[]
-  needsKey: boolean
-  window: number
-}
+type Entry = ProviderEntry
 
 type Saved = { key?: string; base?: string; model?: string }
 
@@ -37,92 +35,14 @@ type Config = {
   providers: Partial<Record<ProviderId, Saved>>
 }
 
-export const CATALOG: Entry[] = [
-  {
-    id: "openai",
-    aliases: ["oai"],
-    title: "OpenAI",
-    kind: "openai",
-    base: "https://api.openai.com/v1",
-    env: ["OPENAI_API_KEY"],
-    model: "gpt-5.6",
-    models: ["gpt-5.6", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"],
-    needsKey: true,
-    window: 1_000_000,
-  },
-  {
-    id: "anthropic",
-    aliases: ["claude"],
-    title: "Anthropic",
-    kind: "anthropic",
-    base: "https://api.anthropic.com",
-    env: ["ANTHROPIC_API_KEY"],
-    model: "claude-sonnet-5",
-    models: ["claude-sonnet-5", "claude-opus-5", "claude-fable-5", "claude-haiku-4-5"],
-    needsKey: true,
-    window: 1_000_000,
-  },
-  {
-    id: "grok",
-    aliases: ["xai", "x"],
-    title: "Grok (xAI)",
-    kind: "openai",
-    base: "https://api.x.ai/v1",
-    env: ["XAI_API_KEY", "GROK_API_KEY"],
-    model: "grok-4.6",
-    models: ["grok-4.6", "grok-4.5", "grok-4.3", "grok-build-0.1"],
-    needsKey: true,
-    window: 500_000,
-  },
-  {
-    id: "ollama",
-    aliases: ["local"],
-    title: "Ollama",
-    kind: "openai",
-    base: "http://127.0.0.1:11434/v1",
-    env: [],
-    model: "qwen3",
-    models: ["qwen3", "qwen3.8", "llama4", "gemma4", "deepseek-r1", "gpt-oss"],
-    needsKey: false,
-    window: 32_768,
-  },
-]
+export const CATALOG: Entry[] = PROVIDER_CATALOG
 
-export const SLASH = [
-  { name: "/help", hint: "commands" },
-  { name: "/new", hint: "start a new chat" },
-  { name: "/rename", hint: "rename this chat" },
-  { name: "/chats", hint: "list chats" },
-  { name: "/open", hint: "open a chat by name or id" },
-  { name: "/delete", hint: "delete this chat · /delete all" },
-  { name: "/compact", hint: "summarize older messages" },
-  { name: "/undo", hint: "undo last agent turn" },
-  { name: "/image", hint: "attach an image by path" },
-  { name: "/context", hint: "context window use" },
-  { name: "/status", hint: "session snapshot" },
-  { name: "/doctor", hint: "health check" },
-  { name: "/spawn", hint: "worker agents" },
-  { name: "/provider", hint: "openai · anthropic · grok · ollama" },
-  { name: "/model", hint: "set model id" },
-  { name: "/temp", hint: "sampling temperature 0–2 · /temp show|reset" },
-  { name: "/key", hint: "paste an api key · /api" },
-  { name: "/sound", hint: "on · off" },
-  { name: "/notify", hint: "on · off · reply desktop alerts" },
-  { name: "/exit", hint: "leave" },
-] as const
+/** Slash menu rows — from builtins/commands (same table as /help). */
+export const SLASH = SLASH_SPECS.map((s) => ({ name: s.name, hint: s.hint }))
 
-const SLASH_ALIAS: Record<string, string> = {
-  "/quit": "/exit",
-  "/name": "/rename",
-  "/chat": "/open",
-  "/newchat": "/new",
-  "/img": "/image",
-  "/temperature": "/temp",
-  "/api": "/key",
-}
+const SLASH_ALIAS = slashAliasMap()
 
-const SYSTEM =
-  "You are axi — a coding, research, and development agent. The current directory is the workspace. Be concise. Unix. No markdown tables."
+const SYSTEM = NAMING_SYSTEM
 
 function configDir(): string {
   return axiHome()
@@ -623,20 +543,20 @@ export function applyChoice(c: Choice): {
   return { open: "root" }
 }
 
-export function listText(): string {
+export function providerListSnapshot(): ProviderListSnapshot {
   const cfg = load()
   const active = activeId()
-  const lines = ["providers", ""]
-  for (const e of CATALOG) {
-    const mark = e.id === active ? "*" : " "
-    const ok = hasCreds(e.id) ? "set" : "—"
-    const model = cfg.providers[e.id]?.model ?? e.model
-    lines.push(` ${mark} ${e.id.padEnd(10)} ${ok.padEnd(3)}  ${model}`)
-  }
-  lines.push("")
-  lines.push("axi provider openai")
-  lines.push("then paste the api key. ollama needs no key.")
-  return lines.join("\n")
+  const rows = CATALOG.map((e) => ({
+    id: e.id,
+    active: e.id === active,
+    key: (hasCreds(e.id) ? "set" : "—") as "set" | "—",
+    model: cfg.providers[e.id]?.model ?? e.model,
+  }))
+  return new ProviderListSnapshot(rows)
+}
+
+export function listText(): string {
+  return providerListSnapshot().toText()
 }
 
 export function slashMatches(draft: string): { name: string; hint: string }[] {
@@ -725,14 +645,17 @@ async function readLine(label: string, secret: boolean): Promise<string> {
 }
 
 export async function providerCmd(argv: string[]): Promise<void> {
-  const a = argv[0]
+  const json = argv.includes("--json")
+  const rest = argv.filter((a) => a !== "--json")
+  const a = rest[0]
   if (!a || a === "list" || a === "ls") {
-    console.log(listText())
+    process.stdout.write(renderSnapshot(providerListSnapshot(), json ? "json" : "text"))
+    if (!json) process.stdout.write("\n")
     return
   }
-  if (a === "use" && argv[1]) {
-    const id = parseProvider(argv[1])
-    if (!id) throw new Error(`unknown provider: ${argv[1]}`)
+  if (a === "use" && rest[1]) {
+    const id = parseProvider(rest[1])
+    if (!id) throw new Error(`unknown provider: ${rest[1]}`)
     if (!hasCreds(id)) throw new Error(`no key for ${id}. axi provider ${id}`)
     const cfg = load()
     cfg.active = id
@@ -836,17 +759,7 @@ export function runSlash(line: string): SlashResult {
     return { text: "usage: /notify on|off" }
   }
   if (cmd === "/help") {
-    return {
-      text: [
-        "slash",
-        "",
-        ...SLASH.map((s) => `  ${s.name.padEnd(10)} ${s.hint}`),
-        "",
-        "aliases: /name /chat /quit",
-        "set a key: /key openai",
-        "now: " + activeLabel(),
-      ].join("\n"),
-    }
+    return { text: new SlashHelpSnapshot(activeLabel()).toText() }
   }
   if (cmd === "/provider") {
     if (!arg) return { text: listText() }

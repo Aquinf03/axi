@@ -31,7 +31,7 @@ import { webFetch, webSearch } from "../../tools/web.js"
 import {
   AGENT_TOOLS,
   type AgentToolDef,
-} from "./specs.js"
+} from "./tool_specs.js"
 
 
 const ALLOW = new Set([

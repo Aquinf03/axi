@@ -37,16 +37,17 @@ axi doctor
 ## Layout
 
 ```
-src/cli.ts           composition root (commands only)
-src/core/            sessions, skills, tooling dispatch, agent loop, jobs
-src/tools/           tool implementations (specs live in core/tooling)
+src/cli.ts           composition root → core/commands/dispatch
+src/builtins/        command/slash specs, providers, system prompt (data)
+src/core/            sessions, skills, tool_specs + dispatch, output snapshots, agent loop
+src/tools/           tool implementations (schemas in core/tooling/tool_specs)
 src/ui/              TTY render / input / notify (no product state)
 src/gateway/         provider HTTP + keys (import via gateway.ts)
 scripts/tests/       agent evals (ours only, not user evals/)
 internals/           local checklists (gitignored — not published)
 ```
 
-Fat subsystems have front doors (`core/tooling.ts`, `core/skills.ts`, `core/session.ts`, `core/compact.ts`, `gateway.ts`). `npm run check:boundaries` forbids reaching past them.
+Fat subsystems have front doors (`core/tooling.ts`, `core/skills.ts`, `core/session.ts`, `core/compact.ts`, `core/output.ts`, `gateway.ts`). `npm run check:boundaries` forbids reaching past them.
 
 ## Tests
 

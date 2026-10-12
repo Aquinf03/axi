@@ -1,7 +1,8 @@
-/** Live tool index. Builtins + CLI verbs + skills, searchable. */
+/** Live tool index. Builtins + CLI verbs derived from tool_specs; skills added live. */
 
 import { listSkills, skillBlurb } from "../skills.js"
 import { listTrainTools } from "../../tools/train-tools.js"
+import { AGENT_TOOLS } from "./tool_specs.js"
 
 export type ToolSource = "builtin" | "cli" | "skill"
 
@@ -12,161 +13,19 @@ export type ToolCard = {
   path?: string
 }
 
-export const BUILTINS: ToolCard[] = [
-  {
-    name: "memory_search",
-    source: "builtin",
-    description: "Search memory notes for this train (~/.axi/memory, like chats).",
-  },
-  {
-    name: "memory_read",
-    source: "builtin",
-    description: "Read one memory entry by title (from ~/.axi/memory for this train).",
-  },
-  {
-    name: "memory_write",
-    source: "builtin",
-    description: "Append or update a memory entry for this train (~/.axi/memory). Short markdown.",
-  },
-  {
-    name: "tools_search",
-    source: "builtin",
-    description: "Search the tool registry (builtins, aq commands, skills).",
-  },
-  {
-    name: "ls",
-    source: "builtin",
-    description: "List a directory in the train.",
-  },
-  {
-    name: "find",
-    source: "builtin",
-    description: "Find files and dirs by name, substring, or glob.",
-  },
-  {
-    name: "glob",
-    source: "builtin",
-    description: "Find paths by glob pattern (*.ts, **/*.md).",
-  },
-  {
-    name: "grep",
-    source: "builtin",
-    description: "Search inside files. Optional glob to limit which files.",
-  },
-  {
-    name: "read",
-    source: "builtin",
-    description: "Read a file in the train. Directories list instead.",
-  },
-  {
-    name: "write",
-    source: "builtin",
-    description: "Create or overwrite a file in the train (recipe, skills, …).",
-  },
-  {
-    name: "edit",
-    source: "builtin",
-    description: "Replace text in a file. Unique snippet unless all true.",
-  },
-  {
-    name: "mkdir",
-    source: "builtin",
-    description: "Create a directory in the train.",
-  },
-  {
-    name: "mv",
-    source: "builtin",
-    description: "Move or rename a file or folder in the train.",
-  },
-  {
-    name: "cp",
-    source: "builtin",
-    description: "Copy a file in the train.",
-  },
-  {
-    name: "rm",
-    source: "builtin",
-    description: "Delete a file or folder. Not jobs/ or artifacts/.",
-  },
-  {
-    name: "web_search",
-    source: "builtin",
-    description: "Search the public web. Then web_fetch a URL for the page.",
-  },
-  {
-    name: "web_fetch",
-    source: "builtin",
-    description: "Fetch an http(s) URL as readable text.",
-  },
-  {
-    name: "tool",
-    source: "builtin",
-    description: "Run a script in tools/ by stem (tools/broken.sh → tool name broken).",
-  },
-  {
-    name: "run",
-    source: "builtin",
-    description: "Run a shell command. Human must approve (same yes/no as other mutating tools). detach true for servers/watchers.",
-  },
-  {
-    name: "aq",
-    source: "builtin",
-    description: "Run an aq CLI subcommand (status, train, eval, jobs, launch, add, spawn, …). Mutating calls need yes/no.",
-  },
-  {
-    name: "skill_load",
-    source: "builtin",
-    description: "Activate a skill: markdown, code, and MCP tools.",
-  },
-  {
-    name: "skill_run",
-    source: "builtin",
-    description: "Run the code attached to a skill.",
-  },
-  {
-    name: "skills_search",
-    source: "builtin",
-    description: "Search skills/ by name or first line.",
-  },
-  {
-    name: "plot",
-    source: "builtin",
-    description: "Generate matplotlib charts: loss curve, job status, run comparison. artifacts/plots/.",
-  },
-  {
-    name: "spawn",
-    source: "builtin",
-    description: "Start a worker axi (`axi spawn agent`).",
-  },
-  {
-    name: "spawn_list",
-    source: "builtin",
-    description: "List worker agents.",
-  },
-]
+/** Cards for non-aq_* tools — same names/descriptions as AGENT_TOOLS. */
+export const BUILTINS: ToolCard[] = AGENT_TOOLS.filter((t) => !t.name.startsWith("aq_")).map((t) => ({
+  name: t.name,
+  source: "builtin" as const,
+  description: t.description,
+}))
 
-export const CLI_VERBS: ToolCard[] = [
-  { name: "aq_help", source: "cli", description: "CLI help text. Native aq help." },
-  { name: "aq_init", source: "cli", description: "Create a run folder (recipe.yaml + example.py + artifacts/); does not dump into cwd." },
-  { name: "aq_status", source: "cli", description: "Last run, eval, metrics." },
-  { name: "aq_track", source: "cli", description: "Browse/follow experiments; also auto-printed after aq train / aq eval." },
-  { name: "aq_train", source: "cli", description: "Fit locally. Writes artifacts/checkpoints/last.json." },
-  { name: "aq_eval", source: "cli", description: "Score evals/. Human approves each mutating step." },
-  { name: "aq_checkpoint", source: "cli", description: "List or keep a checkpoint." },
-  { name: "aq_serve", source: "cli", description: "Run last checkpoint (LLM/VLM/vision/tabular)." },
-  { name: "aq_data", source: "cli", description: "Hash recipe data.path. Writes data/revision.json. args: hash." },
-  { name: "aq_fork", source: "cli", description: "Copy this train to a new folder (sibling ok). Then edit and train the fork." },
-  { name: "aq_diff", source: "cli", description: "Compare run records." },
-  { name: "aq_spawn", source: "cli", description: "spawn agent / list / log / cancel worker agents." },
-  { name: "aq_plot", source: "cli", description: "Charts: metrics/jobs/runs (matplotlib) or samples (torchvision/Pillow grid)." },
-  { name: "aq_provider", source: "cli", description: "List or set model providers." },
-  { name: "aq_places", source: "cli", description: "List SSH places / pools." },
-  { name: "aq_add", source: "cli", description: "Register ssh place (flags: --host/--user/--port/--key) or pool." },
-  { name: "aq_launch", source: "cli", description: "Sync train folder to a place; setup remote aq." },
-  { name: "aq_jobs", source: "cli", description: "Remote jobs: train|eval|serve|wait|status|logs|pull|… After start, use wait <id>." },
-  { name: "aq_sync", source: "cli", description: "Re-sync train folder to place." },
-  { name: "aq_queue", source: "cli", description: "Job queues on places." },
-]
+/** Cards for aq_* tools — same names/descriptions as AGENT_TOOLS. */
+export const CLI_VERBS: ToolCard[] = AGENT_TOOLS.filter((t) => t.name.startsWith("aq_")).map((t) => ({
+  name: t.name,
+  source: "cli" as const,
+  description: t.description,
+}))
 
 export function catalog(train: string): ToolCard[] {
   const skills = listSkills(train).map((name) => ({

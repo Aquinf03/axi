@@ -5,6 +5,7 @@ import { stdin, stdout, stderr } from "node:process"
 import path from "node:path"
 import { runTurn } from "../agent/agent-loop.js"
 import { clipToolLog, formatPermitDisplay } from "../tooling.js"
+import { AskSnapshot, renderSnapshot } from "../output.js"
 import { renderMarkdown } from "../../ui/markdown.js"
 import { isTrain } from "../schema.js"
 
@@ -76,10 +77,10 @@ export async function ask(argv: string[]): Promise<void> {
       }
     },
   )
-  const answer = text.trim()
+  const snap = new AskSnapshot(text.trim(), tools)
   if (json) {
-    stdout.write(JSON.stringify({ text: answer, tools }) + "\n")
+    stdout.write(renderSnapshot(snap, "json"))
     return
   }
-  stdout.write(renderMarkdown(answer, undefined, { baseDir: train }) + "\n")
+  stdout.write(renderMarkdown(snap.toText(), undefined, { baseDir: train }) + "\n")
 }

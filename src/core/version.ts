@@ -51,6 +51,7 @@ export function versionLine(): string {
 }
 
 export function versionReport(verbose = false): string {
+  // Kept for callers; CLI uses VersionSnapshot via dispatch.
   const v = frameworkVersion()
   if (!verbose) return versionLine()
   return [

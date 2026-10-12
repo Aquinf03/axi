@@ -10,8 +10,9 @@ import { activeId, activeLabel, entry, hasCreds } from "../../gateway.js"
 import { pythonBin } from "../python.js"
 import { frameworkVersion } from "../version.js"
 import { artifactsDir } from "../paths.js"
+import { DoctorSnapshot, type DoctorCheck, renderSnapshot } from "../output.js"
 
-export type Check = { ok: "ok" | "warn" | "fail"; name: string; detail: string }
+export type Check = DoctorCheck
 
 function onPath(cmd: string): boolean {
   if (!cmd) return false
@@ -145,22 +146,17 @@ export async function runDoctor(cwd: string): Promise<{ checks: Check[]; ok: boo
 }
 
 export function formatDoctor(checks: Check[]): string {
-  const pad = Math.max(8, ...checks.map((c) => c.name.length))
-  const lines = ["doctor"]
-  for (const c of checks) {
-    const mark = c.ok === "ok" ? "ok  " : c.ok === "warn" ? "warn" : "fail"
-    lines.push(`  ${mark}  ${c.name.padEnd(pad)}  ${c.detail}`)
-  }
-  const fails = checks.filter((c) => c.ok === "fail").length
-  const warns = checks.filter((c) => c.ok === "warn").length
-  lines.push("")
-  lines.push(fails ? `fail  ${fails}` : warns ? `ok  ${warns} warning${warns === 1 ? "" : "s"}` : "ok")
-  return lines.join("\n")
+  const ok = !checks.some((c) => c.ok === "fail")
+  return new DoctorSnapshot(checks, ok).toText()
 }
 
 export async function doctorCmd(argv: string[]): Promise<void> {
-  const dir = path.resolve(argv[0] ?? ".")
+  const json = argv.includes("--json")
+  const dirArg = argv.find((a) => a !== "--json")
+  const dir = path.resolve(dirArg ?? ".")
   const { checks, ok } = await runDoctor(dir)
-  console.log(formatDoctor(checks))
+  const snap = new DoctorSnapshot(checks, ok)
+  process.stdout.write(renderSnapshot(snap, json ? "json" : "text"))
+  if (!json) process.stdout.write("\n")
   if (!ok) process.exitCode = 1
 }

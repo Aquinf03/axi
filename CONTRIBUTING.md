@@ -45,12 +45,15 @@ Ported from the fx (Zig) style into TypeScript:
 | Layer | Owns |
 | --- | --- |
 | `cli.ts` | Composition root — wire commands, no leaf logic |
-| `core/` | Contracts, sessions, skills, tooling specs + dispatch, agent loop |
+| `builtins/` | Command/slash specs, provider catalog, system prompt data |
+| `core/` | Contracts, sessions, skills, tool_specs + dispatch, output snapshots, agent loop |
 | `tools/` | Tool implementations only |
 | `ui/` | Render / input / transcript — call into core for product state |
 | `gateway/` | Provider transport + keys |
 
-Import fat subsystems only through front doors (`core/tooling.ts`, `core/skills.ts`, `core/session.ts`, `core/compact.ts`, `gateway.ts`). Before a feature, see `src/core/FEATURE.md`.
+Import fat subsystems only through front doors (`core/tooling.ts`, `core/skills.ts`, `core/session.ts`, `core/compact.ts`, `core/output.ts`, `gateway.ts`). Before a feature, see `src/core/FEATURE.md`.
+
+Structured CLI output: build one snapshot in `core/output`, then `renderSnapshot(snap, "text" | "json")`.
 
 ```bash
 npm run check:boundaries
