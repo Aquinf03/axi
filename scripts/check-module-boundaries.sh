@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Fat subsystems keep one front door. Outside code imports that file only —
 # not files inside the folder (same idea as fx check-compactor-boundary.sh).
+#
+# Leaf contract files (types / mode / defaults) may be imported directly so
+# config ↔ permissions can share enums without a load cycle.
 
 set -euo pipefail
 
@@ -13,12 +16,18 @@ check_front_door() {
   local folder="$1"
   local door="$2"
   local label="$3"
+  # Optional: regex of basenames allowed as leaves (e.g. 'types|mode')
+  local leaves="${4:-}"
 
-  # Match: from ".../<folder>/something.js" or from '.../<folder>/...'
   local reaching_in
   reaching_in="$(
     git grep -n -E "from [\"'][^\"']*/${folder}/[^\"']+[\"']" -- 'src' ":^${folder}" ":^${door}" 2>/dev/null || true
   )"
+
+  if [[ -n "$leaves" && -n "$reaching_in" ]]; then
+    # Drop allowed leaf imports (e.g. types.js / mode.js).
+    reaching_in="$(printf '%s\n' "$reaching_in" | grep -Ev "/${folder}/(${leaves})\\.js[\"']" || true)"
+  fi
 
   if [[ -n "$reaching_in" ]]; then
     printf 'Only %s may be imported from outside %s/ (%s):\n%s\n\n' "$door" "$folder" "$label" "$reaching_in" >&2
@@ -31,6 +40,8 @@ check_front_door "src/core/skills" "src/core/skills.ts" "skills"
 check_front_door "src/core/compact" "src/core/compact.ts" "compact"
 check_front_door "src/core/session" "src/core/session.ts" "session"
 check_front_door "src/core/output" "src/core/output.ts" "output"
+check_front_door "src/core/permissions" "src/core/permissions.ts" "permissions" "types|mode"
+check_front_door "src/core/config" "src/core/config.ts" "config" "types|defaults"
 check_front_door "src/gateway" "src/gateway.ts" "gateway"
 
 # tools = implementations; ui = render. Cross-imports reverse the dependency.

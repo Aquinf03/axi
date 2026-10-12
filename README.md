@@ -39,7 +39,7 @@ axi doctor
 ```
 src/cli.ts           composition root → core/commands/dispatch
 src/builtins/        command/slash specs, providers, system prompt (data)
-src/core/            sessions, skills, tool_specs + dispatch, output snapshots, agent loop
+src/core/            sessions, skills, tool_specs, permissions, config, output, agent loop
 src/tools/           tool implementations (schemas in core/tooling/tool_specs)
 src/ui/              TTY render / input / notify (no product state)
 src/gateway/         provider HTTP + keys (import via gateway.ts)
@@ -47,7 +47,9 @@ scripts/tests/       agent evals (ours only, not user evals/)
 internals/           local checklists (gitignored — not published)
 ```
 
-Fat subsystems have front doors (`core/tooling.ts`, `core/skills.ts`, `core/session.ts`, `core/compact.ts`, `core/output.ts`, `gateway.ts`). `npm run check:boundaries` forbids reaching past them.
+Fat subsystems have front doors (`core/tooling.ts`, `core/skills.ts`, `core/session.ts`, `core/compact.ts`, `core/output.ts`, `core/permissions.ts`, `core/config.ts`, `gateway.ts`). `npm run check:boundaries` forbids reaching past them.
+
+Permission mode: `AXI_PERMISSION_MODE=ask|auto|full-access` (or `/mode` in chat). Project `.axi.json` is repo-safe keys only; keys stay in `~/.axi`.
 
 ## Tests
 

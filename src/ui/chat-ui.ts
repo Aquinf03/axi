@@ -466,14 +466,22 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
   return new Promise<void>((resolve) => {
     let done = false
     let carry = Buffer.alloc(0)
-    let permit: { cmd: string; pick: number; resolve: (ok: boolean) => void } | null = null
+    let permit: {
+      cmd: string
+      pick: number
+      resolve: (choice: "once" | "always" | "deny") => void
+    } | null = null
+
+    const permitLabels = ["yes", "always", "no"] as const
+    const permitChoices = ["once", "always", "deny"] as const
 
     const drawPermitChoices = () => {
       if (!permit) return
-      const y = permit.pick === 0
-      write(
-        `\r\x1b[K  ${y ? `${BOLD}▸ yes${RESET}` : `${DIM}  yes${RESET}`}    ${!y ? `${BOLD}▸ no${RESET}` : `${DIM}  no${RESET}`}`,
-      )
+      const parts = permitLabels.map((label, i) => {
+        const on = permit!.pick === i
+        return on ? `${BOLD}▸ ${label}${RESET}` : `${DIM}  ${label}${RESET}`
+      })
+      write(`\r\x1b[K  ${parts.join("    ")}`)
     }
 
     let compactAsk: { pick: number; yes: string; no: string; resolve: (ok: boolean) => void } | null =
@@ -1209,14 +1217,15 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
               const rest = body.includes("\n") ? body.slice(body.indexOf("\n") + 1) : ""
               if (rest) write(`${rest}\n`)
             }
-            const ok = await new Promise<boolean>((resolvePermit) => {
+            const choice = await new Promise<"once" | "always" | "deny">((resolvePermit) => {
               permit = {
                 cmd: head,
                 pick: 0,
                 resolve: (v) => {
                   permit = null
                   write("\r\x1b[K")
-                  write(`${DIM}· allow ${v ? "yes" : "no"}${RESET}\x1b[K\n`)
+                  const shown = v === "once" ? "yes" : v === "always" ? "always" : "no"
+                  write(`${DIM}· allow ${shown}${RESET}\x1b[K\n`)
                   resolvePermit(v)
                 },
               }
@@ -1226,7 +1235,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
               timer = setInterval(tick, 80)
               tick()
             }
-            return ok
+            return choice
           },
           ({ name, label, result, failed }) => {
             stopSpin()
@@ -1333,29 +1342,33 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         }
         if (permit) {
           if (k.kind === "left" || k.kind === "up") {
-            permit.pick = 0
+            permit.pick = (permit.pick + permitChoices.length - 1) % permitChoices.length
             drawPermitChoices()
             continue
           }
           if (k.kind === "right" || k.kind === "down") {
-            permit.pick = 1
+            permit.pick = (permit.pick + 1) % permitChoices.length
             drawPermitChoices()
             continue
           }
           if (k.kind === "enter") {
-            permit.resolve(permit.pick === 0)
+            permit.resolve(permitChoices[permit.pick]!)
             continue
           }
           if (k.kind === "escape" || k.kind === "ctrl-c") {
-            permit.resolve(false)
+            permit.resolve("deny")
             continue
           }
           if (k.kind === "char" && (k.text === "y" || k.text === "Y")) {
-            permit.resolve(true)
+            permit.resolve("once")
+            continue
+          }
+          if (k.kind === "char" && (k.text === "a" || k.text === "A")) {
+            permit.resolve("always")
             continue
           }
           if (k.kind === "char" && (k.text === "n" || k.text === "N")) {
-            permit.resolve(false)
+            permit.resolve("deny")
             continue
           }
           continue

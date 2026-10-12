@@ -17,6 +17,12 @@ import {
   SlashHelpSnapshot,
   renderSnapshot,
 } from "../core/output.js"
+import {
+  parsePermissionMode,
+  permissionsStatusText,
+  sessionGrants,
+} from "../core/permissions.js"
+import { resolveConfig, setPermissionModeWorkspace } from "../core/config.js"
 
 export type { ChatImage }
 export type { ProviderId }
@@ -782,6 +788,24 @@ export function runSlash(line: string): SlashResult {
   }
   if (cmd === "/temp") {
     return { text: setTemperature(arg) }
+  }
+  if (cmd === "/permissions") {
+    if (arg === "clear") {
+      sessionGrants.clear()
+      return { text: "session grants cleared" }
+    }
+    return { text: permissionsStatusText(process.cwd()) }
+  }
+  if (cmd === "/mode") {
+    const cwd = process.cwd()
+    if (!arg) {
+      const cfg = resolveConfig(cwd)
+      return { text: `mode  ${cfg.permission_mode}  (${cfg.sources.permission_mode})` }
+    }
+    const mode = parsePermissionMode(arg)
+    if (!mode) return { text: "usage: /mode ask|auto|full-access" }
+    setPermissionModeWorkspace(cwd, mode)
+    return { text: `mode  ${mode}  (profile workspace)` }
   }
   const hits = slashMatches(raw ?? "")
   if (hits.length > 1) {

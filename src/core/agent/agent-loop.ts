@@ -8,16 +8,15 @@ import {
   toolsForTrain,
   runDetached,
   runShell,
-  toolNeedsPermit,
 } from "../tooling.js"
+import { authorizeTool, type PermitChoice } from "../permissions.js"
+import { resolveConfig } from "../config.js"
 import { axMessage } from "../errors.js"
 import { createScratch } from "../scratch.js"
 import { systemPrompt } from "./prompt.js"
 import { streamTurn, type ChatMsg } from "../../gateway.js"
 
 export { type ChatMsg }
-
-const MAX_ROUNDS = 24
 
 const ACT =
   /\b(train|eval|status|generate|init|write|change|run|serve|spawn|launch|jobs?|pull|place|ssh|housing|california|fix|refactor|implement|debug|test|build|commit|search|read|edit|create|add|remove|delete|patch|ship|deploy|investigate|research|analyze|explain|fork|hash|skill|load|summarize|review|trace|profile)\b/i
@@ -82,12 +81,21 @@ export type ToolDoneFn = (info: {
   failed: boolean
 }) => void
 
+/** Host asks the human for once / always / deny. Tool text must not drive this. */
+export type PermitAskFn = (command: string) => Promise<PermitChoice | boolean>
+
+function asChoice(v: PermitChoice | boolean): PermitChoice {
+  if (v === true || v === "once") return "once"
+  if (v === "always") return "always"
+  return "deny"
+}
+
 export async function runTurn(
   train: string,
   history: ChatMsg[],
   onDelta: (chunk: string) => void,
   onTool?: ToolStartFn,
-  onPermit?: (command: string) => Promise<boolean>,
+  onPermit?: PermitAskFn,
   onToolDone?: ToolDoneFn,
 ): Promise<string> {
   const scratch = createScratch()
@@ -103,7 +111,7 @@ async function runTurnInner(
   history: ChatMsg[],
   onDelta: (chunk: string) => void,
   onTool: ToolStartFn | undefined,
-  onPermit: ((command: string) => Promise<boolean>) | undefined,
+  onPermit: PermitAskFn | undefined,
   onToolDone: ToolDoneFn | undefined,
   scratch: ReturnType<typeof createScratch>,
 ): Promise<string> {
@@ -115,6 +123,8 @@ async function runTurnInner(
   let lastFailed = false
   let recovered = false
   let denied = false
+  const cfg = resolveConfig(train)
+  const maxRounds = cfg.max_agent_steps
 
   const act = toolsAllowed(history)
   const system = () =>
@@ -124,7 +134,7 @@ async function runTurnInner(
       progress: progress.length ? progress.map((l, i) => `${i + 1}. ${l}`).join("\n") : "",
     })
 
-  for (let i = 0; i < MAX_ROUNDS; i++) {
+  for (let i = 0; i < maxRounds; i++) {
     const out = await streamTurn(msgs, onDelta, {
       system: system(),
       tools: act ? toolsForTrain(train) : [],
@@ -142,17 +152,22 @@ async function runTurnInner(
         let failed = false
         const label = permitLabel(train, call.name, call.args)
         try {
-          if (toolNeedsPermit(call.name, call.args)) {
-            const ok = onPermit ? await onPermit(label) : false
-            if (!ok) {
-              result = "denied by user"
-              failed = true
-              denied = true
-              progress.push(`${call.name} denied`)
-              onToolDone?.({ name: call.name, label, result, failed: true })
-              msgs.push({ role: "tool", content: result, tool_call_id: call.id })
-              continue
-            }
+          const decision = await authorizeTool(
+            { train, tool: call.name, rawArgs: call.args, label },
+            {
+              ask: onPermit
+                ? async (cmd) => asChoice(await onPermit(cmd))
+                : undefined,
+            },
+          )
+          if (!decision.allow) {
+            result = "denied by user"
+            failed = true
+            denied = true
+            progress.push(`${call.name} denied`)
+            onToolDone?.({ name: call.name, label, result, failed: true })
+            msgs.push({ role: "tool", content: result, tool_call_id: call.id })
+            continue
           }
           if (call.name === "run") {
             const spec = parseRunCommand(call.args)
@@ -168,6 +183,7 @@ async function runTurnInner(
           failed = true
           result = axMessage(err)
         }
+        // Result is evidence for the model only — never fed back into authorizeTool.
         onToolDone?.({ name: call.name, label, result, failed })
         lastFailed = lastFailed || (failed && isRecoverable(result))
         const line = failed

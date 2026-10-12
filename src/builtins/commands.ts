@@ -125,6 +125,8 @@ export const SLASH_SPECS: SlashSpec[] = [
   { name: "/key", hint: "paste an api key · /api", aliases: ["/api"] },
   { name: "/sound", hint: "on · off" },
   { name: "/notify", hint: "on · off · reply desktop alerts" },
+  { name: "/mode", hint: "ask · auto · full-access (permission mode)" },
+  { name: "/permissions", hint: "mode, session always, saved rules", aliases: ["/perms"] },
   { name: "/exit", hint: "leave", aliases: ["/quit"] },
 ]
 

@@ -22,6 +22,21 @@ Do not scatter help strings or argument docs across UI and CLI.
 Default tool schemas live in `src/core/tooling/tool_specs.ts` (also via `src/builtins/tools.ts`).
 Implementations stay in `src/tools/` + `core/tooling/dispatch.ts` — not schemas in each tool file.
 
+## Permissions
+
+Every sensitive tool goes through `authorizeTool` in `core/permissions` — no bypasses.
+
+- Modes: `ask` / `auto` / `full-access` (`yolo` alias). Set via env `AXI_PERMISSION_MODE`, `/mode`, or profile.
+- Exact-command grants vs pattern grants; session `always` is non-persistent; saved rules live in `~/.axi/settings.json`.
+- Tool / model text is evidence only — never a grant or mode change.
+
+## Config
+
+Precedence (highest wins): **env > profile workspace > profile global > project > defaults**.
+
+Project `.axi.json` accepts only repo-safe keys (`max_agent_steps`, `max_tool_result_bytes`, `context`).
+Secrets, providers, and permission rules stay in the profile (`~/.axi`).
+
 Import fat subsystems only through their front doors:
 
 | Subsystem | Front door |
@@ -31,4 +46,6 @@ Import fat subsystems only through their front doors:
 | Compact | `core/compact.ts` |
 | Session | `core/session.ts` |
 | Output | `core/output.ts` |
+| Permissions | `core/permissions.ts` |
+| Config | `core/config.ts` |
 | Gateway | `gateway.ts` |

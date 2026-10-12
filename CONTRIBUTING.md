@@ -46,14 +46,16 @@ Ported from the fx (Zig) style into TypeScript:
 | --- | --- |
 | `cli.ts` | Composition root — wire commands, no leaf logic |
 | `builtins/` | Command/slash specs, provider catalog, system prompt data |
-| `core/` | Contracts, sessions, skills, tool_specs + dispatch, output snapshots, agent loop |
+| `core/` | Contracts, sessions, skills, tool_specs, permissions, config, output, agent loop |
 | `tools/` | Tool implementations only |
 | `ui/` | Render / input / transcript — call into core for product state |
 | `gateway/` | Provider transport + keys |
 
-Import fat subsystems only through front doors (`core/tooling.ts`, `core/skills.ts`, `core/session.ts`, `core/compact.ts`, `core/output.ts`, `gateway.ts`). Before a feature, see `src/core/FEATURE.md`.
+Import fat subsystems only through front doors (`core/tooling.ts`, `core/skills.ts`, `core/session.ts`, `core/compact.ts`, `core/output.ts`, `core/permissions.ts`, `core/config.ts`, `gateway.ts`). Before a feature, see `src/core/FEATURE.md`.
 
 Structured CLI output: build one snapshot in `core/output`, then `renderSnapshot(snap, "text" | "json")`.
+
+Permissions: sensitive tools only via `authorizeTool`. Modes `ask` / `auto` / `full-access`. Config precedence: env > profile workspace > profile global > project > defaults.
 
 ```bash
 npm run check:boundaries
