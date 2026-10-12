@@ -16,7 +16,9 @@ Every case under `cases/<id>/` (must have `prompt.txt`) is classified in [`corpu
 
 ```bash
 npm run check:corpus
-npm test                      # runnable = training + verification
+npm run test:fixture          # zero-cost gate (version + hygiene) — no model spend
+npm run test:hygiene          # unit checks for judge-env strip / usage rollup
+npm test                      # fixture then runnable = training + verification
 npm run test:training
 npm run test:verification
 node scripts/tests/run.mjs follow-skill
@@ -24,3 +26,7 @@ node scripts/tests/run.mjs --class all
 ```
 
 Needs a configured provider (`axi provider`) and a reachable `aq` (`AQ_ROOT` or sibling `../aq`). Work copies land in `.work/` (gitignored).
+
+## Hygiene
+
+Before paid `ask` cases, the runner freezes identity (`axi` path, version, node, git, `AQ_ROOT`, permission mode) into `.work/last.json`, strips `JUDGE_*` / `AXI_JUDGE_*` / `EVAL_JUDGE_*` / `GRADER_*` from the agent env, and treats missing usage as **unknown** (never `$0`). Use `--skip-fixture` only when debugging.

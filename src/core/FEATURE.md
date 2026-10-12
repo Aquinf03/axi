@@ -93,6 +93,7 @@ Cost is a list-price estimate only (not a bill). Do not print usage after every 
 - `npm run check:public-surface` — no personal home paths / API-key-shaped secrets in tracked files
 - `npm run check:budgets` — `dist/` byte cap + median startup for `version` / `help` / `doctor --json`
 - `npm run check:corpus` — every `scripts/tests/cases/*` classified training / verification / excluded
+- Agent evals (`scripts/tests/run.mjs`): zero-cost fixture before paid asks; freeze run identity in `.work/last.json`; strip judge/grader env keys from the agent; missing usage ≠ $0 in cost rollups
 - `npm run smoke` — exercise built `bin/axi` (version / help / provider / doctor); not PATH, not tsx
 - `npm run ready` — build + check + unit + smoke (tests alone are not “ready”)
 - `.github/workflows/ci.yml` runs build → gates → unit → smoke

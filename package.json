@@ -26,7 +26,9 @@
     "test": "node scripts/tests/run.mjs",
     "test:training": "node scripts/tests/run.mjs --class training",
     "test:verification": "node scripts/tests/run.mjs --class verification",
-    "ready": "npm run build && npm run check && npm run test:unit && npm run smoke"
+    "test:fixture": "node scripts/tests/run.mjs --fixture-only",
+    "test:hygiene": "tsx --test scripts/tests/hygiene.test.mjs",
+    "ready": "npm run build && npm run check && npm run test:unit && npm run test:hygiene && npm run test:fixture && npm run smoke"
   },
   "engines": {
     "node": ">=18"

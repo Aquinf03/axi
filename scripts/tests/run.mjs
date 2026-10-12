@@ -5,6 +5,13 @@ import { spawnSync } from "node:child_process"
 import { existsSync, mkdirSync, rmSync, cpSync, readFileSync, writeFileSync, readdirSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
+import {
+  agentEnv,
+  evalIdentity,
+  normalizeUsage,
+  rollupUsage,
+  runZeroCostFixture,
+} from "./hygiene.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const agentRoot = path.resolve(here, "../..")
@@ -94,6 +101,8 @@ function parseAskJson(stdout) {
         return {
           text: typeof payload.text === "string" ? payload.text : "",
           tools: Array.isArray(payload.tools) ? payload.tools : [],
+          usage: payload.usage,
+          harness: typeof payload.harness === "string" ? payload.harness : undefined,
         }
       }
     } catch {
@@ -109,17 +118,20 @@ function ask(train, prompt) {
     cwd: train,
     encoding: "utf8",
     timeout: 240_000,
-    env: { ...process.env, AQ_QUIET: "1" },
+    env: agentEnv(),
   })
   const stdout = r.stdout ?? ""
   const stderr = r.stderr ?? ""
   const payload = parseAskJson(stdout)
+  const usage = normalizeUsage(payload.usage)
   return {
     ok: r.status === 0,
     status: r.status,
     error: r.status === 0 ? "" : (stderr.trim() || stdout.trim() || `exit ${r.status}`),
     text: payload.text,
     tools: payload.tools,
+    harness: payload.harness,
+    usage,
   }
 }
 
@@ -134,7 +146,18 @@ async function runOne(id) {
   const asked = ask(train, prompt)
   writeFileSync(
     path.join(parent, "ask.json"),
-    JSON.stringify({ ok: asked.ok, error: asked.error, text: asked.text, tools: asked.tools }, null, 2) + "\n",
+    JSON.stringify(
+      {
+        ok: asked.ok,
+        error: asked.error,
+        text: asked.text,
+        tools: asked.tools,
+        harness: asked.harness,
+        usage: asked.usage,
+      },
+      null,
+      2,
+    ) + "\n",
   )
   const errors = []
   if (!asked.ok) errors.push(`ask failed: ${asked.error}`)
@@ -156,6 +179,8 @@ async function runOne(id) {
 
 function parseArgs(argv) {
   let klass = "runnable" // training + verification (skip excluded)
+  let skipFixture = false
+  let fixtureOnly = false
   const want = []
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
@@ -166,22 +191,32 @@ function parseArgs(argv) {
       }
       continue
     }
+    if (a === "--skip-fixture") {
+      skipFixture = true
+      continue
+    }
+    if (a === "--fixture-only") {
+      fixtureOnly = true
+      continue
+    }
     if (a === "-h" || a === "--help") {
       console.log(
         [
           "axi agent evals (internal)",
           "",
           "  node scripts/tests/run.mjs [case…] [--class training|verification|excluded|runnable|all]",
+          "                            [--fixture-only] [--skip-fixture]",
           "",
           "Cases are classified in scripts/tests/corpus.json.",
           "Default --class runnable = training + verification (excludes intentional skips).",
+          "Zero-cost fixture (version + hygiene) runs before paid ask cases unless --skip-fixture.",
         ].join("\n"),
       )
       process.exit(0)
     }
     want.push(a)
   }
-  return { klass, want }
+  return { klass, want, skipFixture, fixtureOnly }
 }
 
 async function main() {
@@ -197,7 +232,40 @@ async function main() {
   }
   process.stdout.write(check.stdout || "")
 
-  const { klass, want } = parseArgs(process.argv.slice(2))
+  const { klass, want, skipFixture, fixtureOnly } = parseArgs(process.argv.slice(2))
+  const cmd = agentCmd()
+  const identity = evalIdentity(cmd)
+  mkdirSync(workRoot, { recursive: true })
+
+  if (!skipFixture) {
+    const fx = runZeroCostFixture(cmd)
+    if (!fx.ok) {
+      console.log("fixture  fail  [zero-cost]")
+      for (const e of fx.errors) console.log(`  ${e}`)
+      writeFileSync(
+        path.join(workRoot, "last.json"),
+        JSON.stringify(
+          { at: new Date().toISOString(), identity, fixture: fx, n: 0, failed: 1, class: klass },
+          null,
+          2,
+        ) + "\n",
+      )
+      process.exit(1)
+    }
+    console.log("fixture  pass  [zero-cost]")
+    if (fixtureOnly) {
+      writeFileSync(
+        path.join(workRoot, "last.json"),
+        JSON.stringify(
+          { at: new Date().toISOString(), identity, fixture: { ok: true }, n: 0, failed: 0, class: "fixture" },
+          null,
+          2,
+        ) + "\n",
+      )
+      return
+    }
+  }
+
   const { classOf } = loadCorpus()
   const ids = listCases().filter((id) => {
     if (want.length && !want.includes(id)) return false
@@ -211,11 +279,24 @@ async function main() {
     console.error("no cases")
     process.exit(1)
   }
-  mkdirSync(workRoot, { recursive: true })
   let failed = 0
+  const cases = []
   for (const id of ids) {
     const tag = classOf.get(id) ?? "?"
     const errors = await runOne(id)
+    const askPath = path.join(workRoot, id, "ask.json")
+    let usage = { known: false, usd: null }
+    let harness
+    if (existsSync(askPath)) {
+      try {
+        const asked = JSON.parse(readFileSync(askPath, "utf8"))
+        usage = asked.usage ?? usage
+        harness = asked.harness
+      } catch {
+        /* ignore */
+      }
+    }
+    cases.push({ id, tag, pass: !errors.length, harness, usage })
     if (errors.length) {
       failed += 1
       console.log(`${id}  fail  [${tag}]`)
@@ -225,10 +306,27 @@ async function main() {
     }
   }
   const n = ids.length
+  const cost = rollupUsage(cases.map((c) => c.usage))
   console.log(`${n - failed} passed  ${failed} failed`)
+  if (cost.unknown) {
+    console.log(`usage  ${cost.known} known  ${cost.unknown} unknown  (missing ≠ $0)`)
+  }
+  if (cost.usd != null) console.log(`usd  ~$${cost.usd.toFixed(4)}  (known cases only)`)
   writeFileSync(
     path.join(workRoot, "last.json"),
-    JSON.stringify({ at: new Date().toISOString(), n, failed, class: klass }, null, 2) + "\n",
+    JSON.stringify(
+      {
+        at: new Date().toISOString(),
+        identity,
+        class: klass,
+        n,
+        failed,
+        cost,
+        cases,
+      },
+      null,
+      2,
+    ) + "\n",
   )
   if (failed) process.exit(1)
 }
