@@ -55,7 +55,7 @@ Import fat subsystems only through front doors (`core/tooling.ts`, `core/skills.
 
 Structured CLI output: build one snapshot in `core/output`, then `renderSnapshot(snap, "text" | "json")`.
 
-Permissions: sensitive tools only via `authorizeTool`. Modes `ask` / `auto` / `full-access`. Config precedence: env > profile workspace > profile global > project > defaults.
+Permissions: sensitive tools only via `authorizeTool`. Modes `ask` / `auto` / `plan` (read-only) / `full-access`. Config precedence: env > profile workspace > profile global > project > defaults.
 
 Host env: inject `HostEnv` (`createNativeHost` / `createMemoryHost`) for workspace root, clipboard, and open URL — do not hardcode OS clipboard/open calls in core.
 

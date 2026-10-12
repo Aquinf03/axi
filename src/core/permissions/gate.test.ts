@@ -15,6 +15,39 @@ describe("permissions gate", () => {
     assert.equal(d.allow, true)
   })
 
+  it("plan allows read tools and denies writes without asking", async () => {
+    const read = evaluatePermission(
+      { train: "/tmp", tool: "read", rawArgs: '{"path":"a.ts"}', label: "read a.ts" },
+      "plan",
+      [],
+    )
+    assert.equal(read.action, "allow")
+    assert.equal(read.reason, "mode:plan-safe")
+
+    sessionGrants.allowExact("write", "write a.ts")
+    const write = evaluatePermission(
+      { train: "/tmp", tool: "write", rawArgs: "{}", label: "write a.ts" },
+      "plan",
+      [],
+    )
+    assert.equal(write.action, "deny")
+    assert.equal(write.reason, "mode:plan")
+
+    let asked = false
+    const d = await authorizeTool(
+      { train: "/tmp", tool: "run", rawArgs: "{}", label: "pwd" },
+      {
+        mode: "plan",
+        ask: async () => {
+          asked = true
+          return "once"
+        },
+      },
+    )
+    assert.equal(d.allow, false)
+    assert.equal(asked, false)
+  })
+
   it("read tools are not sensitive", () => {
     const v = evaluatePermission(
       { train: "/tmp", tool: "read", rawArgs: '{"path":"a.ts"}', label: "read a.ts" },

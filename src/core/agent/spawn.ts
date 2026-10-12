@@ -19,6 +19,7 @@ import {
   saveSessionSpec,
   type ChatSpec,
 } from "../session.js"
+import { formatHandoff, readHandoff, rollupChildUsage } from "./handoff.js"
 
 const KILLER_PREAMBLE = [
   "Your job is the cheapest disproof, not agreement.",
@@ -140,7 +141,15 @@ export async function startAgent(
   mkdirSync(sessionDir, { recursive: true })
   writeFileSync(path.join(sessionDir, "prompt.txt"), text + "\n")
 
-  const cmd = aqArgv(["ask", "-y", "--json", train, text])
+  // `env` injects handoff paths into the job without changing the shared waiter.
+  const inner = aqArgv(["ask", "-y", "--json", train, text])
+  const cmd = [
+    "env",
+    `AXI_HANDOFF_DIR=${sessionDir}`,
+    `AXI_HANDOFF_SESSION=${session.id}`,
+    `AXI_HANDOFF_WORKSPACE=${path.resolve(train)}`,
+    ...inner,
+  ]
   const jobId = await enqueueJob(train, cmd)
   await waitForPid(train, jobId)
   session.jobId = jobId
@@ -171,6 +180,11 @@ export async function cancelAgent(train: string, id: string): Promise<AgentSpec>
   return refreshSession(train, spec)
 }
 
+export function agentHandoff(id: string) {
+  const sessionDir = path.join(axiHome(), "chats", id)
+  return readHandoff(sessionDir)
+}
+
 export function agentLog(train: string, id: string, tail = 40): string {
   let spec: ChatSpec
   try {
@@ -184,15 +198,37 @@ export function agentLog(train: string, id: string, tail = 40): string {
   const lines = body.trimEnd().split("\n")
   const slice = lines.slice(-Math.max(1, tail)).join("\n")
   const owner = agent.owner && agent.owner !== "_workspace" ? `  parent ${agent.owner}` : ""
-  return [`${agent.name}  ${agent.id}  ${agent.status}  job ${agent.jobId}${owner}`, agent.prompt, "", slice || "(no log yet)"].join(
-    "\n",
-  )
+  const head = [
+    `${agent.name}  ${agent.id}  ${agent.status}  job ${agent.jobId}${owner}`,
+    agent.prompt,
+  ]
+  const handoff = agentHandoff(id)
+  if (handoff) {
+    head.push("", formatHandoff(handoff))
+  } else {
+    head.push("", "handoff  (pending — prose in the log is not evidence until handoff.json exists)")
+  }
+  head.push("", "log:", slice || "(no log yet)")
+  return head.join("\n")
 }
 
 export function formatAgents(train: string, parentId?: string): string {
   const rows = listAgents(train, parentId)
   if (!rows.length) return "no agents"
-  return rows.map((a) => `${a.id}  ${a.status.padEnd(8)}  ${a.name}`).join("\n")
+  const handoffs = rows.map((a) => agentHandoff(a.id)).filter(Boolean)
+  const rollup = rollupChildUsage(handoffs as NonNullable<(typeof handoffs)[number]>[])
+  const lines = rows.map((a) => {
+    const h = agentHandoff(a.id)
+    const ev = h
+      ? `  evidence ${h.artifacts.length}  usage ${h.usage.known ? "known" : "unknown"}`
+      : "  evidence —"
+    return `${a.id}  ${a.status.padEnd(8)}  ${a.name}${ev}`
+  })
+  if (rollup.known) {
+    const usd = rollup.usd == null ? "unknown" : `~$${rollup.usd.toFixed(4)}`
+    lines.push(`parent cost rollup  in ${rollup.input}  out ${rollup.output}  usd ${usd}`)
+  }
+  return lines.join("\n")
 }
 
 export function spawnHelp(): string {

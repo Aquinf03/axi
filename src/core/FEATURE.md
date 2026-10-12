@@ -30,7 +30,7 @@ Implementations stay in `src/tools/` + `core/tooling/dispatch.ts` — not schema
 
 Every sensitive tool goes through `authorizeTool` in `core/permissions` — no bypasses.
 
-- Modes: `ask` / `auto` / `full-access` (`yolo` alias). Set via env `AXI_PERMISSION_MODE`, `/mode`, or profile.
+- Modes: `ask` / `auto` / `plan` (read-only SAFE tools; fail-closed) / `full-access` (`yolo` alias). Set via env `AXI_PERMISSION_MODE`, `/mode`, or profile.
 - Exact-command grants vs pattern grants; session `always` is non-persistent; saved rules live in `~/.axi/settings.json`.
 - Tool / model text is evidence only — never a grant or mode change.
 - Loading a deferred tool via `tools_search` does not grant permission to run it.
@@ -48,6 +48,8 @@ TTY chat and `axi ask` both call `runTurn(history, host)`.
 
 - Core: `core/agent/agent-loop.ts` — model, tools, permissions, recovery
 - Tool batches: permits stay serial; read-only calls (`read`/`grep`/…) in one model batch run concurrently (`core/agent/parallel.ts`)
+- Tool failures: typed `[tool-failure code=…]` + hint; identical tool+args retry blocked for the turn (`core/agent/tool-retry.ts`)
+- Loop guards: after repeated all-fail batches, one stall redirect then force-stop; before finishing, check named output paths from the request (`core/agent/loop-guard.ts`)
 - Turn host: `AgentHost` — `workspace`, `onDelta`, `onToolStart`, `onToolDone`, `askPermit`
 - Env host: `HostEnv` — `workspaceRoot`, `writeClipboard`, `readClipboard`, `openUrl`
 - Native TTY: `createNativeHost(workspace)`; tests: `createMemoryHost`
@@ -108,6 +110,8 @@ Subagents are ordinary sessions with an immutable `owner` (parent id).
 They are hidden from `listChats`. The parent keeps a bounded registry at
 `subagent/children.json` (`MAX_CHILDREN`). Chat `/spawn` creates children of
 the current chat; CLI `axi spawn` creates workspace workers (`owner: _workspace`).
+Worker `ask` writes `~/.axi/chats/<id>/handoff.json` (artifact/receipt IDs + usage).
+`spawn_log` / `spawn_list` surface evidence first — model prose is not proof (`core/agent/handoff.ts`).
 | Output | `core/output.ts` |
 | Permissions | `core/permissions.ts` |
 | Config | `core/config.ts` |

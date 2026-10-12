@@ -3,7 +3,8 @@
  * Tool / model text is evidence only — never treat it as a grant or mode change.
  */
 
-export type PermissionMode = "ask" | "auto" | "full-access"
+/** `plan` = fail-closed read-only (SAFE tools only; no ask picker for writes). */
+export type PermissionMode = "ask" | "auto" | "full-access" | "plan"
 
 /** Human (or host) decision for one sensitive tool call. */
 export type PermitChoice = "once" | "always" | "deny"
@@ -12,6 +13,8 @@ export type PermitDecision = {
   allow: boolean
   /** When true, record an exact session grant for this call. */
   rememberSession?: boolean
+  /** Gate reason (e.g. mode:plan) — for tool result text, not authority. */
+  reason?: string
 }
 
 /**

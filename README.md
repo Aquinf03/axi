@@ -49,7 +49,7 @@ internals/           local checklists (gitignored — not published)
 
 Fat subsystems have front doors (`core/tooling.ts`, `core/skills.ts`, `core/session.ts`, `core/compact.ts`, `core/output.ts`, `core/permissions.ts`, `core/config.ts`, `gateway.ts`). `npm run check:boundaries` forbids reaching past them. `npm run check:public-surface` rejects personal paths and secret-shaped strings in tracked files. `npm run check:budgets` fails CI if `dist/` or fast CLI startup exceeds `scripts/budgets.json`.
 
-Permission mode: `AXI_PERMISSION_MODE=ask|auto|full-access` (or `/mode` in chat). Project `.axi.json` is repo-safe keys only; keys stay in `~/.axi`.
+Permission mode: `AXI_PERMISSION_MODE=ask|auto|plan|full-access` (or `/mode` in chat). `plan` is fail-closed read-only (no write/run even if you would approve). Project `.axi.json` is repo-safe keys only; keys stay in `~/.axi`.
 
 Host surface (TTY): workspace root, clipboard, and open-URL are injected (`HostEnv`). In chat: `/copy` (last reply), `/url https://…`.
 

@@ -7,6 +7,7 @@ import { createAskHost } from "../hosts.js"
 import { AskSnapshot, renderSnapshot } from "../output.js"
 import { parsePermissionMode, type PermissionMode } from "../permissions.js"
 import { estimateCost, hasUsage } from "../usage.js"
+import { buildHandoff, writeHandoff } from "../agent/handoff.js"
 import { renderMarkdown } from "../../ui/markdown.js"
 import { isTrain } from "../schema.js"
 import { activeLabel } from "../../gateway.js"
@@ -33,13 +34,13 @@ function parseAsk(argv: string[]): {
       mode = m
     } else if (a.startsWith("-")) {
       throw new Error(
-        `unknown flag: ${a}\nusage: axi ask [-y] [--auto|--full-access] [--mode ask|auto|full-access] [--json] [dir] <prompt>`,
+        `unknown flag: ${a}\nusage: axi ask [-y] [--auto|--full-access] [--mode ask|auto|plan|full-access] [--json] [dir] <prompt>`,
       )
     } else rest.push(a)
   }
   if (!rest.length) {
     throw new Error(
-      "usage: axi ask [-y] [--auto|--full-access] [--mode ask|auto|full-access] [--json] [dir] <prompt>",
+      "usage: axi ask [-y] [--auto|--full-access] [--mode ask|auto|plan|full-access] [--json] [dir] <prompt>",
     )
   }
   let train = path.resolve(".")
@@ -51,7 +52,7 @@ function parseAsk(argv: string[]): {
   const prompt = words.join(" ").trim()
   if (!prompt) {
     throw new Error(
-      "usage: axi ask [-y] [--auto|--full-access] [--mode ask|auto|full-access] [--json] [dir] <prompt>",
+      "usage: axi ask [-y] [--auto|--full-access] [--mode ask|auto|plan|full-access] [--json] [dir] <prompt>",
     )
   }
   return { train, prompt, json: flags.has("json"), yes: flags.has("yes"), mode }
@@ -82,6 +83,23 @@ export async function ask(argv: string[]): Promise<void> {
         }
       : undefined
     const snap = new AskSnapshot(text.trim(), tools, usageJson, harness)
+    const handoffDir = process.env.AXI_HANDOFF_DIR?.trim()
+    const handoffSession = process.env.AXI_HANDOFF_SESSION?.trim()
+    if (handoffDir && handoffSession) {
+      const workspace = process.env.AXI_HANDOFF_WORKSPACE?.trim() || train
+      writeHandoff(
+        handoffDir,
+        buildHandoff({
+          sessionId: handoffSession,
+          workspace,
+          text: text.trim(),
+          tools,
+          usage: usageJson,
+          harness,
+          ok: true,
+        }),
+      )
+    }
     if (json) {
       stdout.write(renderSnapshot(snap, "json"))
       return

@@ -15,6 +15,16 @@ import { axMessage } from "../errors.js"
 import { createScratch } from "../scratch.js"
 import { systemPrompt } from "./prompt.js"
 import { harnessFingerprint } from "./harness.js"
+import { classifyToolFailure, createRetryGuard, formatToolFailure } from "./tool-retry.js"
+import {
+  emptyStall,
+  extractNamedOutputs,
+  missingOutputs,
+  noteToolBatch,
+  outputCheckMsg,
+  STALL_REDIRECT_MSG,
+  STALL_STOP_MSG,
+} from "./loop-guard.js"
 import type { AgentHost, PermitAskFn, ToolDoneFn, ToolStartFn } from "./host.js"
 import { runBatch } from "./parallel.js"
 import { streamTurn, type ChatMsg } from "../../gateway.js"
@@ -52,7 +62,9 @@ function isInjectedUser(c: string): boolean {
     c.startsWith("Earlier in this chat") ||
     c.startsWith("Answer the user now") ||
     c.startsWith("Recover:") ||
-    c.startsWith("Stop calling tools.")
+    c.startsWith("Stop calling tools.") ||
+    c.startsWith("Stall:") ||
+    c.startsWith("Before finishing:")
   )
 }
 
@@ -90,9 +102,8 @@ function clip(s: string, n = 240): string {
   return t.length > n ? t.slice(0, n) + "…" : t
 }
 
-function isRecoverable(result: string): boolean {
-  const m = result.toLowerCase()
-  return m.includes("not a train") || m.includes("need experiment.md") || m.includes("outside train")
+function isRecoverable(tool: string, result: string): boolean {
+  return classifyToolFailure(tool, result).recoverable
 }
 
 function asChoice(v: PermitChoice | boolean): PermitChoice {
@@ -130,6 +141,10 @@ async function runTurnInner(
   let denied = false
   let usage = emptyUsage()
   let harness = ""
+  const retries = createRetryGuard()
+  let stall = emptyStall()
+  let outputChecked = false
+  const namedOutputs = extractNamedOutputs(objective)
   const cfg = resolveConfig(train)
   const maxRounds = cfg.max_agent_steps
 
@@ -143,6 +158,18 @@ async function runTurnInner(
 
   const takeUsage = (piece: typeof usage | undefined) => {
     if (piece) usage = addUsage(usage, piece)
+  }
+
+  const forceStop = async (msg: string): Promise<TurnResult> => {
+    const wrapSys = system()
+    if (!harness) harness = harnessFingerprint(wrapSys, [])
+    const wrap = await streamTurn(
+      [...msgs, { role: "user", content: msg }],
+      host.onDelta,
+      { system: wrapSys, tools: [] },
+    )
+    takeUsage(wrap.usage)
+    return { text: wrap.text, usage, harness }
   }
 
   for (let i = 0; i < maxRounds; i++) {
@@ -178,10 +205,16 @@ async function runTurnInner(
             },
           )
           if (!decision.allow) {
+            const raw =
+              decision.reason === "mode:plan"
+                ? "blocked: plan mode is read-only (write/run not allowed)"
+                : "denied by user"
+            const result = formatToolFailure(call.name, raw)
+            retries.record(call.name, call.args, result)
             const o: ToolOutcome = {
               call,
               label,
-              result: "denied by user",
+              result,
               failed: true,
               denied: true,
             }
@@ -189,12 +222,27 @@ async function runTurnInner(
             early.push(o)
             continue
           }
+          const blocked = retries.check(call.name, call.args)
+          if (blocked) {
+            const o: ToolOutcome = {
+              call,
+              label,
+              result: blocked,
+              failed: true,
+              denied: false,
+            }
+            host.onToolDone?.({ name: call.name, label, result: o.result, failed: true })
+            early.push(o)
+            continue
+          }
           approved.push({ call, label })
         } catch (err) {
+          const result = formatToolFailure(call.name, axMessage(err))
+          retries.record(call.name, call.args, result)
           const o: ToolOutcome = {
             call,
             label,
-            result: axMessage(err),
+            result,
             failed: true,
             denied: false,
           }
@@ -219,10 +267,12 @@ async function runTurnInner(
             outcome = { call, label, result, failed: false, denied: false }
           }
         } catch (err) {
+          const result = formatToolFailure(call.name, axMessage(err))
+          retries.record(call.name, call.args, result)
           outcome = {
             call,
             label,
-            result: axMessage(err),
+            result,
             failed: true,
             denied: false,
           }
@@ -241,14 +291,16 @@ async function runTurnInner(
       for (const o of early) byId.set(o.call.id, o)
       for (const o of ran) byId.set(o.call.id, o)
 
+      const batchOutcomes: { failed: boolean; denied: boolean }[] = []
       for (const call of out.toolCalls) {
         const o = byId.get(call.id)
         if (!o) continue
+        batchOutcomes.push({ failed: o.failed, denied: o.denied })
         if (o.denied) {
           denied = true
           progress.push(`${o.call.name} denied`)
         } else {
-          lastFailed = lastFailed || (o.failed && isRecoverable(o.result))
+          lastFailed = lastFailed || (o.failed && isRecoverable(o.call.name, o.result))
           const line = o.failed
             ? `${o.call.name} failed: ${clip(o.result)}`
             : `${o.call.name} ${clip(o.call.args, 80)} → ${clip(o.result)}`
@@ -265,7 +317,15 @@ async function runTurnInner(
             "The human denied a step. Stop tools. Briefly say what is done so far and ask what they want instead. Do not retry the denied action unless they ask.",
         })
         denied = false
+        stall = emptyStall()
         continue
+      }
+
+      const guard = noteToolBatch(stall, batchOutcomes)
+      stall = guard.state
+      if (guard.stop) return forceStop(STALL_STOP_MSG)
+      if (guard.redirect) {
+        msgs.push({ role: "user", content: STALL_REDIRECT_MSG })
       }
       continue
     }
@@ -290,22 +350,18 @@ async function runTurnInner(
       })
       continue
     }
+    if (out.text.trim() && !outputChecked && namedOutputs.length) {
+      const missing = missingOutputs(train, namedOutputs)
+      if (missing.length) {
+        outputChecked = true
+        msgs.push({ role: "assistant", content: out.text })
+        msgs.push({ role: "user", content: outputCheckMsg(missing) })
+        continue
+      }
+    }
     return { text: out.text, usage, harness }
   }
-  const wrapSys = system()
-  if (!harness) harness = harnessFingerprint(wrapSys, [])
-  const wrap = await streamTurn(
-    [
-      ...msgs,
-      {
-        role: "user",
-        content:
-          "Stop calling tools. Tell the user what you already did this turn, the train folder if any, and the exact next command. Do not claim nothing was created if progress shows otherwise.",
-      },
-    ],
-    host.onDelta,
-    { system: wrapSys, tools: [] },
+  return forceStop(
+    "Stop calling tools. Tell the user what you already did this turn, the train folder if any, and the exact next command. Do not claim nothing was created if progress shows otherwise.",
   )
-  takeUsage(wrap.usage)
-  return { text: wrap.text, usage, harness }
 }

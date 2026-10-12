@@ -819,7 +819,7 @@ export function runSlash(line: string, opts: SlashOpts = {}): SlashResult {
       return { text: `mode  ${cfg.permission_mode}  (${cfg.sources.permission_mode})` }
     }
     const mode = parsePermissionMode(arg)
-    if (!mode) return { text: "usage: /mode ask|auto|full-access" }
+    if (!mode) return { text: "usage: /mode ask|auto|plan|full-access" }
     setPermissionModeWorkspace(workspace, mode)
     return { text: `mode  ${mode}  (profile workspace)` }
   }

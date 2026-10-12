@@ -27,14 +27,21 @@ export type GateOptions = {
 
 /**
  * Decide whether a tool call may run.
- * Order: full-access → not sensitive → session deny → saved deny →
- * session allow → saved allow → ask (auto unresolved also asks until a classifier exists).
+ * Order: plan (fail-closed SAFE) → full-access → not sensitive → session deny →
+ * saved deny → session allow → saved allow → ask (auto unresolved also asks).
  */
 export function evaluatePermission(
   req: AuthRequest,
   mode: PermissionMode,
   rules: SavedRule[],
 ): AuthResult {
+  // Plan: read-only at the boundary. Session "always" / saved allows cannot widen it.
+  if (mode === "plan") {
+    if (!toolIsSensitive(req.tool, req.rawArgs)) {
+      return { action: "allow", reason: "mode:plan-safe" }
+    }
+    return { action: "deny", reason: "mode:plan" }
+  }
   if (mode === "full-access") {
     return { action: "allow", reason: "mode:full-access" }
   }
@@ -75,19 +82,19 @@ export async function authorizeTool(
   const rules = opts.rules ?? cfg.permission_rules
   const verdict = evaluatePermission(req, mode, rules)
 
-  if (verdict.action === "allow") return { allow: true }
-  if (verdict.action === "deny") return { allow: false }
+  if (verdict.action === "allow") return { allow: true, reason: verdict.reason }
+  if (verdict.action === "deny") return { allow: false, reason: verdict.reason }
 
-  if (!opts.ask) return { allow: false }
+  if (!opts.ask) return { allow: false, reason: verdict.reason }
 
   const choice = await opts.ask(req.label)
-  if (choice === "deny") return { allow: false }
+  if (choice === "deny") return { allow: false, reason: "ask:deny" }
   if (choice === "always") {
     // Session-only exact grant — never inferred from tool output text.
     sessionGrants.allowExact(req.tool, req.label)
-    return { allow: true, rememberSession: true }
+    return { allow: true, rememberSession: true, reason: "ask:always" }
   }
-  return { allow: true }
+  return { allow: true, reason: "ask:once" }
 }
 
 /** Status text for /permissions. */

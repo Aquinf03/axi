@@ -338,12 +338,14 @@ export const DEFERRED_TOOLS: AgentToolDef[] = [
   },
   {
     name: "spawn_list",
-    description: "List worker agents on this train.",
+    description:
+      "List worker agents and evidence counts. Parent cost rollup when handoffs report usage. Last sentence ≠ proof.",
     parameters: { type: "object", properties: {} },
   },
   {
     name: "spawn_log",
-    description: "Show a worker agent's log and status.",
+    description:
+      "Show a worker handoff (artifact/receipt IDs + usage) and log. Prose in the log is not proof — cite handoff artifacts.",
     parameters: {
       type: "object",
       properties: { id: { type: "string", description: "agent id" } },
