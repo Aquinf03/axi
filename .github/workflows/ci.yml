@@ -38,5 +38,8 @@ jobs:
       - name: Size + startup budgets
         run: npm run check:budgets
 
+      - name: E2E corpus classification
+        run: npm run check:corpus
+
       - name: Unit tests
         run: npm run test:unit

@@ -61,7 +61,9 @@ Sessions: portable ids under `~/.axi/chats/<id>/` with `workspace_root`. Spawn w
 
 ```bash
 npm run build
-npm test                 # or: node scripts/tests/run.mjs follow-skill
+npm test                 # agent evals (corpus: training + verification)
+npm run test:training    # core cases only
+npm run check:corpus     # every case classified in scripts/tests/corpus.json
 ```
 
-Needs a configured provider (`axi provider …`). Train-related evals also need a reachable `aq`.
+Needs a configured provider (`axi provider …`). Train-related evals also need a reachable `aq`. Cases are classified training / verification / excluded — see `scripts/tests/README.md`.

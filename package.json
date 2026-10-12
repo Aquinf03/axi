@@ -19,9 +19,12 @@
     "check:boundaries": "bash scripts/check-module-boundaries.sh",
     "check:budgets": "node scripts/check-budgets.mjs",
     "check:public-surface": "bash scripts/check-public-surface.sh",
-    "check": "npm run check:boundaries && npm run check:public-surface && npm run check:budgets",
+    "check:corpus": "node scripts/tests/check-corpus.mjs",
+    "check": "npm run check:boundaries && npm run check:public-surface && npm run check:budgets && npm run check:corpus",
     "test:unit": "tsx --test 'src/**/*.test.ts'",
-    "test": "node scripts/tests/run.mjs"
+    "test": "node scripts/tests/run.mjs",
+    "test:training": "node scripts/tests/run.mjs --class training",
+    "test:verification": "node scripts/tests/run.mjs --class verification"
   },
   "engines": {
     "node": ">=18"

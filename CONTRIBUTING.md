@@ -67,10 +67,13 @@ Sessions: global under `~/.axi/chats/<id>/`. Subagents are child sessions with `
 npm run check:boundaries      # front-door import greps (fx check-compactor-boundary analogue)
 npm run check:public-surface  # no personal paths / real-looking secrets in tracked files
 npm run check:budgets         # dist size + fast-command startup (scripts/budgets.json)
-npm run check                 # boundaries + public surface + budgets
+npm run check:corpus          # every E2E case classified in scripts/tests/corpus.json
+npm run check                 # all of the above
 ```
 
 CI (`.github/workflows/ci.yml`) runs build, those checks, and `test:unit` on every PR/push to main.
+
+E2E cases must live in exactly one of `training` / `verification` / `excluded` with a reason — see `scripts/tests/README.md`.
 
 Budgets are Node-realistic (not fx’s native 2 ms): bump `scripts/budgets.json` only with an intentional reason.
 

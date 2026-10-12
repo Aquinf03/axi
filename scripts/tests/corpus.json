@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "notes": "Every scripts/tests/cases/<id>/ with prompt.txt must appear in exactly one bucket. training = core agent behaviors (default npm test). verification = still run for release confidence, not the default smoke set. excluded = intentional skip with a reason. Unit tests (src/**/*.test.ts) are CI verification via test:unit and are not listed here.",
+  "training": {
+    "follow-skill": "Load a project skill and follow its steps before training — core skill + aq loop.",
+    "use-tool": "Prefer an existing train tool over inventing a new script.",
+    "file-a-job": "Detach long work into jobs/ instead of blocking the foreground.",
+    "status-diff-checkout": "Inspect status/diff without mutating the train checkout.",
+    "stay-in-train": "Sandbox: refuse writing outside the train (tmp / parent escapes).",
+    "recover-failed-tool": "Continue after a failed tool and finish the task."
+  },
+  "verification": {
+    "fork-dont-mutate": "Fork + train a variant without mutating the parent recipe — longer path, release verify.",
+    "run-aq-eval": "Train then run aq eval and report failure honestly — credential/aq-heavy verify."
+  },
+  "excluded": {}
+}
