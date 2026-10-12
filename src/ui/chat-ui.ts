@@ -9,6 +9,7 @@ import { renderMarkdown } from "./markdown.js"
 import { compactHistory } from "../core/compact.js"
 import { beginUndo, clearUndo, commitUndo, undoLast } from "../core/agent/undo.js"
 import { measureContext, contextFull } from "../core/agent/context.js"
+import { createUsageMeter, hasUsage } from "../core/usage.js"
 import {
   activeId,
   activeLabel,
@@ -30,6 +31,7 @@ import { notifyReply } from "./notify.js"
 import { playCue } from "./sound.js"
 import { loadImage, type ChatImage } from "../core/agent/image.js"
 import { extraTools, listSkills, shutdownSkills } from "../core/skills.js"
+import { clearDeferredTools } from "../core/tooling.js"
 import { agentLog, cancelAgent, formatAgents, listAgents, startAgent } from "../core/agent/spawn.js"
 import { formatDoctor, runDoctor } from "../core/commands/doctor.js"
 import { isTrain } from "../core/schema.js"
@@ -276,6 +278,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
 
   /** Exclusive UI only — permits / confirms. Slash menus stay inline. */
   const alt = createAltScreen(write)
+  const usageMeter = createUsageMeter()
 
   const wipeMenu = () => {
     write("\r\x1b[J")
@@ -427,15 +430,6 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
     return `${BOLD}axi${RESET}${DIM} ${VERSION} · ${spec.name} · ${shortPath(train)} · ${activeLabel()} · ${snap.pct} · /  settings${RESET}`
   }
 
-  /**
-   * Status refresh for chat switches. Prints one inline line — never absolute
-   * row 1 (that overwrites scrollback). Skipped while an alt-screen owner is up.
-   */
-  const paintHeader = () => {
-    if (alt.active()) return
-    write(`${DIM}· ${spec.name} · ${shortPath(train)} · ${activeLabel()}${RESET}\n`)
-  }
-
   const sessionStatus = () => {
     const id = activeId()
     const snap = measureContext(train, history, contextWindow())
@@ -470,7 +464,12 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       row("skills", skills.length ? skills.join(" ") : "none"),
       row("mcp", mcp.length ? mcp.map((t) => t.name).join(" ") : "none"),
     ]
-    return lines.join("\n")
+    const model = activeLabel()
+    const usageLines =
+      hasUsage(usageMeter.turn) || hasUsage(usageMeter.chat)
+        ? ["", usageMeter.block(model, "turn"), usageMeter.block(model, "chat")]
+        : ["", "tokens  —  (no provider usage yet this chat)"]
+    return [...lines, ...usageLines].join("\n")
   }
 
   const welcome = () => {
@@ -566,7 +565,6 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
           history.push(...r.history)
           saveChat(train, spec, history)
           note(`compacted  ${r.pct}`)
-          paintHeader()
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
@@ -591,6 +589,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       done = true
       saveChat(train, spec, history)
       shutdownSkills(train)
+      clearDeferredTools(train)
       stdin.off("data", onData)
       restore()
       resolve()
@@ -677,7 +676,6 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         cursor = 0
         pick = 0
         note(`resumed  ${spec.name}  ${spec.id}`)
-        paintHeader()
         paintComposer()
         return true
       }
@@ -693,7 +691,6 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         cursor = 0
         pick = 0
         note(`new chat  ${spec.id}`)
-        paintHeader()
         paintComposer()
         return true
       }
@@ -742,7 +739,6 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         chatFocus = spec.id
         playCue("click")
         note(`deleted  ${goneName}  ${id}`)
-        paintHeader()
         enterScreen("chats")
         paintComposer()
         return true
@@ -791,7 +787,6 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       chatFocus = spec.id
       setTabTitle(spec.name)
       note(`opened  ${spec.name}  ${spec.id}`)
-      paintHeader()
       paintComposer()
     }
 
@@ -805,7 +800,6 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       chatFocus = spec.id
       setTabTitle(spec.name)
       note(`new chat  ${spec.id}`)
-      paintHeader()
       paintComposer()
     }
 
@@ -815,7 +809,6 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         named = true
         setTabTitle(spec.name)
         note(`renamed  ${spec.name}  ${spec.id}`)
-        paintHeader()
         paintComposer()
         return
       }
@@ -853,7 +846,6 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       }
       chatFocus = spec.id
       note(`deleted  ${goneName}  ${id}`)
-      paintHeader()
       paintComposer()
     }
 
@@ -937,7 +929,6 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         if (out.historyLen >= 0) {
           history.length = out.historyLen
           saveChat(train, spec, history)
-          paintHeader()
         }
         note(out.text)
         paintComposer()
@@ -997,7 +988,6 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         setTabTitle(spec.name)
         playCue("click")
         note(`deleted  ${gone} chat${gone === 1 ? "" : "s"}`)
-        paintHeader()
         paintComposer()
         return
       }
@@ -1108,7 +1098,6 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         renameFor = false
         playCue("click")
         note(`renamed  ${target.name}  ${target.id}`)
-        paintHeader()
         enterScreen("chat")
         paintComposer()
         return
@@ -1340,7 +1329,10 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
             }
           },
         }
-        const reply = await runTurn(history, host)
+        usageMeter.beginTurn()
+        const { text: reply, usage } = await runTurn(history, host)
+        usageMeter.record(usage)
+        usageMeter.endTurn()
         stopSpin()
         if (!started) write(`\r\x1b[K`)
         flushPending()
@@ -1354,11 +1346,9 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
           const lastUser = [...history].reverse().find((m) => m.role === "user")
           void nameChat(train, spec, lastUser?.content ?? "", reply, history).then((s) => {
             spec = s
-            paintHeader()
           })
         }
         write("\n\n")
-        paintHeader()
         if (contextFull(measureContext(train, history, contextWindow()))) {
           write("\x1b[?25h")
           busy = false

@@ -59,40 +59,12 @@ function nativeAqTools(): AgentToolDef[] {
   }))
 }
 
-export const AGENT_TOOLS: AgentToolDef[] = [
-  {
-    name: "memory_search",
-    description: "Search memory for this train (~/.axi/memory, keyed like chats).",
-    parameters: {
-      type: "object",
-      properties: { query: { type: "string", description: "keywords" } },
-      required: ["query"],
-    },
-  },
-  {
-    name: "memory_read",
-    description: "Read one memory entry by title (~/.axi/memory for this train).",
-    parameters: {
-      type: "object",
-      properties: { name: { type: "string", description: "note stem" } },
-      required: ["name"],
-    },
-  },
-  {
-    name: "memory_write",
-    description: "Save a durable memory entry for this train (~/.axi/memory). Like pinning a chat note — not a file in the experiment folder.",
-    parameters: {
-      type: "object",
-      properties: {
-        name: { type: "string", description: "stem like run-notes" },
-        body: { type: "string", description: "markdown body" },
-      },
-      required: ["name", "body"],
-    },
-  },
+/** Always sent to the model — general coding core + discovery. */
+export const CORE_TOOLS: AgentToolDef[] = [
   {
     name: "tools_search",
-    description: "Search builtins, tools/, aq commands, and skills.",
+    description:
+      "Search builtins, aq commands, tools/, and skills. Matching deferred tools (aq_*, spawn, plot, memory_*) are loaded into this session so you can call them next. Discovering a tool does not approve it — sensitive calls still need a permit.",
     parameters: {
       type: "object",
       properties: { query: { type: "string", description: "keywords" } },
@@ -222,6 +194,22 @@ export const AGENT_TOOLS: AgentToolDef[] = [
     },
   },
   {
+    name: "run",
+    description:
+      "Run a shell command in the train. Human must approve. Set detach true for servers/watchers so they live in jobs/ and survive this prompt dying.",
+    parameters: {
+      type: "object",
+      properties: {
+        command: { type: "string", description: "the full command" },
+        detach: {
+          type: "boolean",
+          description: "true for long-running: job in jobs/, log file, survives disconnect",
+        },
+      },
+      required: ["command"],
+    },
+  },
+  {
     name: "web_search",
     description:
       "Search the public web. OpenAI, Anthropic, and Grok use their built-in search (same API key). Ollama uses a key-free fallback. Then web_fetch a URL if you need the page.",
@@ -279,19 +267,48 @@ export const AGENT_TOOLS: AgentToolDef[] = [
     },
   },
   {
-    name: "run",
-    description:
-      "Run a shell command in the train. Human must approve. Set detach true for servers/watchers so they live in jobs/ and survive this prompt dying.",
+    name: "skills_search",
+    description: "Search skills/ by name or first line. Empty query lists them.",
+    parameters: {
+      type: "object",
+      properties: { query: { type: "string", description: "keywords, or empty to list" } },
+    },
+  },
+]
+
+/**
+ * Platform / rare tools — schemas omitted until tools_search loads them for the session.
+ * Loading is discovery only; authorizeTool still gates sensitive calls.
+ */
+export const DEFERRED_TOOLS: AgentToolDef[] = [
+  {
+    name: "memory_search",
+    description: "Search memory for this train (~/.axi/memory, keyed like chats).",
+    parameters: {
+      type: "object",
+      properties: { query: { type: "string", description: "keywords" } },
+      required: ["query"],
+    },
+  },
+  {
+    name: "memory_read",
+    description: "Read one memory entry by title (~/.axi/memory for this train).",
+    parameters: {
+      type: "object",
+      properties: { name: { type: "string", description: "note stem" } },
+      required: ["name"],
+    },
+  },
+  {
+    name: "memory_write",
+    description: "Save a durable memory entry for this train (~/.axi/memory). Like pinning a chat note — not a file in the experiment folder.",
     parameters: {
       type: "object",
       properties: {
-        command: { type: "string", description: "the full command" },
-        detach: {
-          type: "boolean",
-          description: "true for long-running: job in jobs/, log file, survives disconnect",
-        },
+        name: { type: "string", description: "stem like run-notes" },
+        body: { type: "string", description: "markdown body" },
       },
-      required: ["command"],
+      required: ["name", "body"],
     },
   },
   {
@@ -360,12 +377,17 @@ export const AGENT_TOOLS: AgentToolDef[] = [
       },
     },
   },
-  {
-    name: "skills_search",
-    description: "Search skills/ by name or first line. Empty query lists them.",
-    parameters: {
-      type: "object",
-      properties: { query: { type: "string", description: "keywords, or empty to list" } },
-    },
-  },
 ]
+
+/** Full catalog (core + deferred). Not what is sent every turn — see toolsForTrain. */
+export const AGENT_TOOLS: AgentToolDef[] = [...CORE_TOOLS, ...DEFERRED_TOOLS]
+
+const DEFERRED_BY_NAME = new Map(DEFERRED_TOOLS.map((t) => [t.name, t]))
+
+export function isDeferredTool(name: string): boolean {
+  return DEFERRED_BY_NAME.has(name)
+}
+
+export function deferredToolDef(name: string): AgentToolDef | undefined {
+  return DEFERRED_BY_NAME.get(name)
+}

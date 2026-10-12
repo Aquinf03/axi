@@ -29,9 +29,13 @@ import { runTrainTool } from "../../tools/train-tools.js"
 import { webFetch, webSearch } from "../../tools/web.js"
 
 import {
-  AGENT_TOOLS,
-  type AgentToolDef,
-} from "./tool_specs.js"
+  clearDeferredTools,
+  deferredDigest,
+  loadDeferredFromSearch,
+  loadedDeferredTools,
+  requireDeferredLoaded,
+} from "./deferred.js"
+import { CORE_TOOLS, type AgentToolDef } from "./tool_specs.js"
 
 
 const ALLOW = new Set([
@@ -185,17 +189,21 @@ export function contextBlock(train: string): string {
     memoryDigest(train),
     skillsDigest(train),
     toolsDigest(train),
+    deferredDigest(train),
   ]
   return ["", ...bits].filter(Boolean).join("\n")
 }
 
 export function toolsForTrain(train: string): AgentToolDef[] {
-  return [...AGENT_TOOLS, ...extraTools(train)]
+  return [...CORE_TOOLS, ...loadedDeferredTools(train), ...extraTools(train)]
 }
+
+export { clearDeferredTools }
 
 export async function runAgentTool(train: string, name: string, rawArgs: string): Promise<string> {
   const mcp = await callMcpTool(train, name, rawArgs)
   if (mcp != null) return mcp
+  requireDeferredLoaded(train, name)
   let args: Record<string, unknown> = {}
   if (rawArgs.trim()) {
     try {
@@ -213,7 +221,16 @@ export async function runAgentTool(train: string, name: string, rawArgs: string)
     const n = writeMemory(train, jsonArg(args, "name"), jsonArg(args, "body"))
     return `wrote memory entry "${n}" (~/.axi/memory)`
   }
-  if (name === "tools_search") return formatCards(searchTools(train, jsonArg(args, "query")))
+  if (name === "tools_search") {
+    const cards = searchTools(train, jsonArg(args, "query"))
+    const loaded = loadDeferredFromSearch(
+      train,
+      cards.map((c) => c.name),
+    )
+    const body = formatCards(cards)
+    if (!loaded.length) return body
+    return `${body}\n\nloaded for this session: ${loaded.join(", ")}\n(discover ≠ authorize — sensitive tools still need a permit)`
+  }
   if (name === "ls") {
     const p = typeof args.path === "string" && args.path.trim() ? args.path : "."
     return ls(train, p)

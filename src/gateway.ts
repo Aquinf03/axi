@@ -16,6 +16,7 @@ export type {
   SlashOpts,
   SlashResult,
   StreamOut,
+  TokenUsageOut,
 } from "./gateway/provider.js"
 export {
   CATALOG,
@@ -40,6 +41,7 @@ export {
   setTemperature,
   slashMatches,
   soundEnabled,
+  parseProviderUsage,
   streamChat,
   streamTurn,
   temperature,

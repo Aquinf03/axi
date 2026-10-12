@@ -133,14 +133,40 @@ export class DoctorSnapshot {
   }
 }
 
+export type AskUsageJson = {
+  input: number
+  output: number
+  cachedInput: number
+  cacheWrite: number
+  calls: number
+  /** Estimated USD from list rates; null when unknown. */
+  usd: number | null
+}
+
 export class AskSnapshot {
   constructor(
     private readonly text: string,
     private readonly tools: { name: string; args: string }[],
+    private readonly usage?: AskUsageJson,
+    /** First-round system+tools digest for eval drift detection. */
+    private readonly harness?: string,
   ) {}
 
-  toJson(): { text: string; tools: { name: string; args: string }[] } {
-    return { text: this.text, tools: this.tools }
+  toJson(): {
+    text: string
+    tools: { name: string; args: string }[]
+    usage?: AskUsageJson
+    harness?: string
+  } {
+    const base: {
+      text: string
+      tools: { name: string; args: string }[]
+      usage?: AskUsageJson
+      harness?: string
+    } = { text: this.text, tools: this.tools }
+    if (this.usage) base.usage = this.usage
+    if (this.harness) base.harness = this.harness
+    return base
   }
 
   toText(): string {

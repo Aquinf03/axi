@@ -42,6 +42,11 @@ describe("snapshots", () => {
     assert.equal(snap.toText(), "hello")
   })
 
+  it("ask json includes harness when provided", () => {
+    const snap = new AskSnapshot("hi", [], undefined, "abcd1234efgh5678")
+    assert.equal(snap.toJson().harness, "abcd1234efgh5678")
+  })
+
   it("version and providers render both formats", () => {
     const v = new VersionSnapshot(
       {

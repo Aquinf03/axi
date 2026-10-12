@@ -906,9 +906,58 @@ export type AgentToolJson = {
   }
 }
 
+export type TokenUsageOut = {
+  input: number
+  output: number
+  cachedInput: number
+  cacheWrite: number
+  calls: number
+}
+
 export type StreamOut = {
   text: string
   toolCalls: { id: string; name: string; args: string }[]
+  /** Provider-reported usage for this model call (when the stream includes it). */
+  usage?: TokenUsageOut
+}
+
+/** Normalize OpenAI / Anthropic / Responses usage blobs into TokenUsageOut. */
+export function parseProviderUsage(raw: unknown): TokenUsageOut | undefined {
+  if (!raw || typeof raw !== "object") return undefined
+  const u = raw as Record<string, unknown>
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0)
+
+  // OpenAI chat.completions style
+  const prompt = num(u.prompt_tokens)
+  const completion = num(u.completion_tokens)
+  const details = (u.prompt_tokens_details ?? u.input_tokens_details) as Record<string, unknown> | undefined
+  const cachedFromDetails = num(details?.cached_tokens)
+
+  // Responses / newer style
+  const input = num(u.input_tokens) || prompt
+  const output = num(u.output_tokens) || completion
+  const cached =
+    cachedFromDetails ||
+    num(u.cache_read_input_tokens) ||
+    num((u.input_tokens_details as Record<string, unknown> | undefined)?.cached_tokens)
+
+  // Anthropic
+  const cacheRead = num(u.cache_read_input_tokens)
+  const cacheWrite = num(u.cache_creation_input_tokens)
+  const anthIn = num(u.input_tokens)
+  const anthOut = num(u.output_tokens)
+
+  const inTok = input || anthIn || prompt
+  const outTok = output || anthOut || completion
+  if (inTok <= 0 && outTok <= 0 && cached <= 0 && cacheRead <= 0 && cacheWrite <= 0) return undefined
+
+  return {
+    input: inTok || anthIn,
+    output: outTok || anthOut,
+    cachedInput: cached || cacheRead,
+    cacheWrite,
+    calls: 1,
+  }
 }
 
 function openaiMessages(system: string, history: ChatMsg[]) {
@@ -1092,6 +1141,7 @@ async function streamResponses(
   let text = ""
   const calls: { id: string; name: string; args: string }[] = []
   const byIndex = new Map<number, number>()
+  let usage: TokenUsageOut | undefined
   for await (const line of sseLines(res)) {
     if (!line.startsWith("data:")) continue
     const raw = line.slice(5).trim()
@@ -1101,6 +1151,8 @@ async function streamResponses(
       delta?: string
       output_index?: number
       item?: { type?: string; call_id?: string; name?: string; arguments?: string }
+      response?: { usage?: unknown }
+      usage?: unknown
       error?: { message?: string }
     }
     try {
@@ -1131,10 +1183,13 @@ async function streamResponses(
       const i = byIndex.get(j.output_index ?? 0)
       if (i != null && calls[i]) calls[i]!.args += j.delta
     }
+    if (typ === "response.completed") {
+      usage = parseProviderUsage(j.response?.usage ?? j.usage) ?? usage
+    }
   }
   const toolCalls = calls.filter((c) => c.name).map((c, i) => ({ ...c, id: c.id || `call_${i}` }))
   if (!text && !toolCalls.length) throw new Error("empty reply")
-  return { text, toolCalls }
+  return { text, toolCalls, usage }
 }
 
 export async function streamTurn(
@@ -1190,6 +1245,7 @@ export async function streamTurn(
     let text = ""
     const blocks: { id: string; name: string; args: string }[] = []
     const byIndex = new Map<number, number>()
+    let usage: TokenUsageOut | undefined
     for await (const line of sseLines(res)) {
       if (!line.startsWith("data:")) continue
       const raw = line.slice(5).trim()
@@ -1199,6 +1255,8 @@ export async function streamTurn(
         index?: number
         content_block?: { type?: string; id?: string; name?: string }
         delta?: { type?: string; text?: string; partial_json?: string }
+        usage?: unknown
+        message?: { usage?: unknown }
         error?: { message?: string }
       }
       try {
@@ -1223,9 +1281,25 @@ export async function streamTurn(
         const i = byIndex.get(j.index ?? 0)
         if (i != null && blocks[i]) blocks[i]!.args += j.delta.partial_json ?? ""
       }
+      if (j.type === "message_start" && j.message?.usage) {
+        usage = parseProviderUsage(j.message.usage) ?? usage
+      }
+      if (j.type === "message_delta" && j.usage) {
+        // message_delta usually carries output_tokens; merge onto message_start input.
+        const piece = parseProviderUsage(j.usage)
+        if (piece) {
+          usage = {
+            input: Math.max(usage?.input ?? 0, piece.input),
+            output: Math.max(usage?.output ?? 0, piece.output),
+            cachedInput: Math.max(usage?.cachedInput ?? 0, piece.cachedInput),
+            cacheWrite: Math.max(usage?.cacheWrite ?? 0, piece.cacheWrite),
+            calls: 1,
+          }
+        }
+      }
     }
     if (!text && !blocks.length) throw new Error("empty reply")
-    return { text, toolCalls: blocks.filter((b) => b.name) }
+    return { text, toolCalls: blocks.filter((b) => b.name), usage }
   }
 
   if (id === "openai" || id === "grok") {
@@ -1241,6 +1315,7 @@ export async function streamTurn(
     body: JSON.stringify({
       model,
       stream: true,
+      stream_options: { include_usage: true },
       messages: openaiMessages(system, history),
       ...temperatureBody(),
       ...(fns.length ? { tools: openaiTools(fns) } : {}),
@@ -1253,6 +1328,7 @@ export async function streamTurn(
   }
   let text = ""
   const calls: { id: string; name: string; args: string }[] = []
+  let usage: TokenUsageOut | undefined
   for await (const line of sseLines(res)) {
     if (!line.startsWith("data:")) continue
     const raw = line.slice(5).trim()
@@ -1264,6 +1340,7 @@ export async function streamTurn(
           tool_calls?: { index?: number; id?: string; function?: { name?: string; arguments?: string } }[]
         }
       }[]
+      usage?: unknown
       error?: { message?: string }
     }
     try {
@@ -1285,12 +1362,13 @@ export async function streamTurn(
       if (tc.function?.name) row.name = tc.function.name
       if (tc.function?.arguments) row.args += tc.function.arguments
     }
+    if (j.usage) usage = parseProviderUsage(j.usage) ?? usage
   }
   const toolCalls = calls
     .filter((c) => c.name)
     .map((c, i) => ({ ...c, id: c.id || `call_${i}` }))
   if (!text && !toolCalls.length) throw new Error("empty reply")
-  return { text, toolCalls }
+  return { text, toolCalls, usage }
 }
 
 export async function streamChat(

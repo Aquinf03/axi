@@ -6,8 +6,10 @@ import { runTurn } from "../agent/agent-loop.js"
 import { createAskHost } from "../hosts.js"
 import { AskSnapshot, renderSnapshot } from "../output.js"
 import { parsePermissionMode, type PermissionMode } from "../permissions.js"
+import { estimateCost, hasUsage } from "../usage.js"
 import { renderMarkdown } from "../../ui/markdown.js"
 import { isTrain } from "../schema.js"
+import { activeLabel } from "../../gateway.js"
 
 function parseAsk(argv: string[]): {
   train: string
@@ -66,8 +68,20 @@ export async function ask(argv: string[]): Promise<void> {
       { workspace: train, quiet: json, autoYes: yes },
       tools,
     )
-    const text = await runTurn([{ role: "user", content: prompt }], host)
-    const snap = new AskSnapshot(text.trim(), tools)
+    const { text, usage, harness } = await runTurn([{ role: "user", content: prompt }], host)
+    const model = activeLabel()
+    const cost = estimateCost(usage, model)
+    const usageJson = hasUsage(usage)
+      ? {
+          input: usage.input,
+          output: usage.output,
+          cachedInput: usage.cachedInput,
+          cacheWrite: usage.cacheWrite,
+          calls: usage.calls,
+          usd: cost.usd,
+        }
+      : undefined
+    const snap = new AskSnapshot(text.trim(), tools, usageJson, harness)
     if (json) {
       stdout.write(renderSnapshot(snap, "json"))
       return

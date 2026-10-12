@@ -14,11 +14,31 @@ import { resolveConfig } from "../config.js"
 import { axMessage } from "../errors.js"
 import { createScratch } from "../scratch.js"
 import { systemPrompt } from "./prompt.js"
+import { harnessFingerprint } from "./harness.js"
 import type { AgentHost, PermitAskFn, ToolDoneFn, ToolStartFn } from "./host.js"
+import { runBatch } from "./parallel.js"
 import { streamTurn, type ChatMsg } from "../../gateway.js"
+import { addUsage, emptyUsage, type TokenUsage } from "../usage.js"
+
+type ToolCall = { id: string; name: string; args: string }
+
+type ToolOutcome = {
+  call: ToolCall
+  label: string
+  result: string
+  failed: boolean
+  denied: boolean
+}
 
 export { type ChatMsg }
 export type { AgentHost, PermitAskFn, ToolDoneFn, ToolDoneInfo, ToolStartFn } from "./host.js"
+
+export type TurnResult = {
+  text: string
+  usage: TokenUsage
+  /** sha256[:16] of first-round system + tool schemas (eval drift detection). */
+  harness: string
+}
 
 const ACT =
   /\b(train|eval|status|generate|init|write|change|run|serve|spawn|launch|jobs?|pull|place|ssh|housing|california|fix|refactor|implement|debug|test|build|commit|search|read|edit|create|add|remove|delete|patch|ship|deploy|investigate|research|analyze|explain|fork|hash|skill|load|summarize|review|trace|profile)\b/i
@@ -85,7 +105,7 @@ function asChoice(v: PermitChoice | boolean): PermitChoice {
  * Shared agent core for TTY chat and one-shot ask.
  * Hosts only supply I/O via `AgentHost` — they do not own the turn loop.
  */
-export async function runTurn(history: ChatMsg[], host: AgentHost): Promise<string> {
+export async function runTurn(history: ChatMsg[], host: AgentHost): Promise<TurnResult> {
   const scratch = createScratch()
   try {
     return await runTurnInner(history, host, scratch)
@@ -98,7 +118,7 @@ async function runTurnInner(
   history: ChatMsg[],
   host: AgentHost,
   scratch: ReturnType<typeof createScratch>,
-): Promise<string> {
+): Promise<TurnResult> {
   const train = host.workspace
   const objective = lastUserRequest(history)
   scratch.push("objective", objective)
@@ -108,6 +128,8 @@ async function runTurnInner(
   let lastFailed = false
   let recovered = false
   let denied = false
+  let usage = emptyUsage()
+  let harness = ""
   const cfg = resolveConfig(train)
   const maxRounds = cfg.max_agent_steps
 
@@ -119,11 +141,19 @@ async function runTurnInner(
       progress: progress.length ? progress.map((l, i) => `${i + 1}. ${l}`).join("\n") : "",
     })
 
+  const takeUsage = (piece: typeof usage | undefined) => {
+    if (piece) usage = addUsage(usage, piece)
+  }
+
   for (let i = 0; i < maxRounds; i++) {
+    const sys = system()
+    const tools = act ? toolsForTrain(train) : []
+    if (!harness) harness = harnessFingerprint(sys, tools)
     const out = await streamTurn(msgs, host.onDelta, {
-      system: system(),
-      tools: act ? toolsForTrain(train) : [],
+      system: sys,
+      tools,
     })
+    takeUsage(out.usage)
     if (out.toolCalls.length) {
       usedTools = true
       msgs.push({
@@ -132,9 +162,11 @@ async function runTurnInner(
         tool_calls: out.toolCalls,
       })
       lastFailed = false
+
+      // Permits stay serial (one picker). Execution may run in parallel when all are read-only.
+      const early: ToolOutcome[] = []
+      const approved: { call: ToolCall; label: string }[] = []
       for (const call of out.toolCalls) {
-        let result: string
-        let failed = false
         const label = permitLabel(train, call.name, call.args)
         try {
           const decision = await authorizeTool(
@@ -146,38 +178,86 @@ async function runTurnInner(
             },
           )
           if (!decision.allow) {
-            result = "denied by user"
-            failed = true
-            denied = true
-            progress.push(`${call.name} denied`)
-            host.onToolDone?.({ name: call.name, label, result, failed: true })
-            msgs.push({ role: "tool", content: result, tool_call_id: call.id })
+            const o: ToolOutcome = {
+              call,
+              label,
+              result: "denied by user",
+              failed: true,
+              denied: true,
+            }
+            host.onToolDone?.({ name: call.name, label, result: o.result, failed: true })
+            early.push(o)
             continue
           }
+          approved.push({ call, label })
+        } catch (err) {
+          const o: ToolOutcome = {
+            call,
+            label,
+            result: axMessage(err),
+            failed: true,
+            denied: false,
+          }
+          host.onToolDone?.({ name: call.name, label, result: o.result, failed: true })
+          early.push(o)
+        }
+      }
+
+      const ran = await runBatch(approved, approved.map((a) => a.call.name), async ({ call, label }) => {
+        let outcome: ToolOutcome
+        try {
           if (call.name === "run") {
             const spec = parseRunCommand(call.args)
             host.onToolStart?.("run", spec.detach ? `${spec.command} detach=true` : spec.command)
-            result = spec.detach
+            const result = spec.detach
               ? await runDetached(train, spec.command)
               : runShell(train, spec.command)
+            outcome = { call, label, result, failed: false, denied: false }
           } else {
             host.onToolStart?.(call.name, call.args)
-            result = await runAgentTool(train, call.name, call.args)
+            const result = await runAgentTool(train, call.name, call.args)
+            outcome = { call, label, result, failed: false, denied: false }
           }
         } catch (err) {
-          failed = true
-          result = axMessage(err)
+          outcome = {
+            call,
+            label,
+            result: axMessage(err),
+            failed: true,
+            denied: false,
+          }
         }
         // Result is evidence for the model only — never fed back into authorizeTool.
-        host.onToolDone?.({ name: call.name, label, result, failed })
-        lastFailed = lastFailed || (failed && isRecoverable(result))
-        const line = failed
-          ? `${call.name} failed: ${clip(result)}`
-          : `${call.name} ${clip(call.args, 80)} → ${clip(result)}`
-        progress.push(line)
-        scratch.push(`tool.${progress.length}`, line)
-        msgs.push({ role: "tool", content: result, tool_call_id: call.id })
+        host.onToolDone?.({
+          name: outcome.call.name,
+          label: outcome.label,
+          result: outcome.result,
+          failed: outcome.failed,
+        })
+        return outcome
+      })
+
+      const byId = new Map<string, ToolOutcome>()
+      for (const o of early) byId.set(o.call.id, o)
+      for (const o of ran) byId.set(o.call.id, o)
+
+      for (const call of out.toolCalls) {
+        const o = byId.get(call.id)
+        if (!o) continue
+        if (o.denied) {
+          denied = true
+          progress.push(`${o.call.name} denied`)
+        } else {
+          lastFailed = lastFailed || (o.failed && isRecoverable(o.result))
+          const line = o.failed
+            ? `${o.call.name} failed: ${clip(o.result)}`
+            : `${o.call.name} ${clip(o.call.args, 80)} → ${clip(o.result)}`
+          progress.push(line)
+          scratch.push(`tool.${progress.length}`, line)
+        }
+        msgs.push({ role: "tool", content: o.result, tool_call_id: o.call.id })
       }
+
       if (denied) {
         msgs.push({
           role: "user",
@@ -210,8 +290,10 @@ async function runTurnInner(
       })
       continue
     }
-    return out.text
+    return { text: out.text, usage, harness }
   }
+  const wrapSys = system()
+  if (!harness) harness = harnessFingerprint(wrapSys, [])
   const wrap = await streamTurn(
     [
       ...msgs,
@@ -222,7 +304,8 @@ async function runTurnInner(
       },
     ],
     host.onDelta,
-    { system: system(), tools: [] },
+    { system: wrapSys, tools: [] },
   )
-  return wrap.text
+  takeUsage(wrap.usage)
+  return { text: wrap.text, usage, harness }
 }

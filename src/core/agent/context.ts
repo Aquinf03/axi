@@ -1,6 +1,6 @@
 /** Context-window occupancy. Char/4 estimate, no tokenizer. */
 
-import { AGENT_TOOLS, contextBlock } from "../tooling.js"
+import { contextBlock, toolsForTrain } from "../tooling.js"
 import { systemPrompt } from "./prompt.js"
 import type { ChatMsg } from "../../gateway.js"
 
@@ -35,7 +35,7 @@ function pretty(n: number): string {
 export function measureContext(train: string, history: ChatMsg[], window: number): ContextSnap {
   const prompt = systemPrompt(train)
   const memory = contextBlock(train)
-  const tools = JSON.stringify(AGENT_TOOLS)
+  const tools = JSON.stringify(toolsForTrain(train))
   const chat = history
     .map((m) => {
       const extra = m.tool_calls?.map((c) => c.name + c.args).join("") ?? m.tool_call_id ?? ""

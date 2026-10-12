@@ -4,7 +4,19 @@
  */
 
 export type { AgentToolDef } from "./tooling/tool_specs.js"
-export { AGENT_TOOLS } from "./tooling/tool_specs.js"
+export {
+  AGENT_TOOLS,
+  CORE_TOOLS,
+  DEFERRED_TOOLS,
+  isDeferredTool,
+} from "./tooling/tool_specs.js"
+export {
+  clearDeferredTools,
+  deferredDigest,
+  loadDeferredTools,
+  loadedDeferredNames,
+  loadedDeferredTools,
+} from "./tooling/deferred.js"
 export {
   clipToolLog,
   contextBlock,
