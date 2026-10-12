@@ -2,6 +2,7 @@
 
 import { stdin, stdout } from "node:process"
 import { runTurn, type AgentHost, type ChatMsg } from "../core/agent/agent-loop.js"
+import { createNativeHost, normalizeOpenUrl } from "../core/hosts.js"
 import { clipToolLog, formatPermitDisplay } from "../core/tooling.js"
 import { renderMarkdown } from "./markdown.js"
 import { compactHistory } from "../core/compact.js"
@@ -220,6 +221,10 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
   if (stdin.isTTY !== true || stdout.isTTY !== true) {
     throw new Error("aq requires an interactive terminal (TTY)")
   }
+
+  /** Injected TTY host — clipboard / open URL / workspace; no OS calls from core. */
+  const hostEnv = createNativeHost(train)
+  train = hostEnv.workspaceRoot
 
   let restored = false
   const chars: string[] = []
@@ -836,9 +841,42 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       })
 
     const applySlash = async (line: string) => {
-      const r = runSlash(line)
+      const r = runSlash(line, { workspace: hostEnv.workspaceRoot })
       if (r.quit) {
         quit()
+        return
+      }
+      if (r.openUrl) {
+        const href = normalizeOpenUrl(r.openUrl)
+        if (!href) {
+          note("usage: /url <host|http(s)|file|mailto>  (bare hosts get https://)")
+          paintComposer()
+          return
+        }
+        const ok = await hostEnv.openUrl(href)
+        note(ok ? `opened  ${href}` : `could not open  ${href}`)
+        paintComposer()
+        return
+      }
+      if (r.copy !== undefined) {
+        let text = typeof r.copy === "string" ? r.copy : ""
+        if (!text) {
+          for (let i = history.length - 1; i >= 0; i--) {
+            const m = history[i]!
+            if (m.role === "assistant" && m.content.trim()) {
+              text = m.content
+              break
+            }
+          }
+        }
+        if (!text.trim()) {
+          note("nothing to copy")
+          paintComposer()
+          return
+        }
+        const ok = await hostEnv.writeClipboard(text)
+        note(ok ? `copied  ${text.length} chars` : "clipboard unavailable")
+        paintComposer()
         return
       }
       if (r.compact) {
@@ -1164,7 +1202,8 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       }
       try {
         const host: AgentHost = {
-          workspace: train,
+          workspace: hostEnv.workspaceRoot,
+          env: hostEnv,
           onDelta: (chunk) => {
             if (!started) {
               started = true

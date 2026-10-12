@@ -5,9 +5,13 @@ import { stdin, stderr } from "node:process"
 import type { AgentHost } from "../agent/host.js"
 import { clipToolLog, formatPermitDisplay } from "../tooling.js"
 import type { PermitChoice } from "../permissions.js"
+import type { HostEnv } from "./surface.js"
+import { createNativeHost } from "./native.js"
 
 export type AskHostOptions = {
   workspace: string
+  /** Injected host env; defaults to native OS clipboard/open. */
+  env?: HostEnv
   /** When true, skip tool progress lines (JSON mode). */
   quiet?: boolean
   /** Auto-approve permits (e.g. -y / full-access for this ask). */
@@ -43,8 +47,10 @@ export function createAskHost(
   tools: { name: string; args: string }[],
 ): AgentHost {
   const quiet = opts.quiet === true
+  const env = opts.env ?? createNativeHost(opts.workspace)
   return {
-    workspace: opts.workspace,
+    workspace: env.workspaceRoot,
+    env,
     onDelta: () => {},
     onToolStart: (name, args) => {
       tools.push({ name, args: args ?? "" })

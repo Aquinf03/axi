@@ -111,6 +111,8 @@ export const SLASH_SPECS: SlashSpec[] = [
   { name: "/rename", hint: "rename this chat", aliases: ["/name"] },
   { name: "/chats", hint: "list chats" },
   { name: "/open", hint: "open a chat by name or id", aliases: ["/chat"] },
+  { name: "/url", hint: "open URL · bare hosts get https://" },
+  { name: "/copy", hint: "copy last reply (or text) to clipboard" },
   { name: "/delete", hint: "delete this chat · /delete all" },
   { name: "/compact", hint: "summarize older messages" },
   { name: "/undo", hint: "undo last agent turn" },

@@ -1,9 +1,11 @@
 /**
  * Host I/O for one agent turn.
- * Chat and ask (and later hosts) only implement this — they do not own the turn loop.
+ * Chat and ask only implement this — they do not own the turn loop.
+ * Workspace / clipboard / openUrl live on HostEnv and are injected, not hardcoded in core.
  */
 
 import type { PermitChoice } from "../permissions.js"
+import type { HostEnv } from "../hosts/surface.js"
 
 export type ToolStartFn = (name: string, args?: string) => void
 
@@ -21,11 +23,13 @@ export type PermitAskFn = (command: string) => Promise<PermitChoice | boolean>
 
 /**
  * Everything the agent core needs from the outside for one turn.
- * Workspace is injected here so core does not assume process.cwd().
+ * `workspace` must match `env.workspaceRoot` when env is provided.
  */
 export type AgentHost = {
   /** Absolute workspace / train root for tools + permissions. */
   workspace: string
+  /** Optional OS affordances (clipboard, open URL). Prefer injecting over core OS calls. */
+  env?: HostEnv
   /** Stream assistant text as it arrives. */
   onDelta: (chunk: string) => void
   /** Tool about to run (after permit). */

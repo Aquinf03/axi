@@ -42,10 +42,13 @@ Secrets, providers, and permission rules stay in the profile (`~/.axi`).
 TTY chat and `axi ask` both call `runTurn(history, host)`.
 
 - Core: `core/agent/agent-loop.ts` — model, tools, permissions, recovery
-- Host: `AgentHost` — `workspace`, `onDelta`, `onToolStart`, `onToolDone`, `askPermit`
-- Ask host: `core/hosts` (`createAskHost`); chat builds a TTY host inline in `ui/chat-ui.ts`
+- Turn host: `AgentHost` — `workspace`, `onDelta`, `onToolStart`, `onToolDone`, `askPermit`
+- Env host: `HostEnv` — `workspaceRoot`, `writeClipboard`, `readClipboard`, `openUrl`
+- Native TTY: `createNativeHost(workspace)`; tests: `createMemoryHost`
+- Ask: `createAskHost`; chat: builds turn host + injects `createNativeHost`
 
-Hosts only supply I/O. Do not put turn-loop logic in ui/ or commands/ask.
+Do not call `pbcopy` / `open` / `xdg-open` from core — go through `HostEnv`.
+Slash: `/url` opens via host; `/copy` writes clipboard via host; `/mode` uses injected workspace.
 
 Import fat subsystems only through their front doors:
 

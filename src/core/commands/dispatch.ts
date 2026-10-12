@@ -44,6 +44,7 @@ export async function dispatchCli(argv: string[]): Promise<void> {
   }
 
   if (kind === "agent") {
+    // Workspace root is resolved/injected inside startChatUi via HostEnv.
     await runAgent(argv, process.cwd())
     return
   }

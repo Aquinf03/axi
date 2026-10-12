@@ -51,6 +51,8 @@ Fat subsystems have front doors (`core/tooling.ts`, `core/skills.ts`, `core/sess
 
 Permission mode: `AXI_PERMISSION_MODE=ask|auto|full-access` (or `/mode` in chat). Project `.axi.json` is repo-safe keys only; keys stay in `~/.axi`.
 
+Host surface (TTY): workspace root, clipboard, and open-URL are injected (`HostEnv`). In chat: `/copy` (last reply), `/url https://…`.
+
 ## Tests
 
 ```bash

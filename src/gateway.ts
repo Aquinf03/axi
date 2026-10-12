@@ -13,6 +13,7 @@ export type {
   Choice,
   MenuId,
   ProviderId,
+  SlashOpts,
   SlashResult,
   StreamOut,
 } from "./gateway/provider.js"

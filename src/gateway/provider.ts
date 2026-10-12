@@ -584,6 +584,10 @@ export type SlashResult = {
   rename?: true | string
   chats?: boolean
   open?: string
+  /** Open via injected HostEnv.openUrl (not process spawn in core). */
+  openUrl?: string
+  /** Copy last assistant reply, or explicit text, via HostEnv.writeClipboard. */
+  copy?: true | string
   delete?: true | string
   deleteAll?: boolean
   context?: boolean
@@ -692,7 +696,13 @@ export async function providerCmd(argv: string[]): Promise<void> {
   console.log("  " + activeLabel())
 }
 
-export function runSlash(line: string): SlashResult {
+export type SlashOpts = {
+  /** Injected workspace root — do not rely on process.cwd() in core callers. */
+  workspace?: string
+}
+
+export function runSlash(line: string, opts: SlashOpts = {}): SlashResult {
+  const workspace = opts.workspace ? path.resolve(opts.workspace) : process.cwd()
   const t = line.trim()
   const [raw, ...rest] = t.split(/\s+/)
   const arg = rest.join(" ").trim()
@@ -789,22 +799,28 @@ export function runSlash(line: string): SlashResult {
   if (cmd === "/temp") {
     return { text: setTemperature(arg) }
   }
+  if (cmd === "/url") {
+    if (!arg) return { text: "usage: /url <host|http(s)|file|mailto>  (bare hosts get https://)" }
+    return { openUrl: arg }
+  }
+  if (cmd === "/copy") {
+    return { copy: arg || true }
+  }
   if (cmd === "/permissions") {
     if (arg === "clear") {
       sessionGrants.clear()
       return { text: "session grants cleared" }
     }
-    return { text: permissionsStatusText(process.cwd()) }
+    return { text: permissionsStatusText(workspace) }
   }
   if (cmd === "/mode") {
-    const cwd = process.cwd()
     if (!arg) {
-      const cfg = resolveConfig(cwd)
+      const cfg = resolveConfig(workspace)
       return { text: `mode  ${cfg.permission_mode}  (${cfg.sources.permission_mode})` }
     }
     const mode = parsePermissionMode(arg)
     if (!mode) return { text: "usage: /mode ask|auto|full-access" }
-    setPermissionModeWorkspace(cwd, mode)
+    setPermissionModeWorkspace(workspace, mode)
     return { text: `mode  ${mode}  (profile workspace)` }
   }
   const hits = slashMatches(raw ?? "")

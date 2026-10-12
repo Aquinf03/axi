@@ -57,6 +57,8 @@ Structured CLI output: build one snapshot in `core/output`, then `renderSnapshot
 
 Permissions: sensitive tools only via `authorizeTool`. Modes `ask` / `auto` / `full-access`. Config precedence: env > profile workspace > profile global > project > defaults.
 
+Host env: inject `HostEnv` (`createNativeHost` / `createMemoryHost`) for workspace root, clipboard, and open URL — do not hardcode OS clipboard/open calls in core.
+
 ```bash
 npm run check:boundaries
 ```
