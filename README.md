@@ -53,6 +53,10 @@ Permission mode: `AXI_PERMISSION_MODE=ask|auto|full-access` (or `/mode` in chat)
 
 Host surface (TTY): workspace root, clipboard, and open-URL are injected (`HostEnv`). In chat: `/copy` (last reply), `/url https://…`.
 
+TTY layout: chat and `/` menus stay in normal scrollback; permits and confirms use the alternate screen.
+
+Sessions: portable ids under `~/.axi/chats/<id>/` with `workspace_root`. Spawn workers are child sessions (bounded parent registry); hidden from the normal chat list.
+
 ## Tests
 
 ```bash

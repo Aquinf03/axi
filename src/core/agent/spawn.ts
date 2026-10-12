@@ -1,12 +1,24 @@
-/** Worker axi processes. Directory is the API: artifacts/agents/<id>/. Work is a job. */
+/**
+ * Worker agents as child sessions (bounded parent registry) or workspace workers.
+ * Execution is still a job (`axi ask`); identity lives under ~/.axi/chats/<id>/.
+ */
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
-import { randomBytes } from "node:crypto"
 import path from "node:path"
 import { cancelJob, enqueueJob, jobLogPath, waitForPid } from "../job/job.js"
 import { assertTrain, isTrain } from "../schema.js"
 import { agentRoot } from "../root.js"
 import { artifactsDir } from "../paths.js"
+import { axiHome } from "../home.js"
+import {
+  createChildSession,
+  createWorkerSession,
+  listChildSessions,
+  listWorkerSessions,
+  loadSession,
+  saveSessionSpec,
+  type ChatSpec,
+} from "../session.js"
 
 const KILLER_PREAMBLE = [
   "Your job is the cheapest disproof, not agreement.",
@@ -22,14 +34,7 @@ export type AgentSpec = {
   status: string
   created: string
   updated: string
-}
-
-function agentsDir(train: string): string {
-  return path.join(artifactsDir(train), "agents")
-}
-
-function specPath(train: string, id: string): string {
-  return path.join(agentsDir(train), id, "spec.json")
+  owner?: string
 }
 
 function aqArgv(args: string[]): string[] {
@@ -38,25 +43,6 @@ function aqArgv(args: string[]): string[] {
   if (existsSync(dist)) return [process.execPath, dist, ...args]
   const tsx = path.join(root, "node_modules", "tsx", "dist", "cli.mjs")
   return [process.execPath, tsx, path.join(root, "src", "cli.ts"), ...args]
-}
-
-function newId(train: string): string {
-  for (let i = 0; i < 8; i++) {
-    const id = randomBytes(3).toString("hex")
-    if (!existsSync(path.join(agentsDir(train), id))) return id
-  }
-  throw new Error("could not allocate an agent id")
-}
-
-function readSpec(train: string, id: string): AgentSpec {
-  const p = specPath(train, id)
-  if (!existsSync(p)) throw new Error(`no agent ${id}`)
-  return JSON.parse(readFileSync(p, "utf8")) as AgentSpec
-}
-
-function writeSpec(train: string, spec: AgentSpec): void {
-  mkdirSync(path.dirname(specPath(train, spec.id)), { recursive: true })
-  writeFileSync(specPath(train, spec.id), JSON.stringify(spec, null, 2) + "\n")
 }
 
 function jobStatus(train: string, jobId: string): string {
@@ -70,24 +56,65 @@ function jobStatus(train: string, jobId: string): string {
   }
 }
 
-export function refreshAgent(train: string, spec: AgentSpec): AgentSpec {
-  spec.status = jobStatus(train, spec.jobId)
-  spec.updated = new Date().toISOString()
-  writeSpec(train, spec)
-  return spec
+function toAgent(spec: ChatSpec, train: string): AgentSpec {
+  const jobId = spec.jobId ?? ""
+  const status = jobId ? jobStatus(train, jobId) : (spec.status ?? "unknown")
+  return {
+    id: spec.id,
+    name: spec.name,
+    prompt: spec.prompt ?? "",
+    jobId,
+    status,
+    created: spec.created,
+    updated: spec.updated,
+    owner: spec.owner,
+  }
 }
 
-export function listAgents(train: string): AgentSpec[] {
-  const dir = agentsDir(train)
+function refreshSession(train: string, spec: ChatSpec): AgentSpec {
+  if (spec.jobId) {
+    spec.status = jobStatus(train, spec.jobId)
+    saveSessionSpec(spec)
+  }
+  return toAgent(spec, train)
+}
+
+/** Legacy train-local agents under artifacts/agents/ (read-only discovery). */
+function listLegacyAgents(train: string): AgentSpec[] {
+  const dir = path.join(artifactsDir(train), "agents")
   if (!existsSync(dir)) return []
   const out: AgentSpec[] = []
   for (const name of readdirSync(dir)) {
-    const p = specPath(train, name)
+    const p = path.join(dir, name, "spec.json")
     if (!existsSync(p)) continue
     try {
-      out.push(refreshAgent(train, readSpec(train, name)))
+      const raw = JSON.parse(readFileSync(p, "utf8")) as AgentSpec
+      raw.status = jobStatus(train, raw.jobId)
+      out.push(raw)
     } catch {
       continue
+    }
+  }
+  return out
+}
+
+export function refreshAgent(train: string, spec: AgentSpec): AgentSpec {
+  try {
+    return refreshSession(train, loadSession(spec.id))
+  } catch {
+    spec.status = jobStatus(train, spec.jobId)
+    return spec
+  }
+}
+
+export function listAgents(train: string, parentId?: string): AgentSpec[] {
+  const sessions = parentId
+    ? listChildSessions(parentId)
+    : listWorkerSessions(train)
+  const out = sessions.map((s) => refreshSession(train, s))
+  if (!parentId) {
+    for (const legacy of listLegacyAgents(train)) {
+      if (!out.some((a) => a.id === legacy.id)) out.push(legacy)
     }
   }
   out.sort((a, b) => (a.created < b.created ? 1 : -1))
@@ -97,56 +124,73 @@ export function listAgents(train: string): AgentSpec[] {
 export async function startAgent(
   train: string,
   prompt: string,
-  opts?: { name?: string; kill?: boolean },
+  opts?: { name?: string; kill?: boolean; parentId?: string },
 ): Promise<AgentSpec> {
   const raw = prompt.trim()
   const text = (opts?.kill ? KILLER_PREAMBLE + "\n\n" : "") + raw
   if (!raw) throw new Error("need a prompt")
-  const id = newId(train)
-  const name = (opts?.name ?? (opts?.kill ? "kill: " + raw : raw)).replace(/\s+/g, " ").trim().slice(0, 48) || id
-  mkdirSync(path.join(agentsDir(train), id), { recursive: true })
-  writeFileSync(path.join(agentsDir(train), id, "prompt.txt"), text + "\n")
+  const name = (opts?.name ?? (opts?.kill ? "kill: " + raw : raw)).replace(/\s+/g, " ").trim().slice(0, 48)
+
+  const session = opts?.parentId
+    ? createChildSession(train, opts.parentId, { name, prompt: text })
+    : createWorkerSession(train, { name, prompt: text })
+
+  // Keep a copy of the prompt beside the session for ops/debugging.
+  const sessionDir = path.join(axiHome(), "chats", session.id)
+  mkdirSync(sessionDir, { recursive: true })
+  writeFileSync(path.join(sessionDir, "prompt.txt"), text + "\n")
+
   const cmd = aqArgv(["ask", "-y", "--json", train, text])
   const jobId = await enqueueJob(train, cmd)
   await waitForPid(train, jobId)
-  const now = new Date().toISOString()
-  const spec: AgentSpec = {
-    id,
-    name,
-    prompt: text,
-    jobId,
-    status: jobStatus(train, jobId),
-    created: now,
-    updated: now,
-  }
-  writeSpec(train, spec)
-  return spec
+  session.jobId = jobId
+  session.status = jobStatus(train, jobId)
+  saveSessionSpec(session)
+  return toAgent(session, train)
 }
 
 export async function cancelAgent(train: string, id: string): Promise<AgentSpec> {
-  const spec = readSpec(train, id)
+  let spec: ChatSpec
+  try {
+    spec = loadSession(id)
+  } catch {
+    throw new Error(`no agent ${id}`)
+  }
+  if (!spec.jobId) {
+    spec.status = "canceled"
+    saveSessionSpec(spec)
+    return toAgent(spec, train)
+  }
   try {
     await cancelJob(train, spec.jobId)
   } catch (err) {
     spec.status = "canceled"
-    spec.updated = new Date().toISOString()
-    writeSpec(train, spec)
+    saveSessionSpec(spec)
     throw err
   }
-  return refreshAgent(train, spec)
+  return refreshSession(train, spec)
 }
 
 export function agentLog(train: string, id: string, tail = 40): string {
-  const spec = refreshAgent(train, readSpec(train, id))
-  const p = jobLogPath(train, spec.jobId)
-  const body = existsSync(p) ? readFileSync(p, "utf8") : ""
+  let spec: ChatSpec
+  try {
+    spec = loadSession(id)
+  } catch {
+    throw new Error(`no agent ${id}`)
+  }
+  const agent = refreshSession(train, spec)
+  const p = agent.jobId ? jobLogPath(train, agent.jobId) : ""
+  const body = p && existsSync(p) ? readFileSync(p, "utf8") : ""
   const lines = body.trimEnd().split("\n")
   const slice = lines.slice(-Math.max(1, tail)).join("\n")
-  return [`${spec.name}  ${spec.id}  ${spec.status}  job ${spec.jobId}`, spec.prompt, "", slice || "(no log yet)"].join("\n")
+  const owner = agent.owner && agent.owner !== "_workspace" ? `  parent ${agent.owner}` : ""
+  return [`${agent.name}  ${agent.id}  ${agent.status}  job ${agent.jobId}${owner}`, agent.prompt, "", slice || "(no log yet)"].join(
+    "\n",
+  )
 }
 
-export function formatAgents(train: string): string {
-  const rows = listAgents(train)
+export function formatAgents(train: string, parentId?: string): string {
+  const rows = listAgents(train, parentId)
   if (!rows.length) return "no agents"
   return rows.map((a) => `${a.id}  ${a.status.padEnd(8)}  ${a.name}`).join("\n")
 }
@@ -192,7 +236,6 @@ export async function spawnCmd(argv: string[]): Promise<void> {
     return
   }
   if (sub === "agent") {
-    // was: aq spawn run
     const rest = argv.slice(1)
     let dir = "."
     let name: string | undefined

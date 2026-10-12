@@ -50,6 +50,17 @@ TTY chat and `axi ask` both call `runTurn(history, host)`.
 Do not call `pbcopy` / `open` / `xdg-open` from core — go through `HostEnv`.
 Slash: `/url` opens via host; `/copy` writes clipboard via host; `/mode` uses injected workspace.
 
+## TTY surfaces
+
+Chat lives in normal scrollback (`❯` composer). Slash / settings menus open under the composer.
+
+Alternate screen (`ui/alt-screen.ts`) only for exclusive owners:
+
+- permission picker (yes / always / no)
+- confirm pickers (compact / delete)
+
+Do not put the main chat stream on alt-screen.
+
 Import fat subsystems only through their front doors:
 
 | Subsystem | Front door |
@@ -58,6 +69,17 @@ Import fat subsystems only through their front doors:
 | Skills / MCP | `core/skills.ts` |
 | Compact | `core/compact.ts` |
 | Session | `core/session.ts` |
+
+## Sessions & subagents
+
+Sessions live under `~/.axi/chats/<id>/` with portable hex ids.
+Each spec has `workspace_root` (legacy `train` still read); resume from another
+directory updates it.
+
+Subagents are ordinary sessions with an immutable `owner` (parent id).
+They are hidden from `listChats`. The parent keeps a bounded registry at
+`subagent/children.json` (`MAX_CHILDREN`). Chat `/spawn` creates children of
+the current chat; CLI `axi spawn` creates workspace workers (`owner: _workspace`).
 | Output | `core/output.ts` |
 | Permissions | `core/permissions.ts` |
 | Config | `core/config.ts` |

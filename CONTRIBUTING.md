@@ -59,6 +59,10 @@ Permissions: sensitive tools only via `authorizeTool`. Modes `ask` / `auto` / `f
 
 Host env: inject `HostEnv` (`createNativeHost` / `createMemoryHost`) for workspace root, clipboard, and open URL — do not hardcode OS clipboard/open calls in core.
 
+TTY: keep the main chat and slash menus on the inline scrollback. Use `ui/alt-screen.ts` only for exclusive owners (permits, confirm pickers).
+
+Sessions: global under `~/.axi/chats/<id>/`. Subagents are child sessions with `owner` + parent `subagent/children.json` (bounded). Do not list children in ordinary chat discovery.
+
 ```bash
 npm run check:boundaries
 ```

@@ -1,9 +1,10 @@
-/** fx-form shell chat: inline ❯ composer in the transcript, no bottom dock, no alt-screen. */
+/** fx-form shell chat: inline scrollback + slash menus; alt-screen for permits / confirms. */
 
 import { stdin, stdout } from "node:process"
 import { runTurn, type AgentHost, type ChatMsg } from "../core/agent/agent-loop.js"
 import { createNativeHost, normalizeOpenUrl } from "../core/hosts.js"
 import { clipToolLog, formatPermitDisplay } from "../core/tooling.js"
+import { createAltScreen } from "./alt-screen.js"
 import { renderMarkdown } from "./markdown.js"
 import { compactHistory } from "../core/compact.js"
 import { beginUndo, clearUndo, commitUndo, undoLast } from "../core/agent/undo.js"
@@ -247,12 +248,15 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
 
   const nested = () => screen !== null && screen !== "root"
 
+  /** Spawn children of the current chat session. */
+  const chatAgents = () => listAgents(train, spec.id)
+
   const screenTitle = (s: MenuId): string => {
     if (s === "key") return "api key"
     if (s === "chat-delete") return "delete"
     if (s === "spawn") return "spawn"
     if (s === "spawn-agent") {
-      const a = listAgents(train).find((x) => x.id === spawnFocus)
+      const a = chatAgents().find((x) => x.id === spawnFocus)
       return a?.name ?? "agent"
     }
     if (s === "chat") {
@@ -266,6 +270,13 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
     return s
   }
 
+  const write = (s: string) => {
+    stdout.write(s)
+  }
+
+  /** Exclusive UI only — permits / confirms. Slash menus stay inline. */
+  const alt = createAltScreen(write)
+
   const wipeMenu = () => {
     write("\r\x1b[J")
     menuRows = 0
@@ -274,6 +285,10 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
   const note = (msg: string) => {
     write(`\r\x1b[J${DIM}${msg}${RESET}\n`)
     menuRows = 0
+  }
+
+  const leaveScreen = () => {
+    screen = null
   }
 
   const enterScreen = (next: MenuId) => {
@@ -288,14 +303,11 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
     }
   }
 
-  const write = (s: string) => {
-    stdout.write(s)
-  }
-
   const restore = () => {
     if (restored) return
     restored = true
     playCue("click")
+    alt.leave()
     write(DISABLE)
     write("\n")
     stdin.setRawMode(false)
@@ -324,9 +336,9 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       chats: listChats(train)
         .filter((c) => !q || c.name.toLowerCase().includes(q) || c.id.toLowerCase().includes(q))
         .map((c) => ({ id: c.id, name: c.name })),
-      agents: listAgents(train).map((a) => ({ id: a.id, name: a.name, status: a.status })),
+      agents: chatAgents().map((a) => ({ id: a.id, name: a.name, status: a.status })),
       spawnFocus: (() => {
-        const a = listAgents(train).find((x) => x.id === spawnFocus)
+        const a = chatAgents().find((x) => x.id === spawnFocus)
         return a ? { id: a.id, name: a.name, status: a.status } : undefined
       })(),
       parts: snap.parts.map((p) => ({
@@ -337,6 +349,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
   }
 
   const paintComposer = () => {
+    if (alt.active()) return
     const { cols } = size()
     const inside = nested()
     const title = inside && screen ? screenTitle(screen) : ""
@@ -388,6 +401,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       }
       painted = rows.length
     } else if (screen && !keyFor && !renameFor) {
+      // Slash / settings menu stays under the composer (inline), not alt-screen.
       const opts = menuChoices(screen, menuCtx())
       if (pick >= opts.length) pick = 0
       for (let i = 0; i < opts.length; i++) {
@@ -413,8 +427,13 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
     return `${BOLD}axi${RESET}${DIM} ${VERSION} · ${spec.name} · ${shortPath(train)} · ${activeLabel()} · ${snap.pct} · /  settings${RESET}`
   }
 
+  /**
+   * Status refresh for chat switches. Prints one inline line — never absolute
+   * row 1 (that overwrites scrollback). Skipped while an alt-screen owner is up.
+   */
   const paintHeader = () => {
-    write(`\x1b7\x1b[1;1H${headerLine()}\x1b[K\x1b8`)
+    if (alt.active()) return
+    write(`${DIM}· ${spec.name} · ${shortPath(train)} · ${activeLabel()}${RESET}\n`)
   }
 
   const sessionStatus = () => {
@@ -456,7 +475,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
 
   const welcome = () => {
     menuRows = 0
-    write("\x1b[2J\x1b[H")
+    // Stay on the normal buffer — do not clear scrollback or enter alt-screen.
     write(`${headerLine()}\n\n`)
     if (resumeId) write(`${DIM}resumed  ${spec.name}  ${spec.id}${RESET}\n\n`)
     paintComposer()
@@ -473,6 +492,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
     let carry = Buffer.alloc(0)
     let permit: {
       cmd: string
+      body: string
       pick: number
       resolve: (choice: "once" | "always" | "deny") => void
     } | null = null
@@ -482,37 +502,51 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
 
     const drawPermitChoices = () => {
       if (!permit) return
+      alt.enter("permit")
+      write(`${BOLD}axi${RESET}${DIM} · allow${RESET}\n\n`)
+      write(`${permit.cmd}\n\n`)
+      if (permit.body) write(`${DIM}${permit.body}${RESET}\n\n`)
       const parts = permitLabels.map((label, i) => {
         const on = permit!.pick === i
         return on ? `${BOLD}▸ ${label}${RESET}` : `${DIM}  ${label}${RESET}`
       })
-      write(`\r\x1b[K  ${parts.join("    ")}`)
+      write(`${parts.join("    ")}\n\n`)
+      write(`${DIM}←→ select · enter confirm · esc deny${RESET}\n`)
     }
 
-    let compactAsk: { pick: number; yes: string; no: string; resolve: (ok: boolean) => void } | null =
-      null
+    let compactAsk: {
+      pick: number
+      yes: string
+      no: string
+      title: string
+      body: string
+      resolve: (ok: boolean) => void
+    } | null = null
 
     const drawCompactChoices = () => {
       if (!compactAsk) return
+      alt.enter("compact")
+      write(`${BOLD}axi${RESET}${DIM} · ${compactAsk.title}${RESET}\n\n`)
+      write(`${compactAsk.body}\n\n`)
       const y = compactAsk.pick === 0
       const yes = compactAsk.yes
       const no = compactAsk.no
       write(
-        `\r\x1b[K  ${y ? `${BOLD}▸ ${yes}${RESET}` : `${DIM}  ${yes}${RESET}`}    ${!y ? `${BOLD}▸ ${no}${RESET}` : `${DIM}  ${no}${RESET}`}`,
+        `  ${y ? `${BOLD}▸ ${yes}${RESET}` : `${DIM}  ${yes}${RESET}`}    ${!y ? `${BOLD}▸ ${no}${RESET}` : `${DIM}  ${no}${RESET}`}\n`,
       )
     }
 
     const askCompact = (): Promise<boolean> =>
       new Promise((resolve) => {
-        write(`\r\x1b[K${DIM}context full  compact to keep chatting${RESET}\n`)
         compactAsk = {
           pick: 0,
           yes: "compact",
           no: "skip",
+          title: "context full",
+          body: "compact older messages to keep chatting?",
           resolve: (ok) => {
             compactAsk = null
-            write("\r\x1b[K")
-            write("\x1b[1A\r\x1b[K")
+            alt.leave()
             resolve(ok)
           },
         }
@@ -573,7 +607,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         return true
       }
       if (r.compact) {
-        screen = null
+        leaveScreen()
         chars.length = 0
         cursor = 0
         pick = 0
@@ -582,7 +616,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       }
       if (r.spawnNew) {
         spawnFor = true
-        screen = null
+        leaveScreen()
         chars.length = 0
         cursor = 0
         pick = 0
@@ -613,7 +647,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         return true
       }
       if (r.spawnWatch) {
-        const rows = listAgents(train)
+        const rows = chatAgents()
         if (!rows.length) note("no agents")
         else {
           const lines = rows.map((a) => {
@@ -638,7 +672,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         history.push(...loadMessages(train, spec.id))
         named = spec.name !== "new chat"
         setTabTitle(spec.name)
-        screen = null
+        leaveScreen()
         chars.length = 0
         cursor = 0
         pick = 0
@@ -654,7 +688,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         named = false
         chatFocus = spec.id
         setTabTitle(spec.name)
-        screen = null
+        leaveScreen()
         chars.length = 0
         cursor = 0
         pick = 0
@@ -665,7 +699,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       }
       if (r.renameChat) {
         renameFor = true
-        screen = null
+        leaveScreen()
         let current = spec.name
         if (spec.id !== chatFocus) {
           try {
@@ -715,7 +749,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       }
       if (r.promptKey) {
         keyFor = r.promptKey
-        screen = null
+        leaveScreen()
         chars.length = 0
         cursor = 0
         pick = 0
@@ -786,7 +820,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         return
       }
       renameFor = true
-      screen = null
+      leaveScreen()
       chars.length = 0
       if (spec.name && spec.name !== "new chat") chars.push(...Array.from(spec.name))
       cursor = chars.length
@@ -825,15 +859,15 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
 
     const askDelete = (label = "delete this chat?"): Promise<boolean> =>
       new Promise((resolve) => {
-        write(`\r\x1b[K${DIM}${label}${RESET}\n`)
         compactAsk = {
           pick: 0,
           yes: "delete",
           no: "keep",
+          title: "confirm",
+          body: label,
           resolve: (ok) => {
             compactAsk = null
-            write("\r\x1b[K")
-            write("\x1b[1A\r\x1b[K")
+            alt.leave()
             resolve(ok)
           },
         }
@@ -1007,13 +1041,13 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         return
       }
       if (r.spawnList) {
-        note(formatAgents(train))
+        note(formatAgents(train, spec.id))
         paintComposer()
         return
       }
       if (r.spawnRun) {
         try {
-          const a = await startAgent(train, r.spawnRun)
+          const a = await startAgent(train, r.spawnRun, { parentId: spec.id })
           note(`spawned  ${a.id}  ${a.status}  ${a.name}`)
         } catch (err) {
           note(err instanceof Error ? err.message : String(err))
@@ -1047,7 +1081,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       }
       if (r.promptKey) {
         keyFor = r.promptKey
-        screen = null
+        leaveScreen()
         chars.length = 0
         cursor = 0
         pick = 0
@@ -1098,7 +1132,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         chars.length = 0
         cursor = 0
         try {
-          const a = await startAgent(train, task)
+          const a = await startAgent(train, task, { parentId: spec.id })
           playCue("click")
           note(`spawned  ${a.id}  ${a.status}  ${a.name}`)
         } catch (err) {
@@ -1118,7 +1152,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       if (t.startsWith("/") && t !== "/") {
         chars.length = 0
         cursor = 0
-        screen = null
+        leaveScreen()
         pick = 0
         playCue("click")
         await applySlash(t)
@@ -1129,7 +1163,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       cursor = 0
       armed = false
       pick = 0
-      screen = null
+      leaveScreen()
       const painted = renderMarkdown(t, undefined, { baseDir: train })
         .split("\n")
         .map((ln) => `${BOLD}${RAIL} ${ln}${RESET}`)
@@ -1249,21 +1283,21 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
             const lines = command.split("\n")
             const head = lines[0] ?? command
             const shown = head.length > 72 ? head.slice(0, 69) + "…" : head
-            write(`\r\x1b[K${DIM}allow${RESET}  ${shown}\n`)
+            let body = ""
             if (lines.length > 1) {
-              const body = formatPermitDisplay(command)
-              const rest = body.includes("\n") ? body.slice(body.indexOf("\n") + 1) : ""
-              if (rest) write(`${rest}\n`)
+              const formatted = formatPermitDisplay(command)
+              body = formatted.includes("\n") ? formatted.slice(formatted.indexOf("\n") + 1) : ""
             }
             const choice = await new Promise<"once" | "always" | "deny">((resolvePermit) => {
               permit = {
-                cmd: head,
+                cmd: shown,
+                body,
                 pick: 0,
                 resolve: (v) => {
                   permit = null
-                  write("\r\x1b[K")
+                  alt.leave()
                   const label = v === "once" ? "yes" : v === "always" ? "always" : "no"
-                  write(`${DIM}· allow ${label}${RESET}\x1b[K\n`)
+                  write(`${DIM}· allow ${label}${RESET}\n`)
                   resolvePermit(v)
                 },
               }
@@ -1450,7 +1484,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
           } else if (nested()) {
             enterScreen("root")
           } else {
-            screen = null
+            leaveScreen()
             chars.length = 0
             cursor = 0
           }
@@ -1462,7 +1496,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
           chars.length = 0
           cursor = 0
           if (!nested()) {
-            screen = null
+            leaveScreen()
             pick = 0
           }
           paintComposer()
@@ -1494,7 +1528,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
             chars.splice(cursor - 1, 1)
             cursor -= 1
           }
-          if (!keyFor && !renameFor && !nested() && chars.join("") === "") screen = null
+          if (!keyFor && !renameFor && !nested() && chars.join("") === "") leaveScreen()
           paintComposer()
           continue
         }
@@ -1528,8 +1562,8 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
             if (d === "/") {
               screen = "root"
               pick = 0
-            } else {
-              screen = null
+            } else if (screen) {
+              leaveScreen()
             }
           }
           paintComposer()
