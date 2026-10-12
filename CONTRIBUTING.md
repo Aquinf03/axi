@@ -64,9 +64,10 @@ TTY: keep the main chat and slash menus on the inline scrollback. Use `ui/alt-sc
 Sessions: global under `~/.axi/chats/<id>/`. Subagents are child sessions with `owner` + parent `subagent/children.json` (bounded). Do not list children in ordinary chat discovery.
 
 ```bash
-npm run check:boundaries   # front-door import greps (fx check-compactor-boundary analogue)
-npm run check:budgets      # dist size + fast-command startup (scripts/budgets.json)
-npm run check              # boundaries + budgets
+npm run check:boundaries      # front-door import greps (fx check-compactor-boundary analogue)
+npm run check:public-surface  # no personal paths / real-looking secrets in tracked files
+npm run check:budgets         # dist size + fast-command startup (scripts/budgets.json)
+npm run check                 # boundaries + public surface + budgets
 ```
 
 CI (`.github/workflows/ci.yml`) runs build, those checks, and `test:unit` on every PR/push to main.

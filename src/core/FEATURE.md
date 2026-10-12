@@ -73,8 +73,9 @@ Import fat subsystems only through their front doors:
 ## CI gates
 
 - `npm run check:boundaries` — front-door import greps (no reaching into fat folders)
+- `npm run check:public-surface` — no personal home paths / API-key-shaped secrets in tracked files
 - `npm run check:budgets` — `dist/` byte cap + median startup for `version` / `help` / `doctor --json`
-- `.github/workflows/ci.yml` runs build → boundaries → budgets → unit tests
+- `.github/workflows/ci.yml` runs build → boundaries → public surface → budgets → unit tests
 
 ## Sessions & subagents
 

@@ -32,6 +32,9 @@ jobs:
       - name: Module boundaries
         run: npm run check:boundaries
 
+      - name: Public surface (no personal paths / secrets)
+        run: npm run check:public-surface
+
       - name: Size + startup budgets
         run: npm run check:budgets
 
