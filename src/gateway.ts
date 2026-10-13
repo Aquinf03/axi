@@ -50,3 +50,11 @@ export {
   toggleNotify,
   toggleSound,
 } from "./gateway/provider.js"
+export {
+  activeAquinAccount,
+  aquinDisplayName,
+  aquinLoginUrl,
+  completeAquinLogin,
+  hasAquinLogin,
+  parseAquinHandoff,
+} from "./gateway/aquin-auth.js"
