@@ -6,6 +6,7 @@ import { createNativeHost, normalizeOpenUrl } from "../core/hosts.js"
 import { clipToolLog, formatPermitDisplay } from "../core/tooling.js"
 import { createAltScreen } from "./alt-screen.js"
 import { renderMarkdown } from "./markdown.js"
+import { runWelcomeSplash } from "./splash.js"
 import { compactHistory } from "../core/compact.js"
 import { beginUndo, clearUndo, commitUndo, undoLast } from "../core/agent/undo.js"
 import { measureContext, contextFull } from "../core/agent/context.js"
@@ -483,7 +484,28 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
   stdin.setRawMode(true)
   stdin.resume()
   write(ENABLE)
+
+  let openProvider = false
+  if (!activeId()) {
+    const decision = await runWelcomeSplash({
+      write,
+      stdin,
+      cols: () => Math.max(40, stdout.columns ?? 80),
+      rows: () => Math.max(16, stdout.rows ?? 24),
+    })
+    if (decision === "exit") {
+      write(DISABLE)
+      stdin.setRawMode(false)
+      return
+    }
+    openProvider = true
+  }
+
   welcome()
+  if (openProvider) {
+    enterScreen("provider")
+    paintComposer()
+  }
   playCue("click")
 
   return new Promise<void>((resolve) => {

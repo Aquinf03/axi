@@ -102,7 +102,11 @@ function keyFor(e: Entry, saved?: Saved): string | undefined {
 
 export function hasCreds(id: ProviderId): boolean {
   const e = entry(id)
-  return Boolean(keyFor(e, load().providers[id]))
+  const cfg = load()
+  const saved = cfg.providers[id]
+  // Keyless providers (ollama) are not auto-connected — only after the user opts in.
+  if (!e.needsKey) return cfg.active === id || saved != null
+  return Boolean(keyFor(e, saved))
 }
 
 export function activeId(): ProviderId | undefined {
@@ -206,9 +210,11 @@ export function setTemperature(raw: string): string {
 }
 
 export function setActive(id: ProviderId): string {
-  if (!hasCreds(id)) return `no key for ${id}. axi provider ${id}`
+  const e = entry(id)
+  if (e.needsKey && !hasCreds(id)) return `no key for ${id}. axi provider ${id}`
   const cfg = load()
   cfg.active = id
+  if (!e.needsKey && cfg.providers[id] == null) cfg.providers[id] = {}
   save(cfg)
   return "active  " + activeLabel()
 }
@@ -666,9 +672,11 @@ export async function providerCmd(argv: string[]): Promise<void> {
   if (a === "use" && rest[1]) {
     const id = parseProvider(rest[1])
     if (!id) throw new Error(`unknown provider: ${rest[1]}`)
-    if (!hasCreds(id)) throw new Error(`no key for ${id}. axi provider ${id}`)
+    const e = entry(id)
+    if (e.needsKey && !hasCreds(id)) throw new Error(`no key for ${id}. axi provider ${id}`)
     const cfg = load()
     cfg.active = id
+    if (!e.needsKey && cfg.providers[id] == null) cfg.providers[id] = {}
     save(cfg)
     console.log("active  " + activeLabel())
     return
@@ -781,11 +789,7 @@ export function runSlash(line: string, opts: SlashOpts = {}): SlashResult {
     if (!arg) return { text: listText() }
     const id = parseProvider(arg)
     if (!id) return { text: `unknown provider: ${arg}\n` + listText() }
-    if (!hasCreds(id)) return { text: `no key for ${id}. /key ${id}` }
-    const cfg = load()
-    cfg.active = id
-    save(cfg)
-    return { text: "active  " + activeLabel() }
+    return { text: setActive(id) }
   }
   if (cmd === "/model") {
     const id = activeId()
