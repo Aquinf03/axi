@@ -4,6 +4,7 @@
  */
 
 import type { ChatMsg } from "../../gateway.js"
+import { maybeAutoRefine } from "./auto.js"
 import { arlEnabled } from "./mode.js"
 import { formatRefinementNotice, runRefine, type RefinementResult } from "./refine.js"
 
@@ -61,7 +62,7 @@ export function clearArlRefinePending(): void {
   pending = null
 }
 
-/** Run a queued refine after the turn settles. */
+/** Run a queued agent refine after the turn settles (arl_refine tool). */
 export async function flushArlRefine(
   history: ChatMsg[],
 ): Promise<{ result: RefinementResult; notice: string } | null> {
@@ -75,4 +76,20 @@ export async function flushArlRefine(
     source: "self",
   })
   return { result, notice: formatRefinementNotice(result) }
+}
+
+/**
+ * End-of-turn arl flush: agent-scheduled refine first, else auto-refine gates.
+ * Returns the refine that ran (if any).
+ */
+export async function flushArlAfterTurn(
+  history: ChatMsg[],
+  sessionId?: string,
+): Promise<{ result: RefinementResult; notice: string; kind: "self" | "auto" } | null> {
+  const scheduled = await flushArlRefine(history)
+  if (scheduled) return { ...scheduled, kind: "self" }
+  if (!sessionId) return null
+  const auto = await maybeAutoRefine({ history, sessionId })
+  if (!auto) return null
+  return { result: auto.result, notice: auto.notice, kind: "auto" }
 }

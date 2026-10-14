@@ -11,6 +11,8 @@ export {
   ARL_STATE_FILE,
   ARL_STATE_SCHEMA,
   BASE_SYSTEM_PROMPT_ID,
+  DEFAULT_AUTO_REFINE,
+  normalizeAutoRefine,
   type ArlEntry,
   type ArlKind,
   type ArlModeState,
@@ -18,6 +20,7 @@ export {
   type ArlScope,
   type ArlSkillReference,
   type ArlState,
+  type AutoRefineSettings,
 } from "./arl/types.js"
 
 export {
@@ -107,6 +110,7 @@ export {
 export {
   arlRefinePending,
   clearArlRefinePending,
+  flushArlAfterTurn,
   flushArlRefine,
   getArlSessionId,
   scheduleArlRefine,
@@ -114,3 +118,18 @@ export {
   takeArlRefinePending,
   type PendingRefine,
 } from "./arl/schedule.js"
+
+export {
+  autoRefineEnabled,
+  autoRefineInstructions,
+  autoRefineStatusText,
+  clearAutoRefineSessionState,
+  loadAutoRefineSettings,
+  markCompactAutoRefinePending,
+  maybeAutoRefine,
+  noteSettledTurn,
+  reviewAutoRefine,
+  saveAutoRefineSettings,
+  type AutoRefineReview,
+  type MaybeAutoRefineOpts,
+} from "./arl/auto.js"

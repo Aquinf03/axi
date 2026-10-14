@@ -26,8 +26,10 @@ import { resolveConfig, setPermissionModeWorkspace } from "../core/config.js"
 import {
   arlModeStatusText,
   countArlEntries,
+  loadAutoRefineSettings,
   loadMergedArlState,
   parseArlModeArg,
+  saveAutoRefineSettings,
   setArlEnabled,
 } from "../core/arl.js"
 
@@ -839,15 +841,48 @@ export function runSlash(line: string, opts: SlashOpts = {}): SlashResult {
     return { text: `mode  ${mode}  (profile workspace)` }
   }
   if (cmd === "/arl") {
-    const sub = arg.trim().toLowerCase()
-    if (!sub || sub === "status") {
+    const tokens = arg.trim().split(/\s+/).filter(Boolean)
+    const head = (tokens[0] ?? "").toLowerCase()
+    if (!head || head === "status") {
       const merged = loadMergedArlState(opts.sessionId)
       const n = countArlEntries(merged)
       const scope = opts.sessionId ? `session ${opts.sessionId}` : "global only (no session)"
       return { text: `${arlModeStatusText()}\nentries  ${n}  (${scope})` }
     }
-    const enabled = parseArlModeArg(sub)
-    if (enabled == null) return { text: "usage: /arl [on|off|status]" }
+    // Options (not flags): /arl interval N · /arl cooldown M · /arl compact on|off
+    if (head === "interval") {
+      const n = tokens[1] != null ? parseInt(tokens[1], 10) : NaN
+      if (!Number.isFinite(n) || n < 1) {
+        return { text: `usage: /arl interval <turns≥1>\ncurrent  every ${loadAutoRefineSettings().turnInterval} turns` }
+      }
+      saveAutoRefineSettings({ ...loadAutoRefineSettings(), turnInterval: Math.floor(n) })
+      return { text: arlModeStatusText() }
+    }
+    if (head === "cooldown") {
+      const n = tokens[1] != null ? parseInt(tokens[1], 10) : NaN
+      if (!Number.isFinite(n) || n < 0) {
+        const m = Math.round(loadAutoRefineSettings().cooldownMs / 60_000)
+        return { text: `usage: /arl cooldown <minutes≥0>\ncurrent  ${m}m` }
+      }
+      saveAutoRefineSettings({ ...loadAutoRefineSettings(), cooldownMs: Math.floor(n) * 60_000 })
+      return { text: arlModeStatusText() }
+    }
+    if (head === "compact") {
+      const v = (tokens[1] ?? "").toLowerCase()
+      if (v !== "on" && v !== "off") {
+        return {
+          text: `usage: /arl compact on|off\ncurrent  ${loadAutoRefineSettings().compact ? "on" : "off"}`,
+        }
+      }
+      saveAutoRefineSettings({ ...loadAutoRefineSettings(), compact: v === "on" })
+      return { text: arlModeStatusText() }
+    }
+    const enabled = parseArlModeArg(head)
+    if (enabled == null) {
+      return {
+        text: "usage: /arl on|off|status · /arl interval <n> · /arl cooldown <m> · /arl compact on|off",
+      }
+    }
     setArlEnabled(enabled)
     return { text: arlModeStatusText() }
   }

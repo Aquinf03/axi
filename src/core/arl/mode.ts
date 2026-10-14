@@ -6,7 +6,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { globalArlDir, globalArlModePath } from "./paths.js"
-import type { ArlModeState } from "./types.js"
+import { normalizeAutoRefine, type ArlModeState } from "./types.js"
 
 function parseEnabled(raw: string | undefined | null): boolean | null {
   if (raw == null) return null
@@ -18,22 +18,30 @@ function parseEnabled(raw: string | undefined | null): boolean | null {
 }
 
 export function emptyArlMode(): ArlModeState {
-  return { enabled: false }
+  return { enabled: false, autoRefine: normalizeAutoRefine(null) }
+}
+
+function sanitizeMode(raw: Partial<ArlModeState>): ArlModeState {
+  return {
+    enabled: Boolean(raw.enabled),
+    autoRefine: normalizeAutoRefine(raw.autoRefine),
+  }
 }
 
 export function loadArlMode(): ArlModeState {
-  const env = parseEnabled(process.env.AXI_ARL)
-  if (env != null) return { enabled: env }
-
   const p = globalArlModePath()
-  if (!existsSync(p)) return emptyArlMode()
-  try {
-    const raw = JSON.parse(readFileSync(p, "utf8")) as Partial<ArlModeState>
-    if (!raw || typeof raw !== "object") return emptyArlMode()
-    return { enabled: Boolean(raw.enabled) }
-  } catch {
-    return emptyArlMode()
+  let disk = emptyArlMode()
+  if (existsSync(p)) {
+    try {
+      const raw = JSON.parse(readFileSync(p, "utf8")) as Partial<ArlModeState>
+      if (raw && typeof raw === "object") disk = sanitizeMode(raw)
+    } catch {
+      disk = emptyArlMode()
+    }
   }
+  const env = parseEnabled(process.env.AXI_ARL)
+  if (env != null) return { ...disk, enabled: env }
+  return disk
 }
 
 export function saveArlMode(state: ArlModeState): void {
@@ -42,9 +50,21 @@ export function saveArlMode(state: ArlModeState): void {
 }
 
 export function setArlEnabled(enabled: boolean): ArlModeState {
-  const next = { enabled }
+  const cur = loadArlMode()
+  // Re-read disk without env override for persistence.
+  const p = globalArlModePath()
+  let disk = emptyArlMode()
+  if (existsSync(p)) {
+    try {
+      const raw = JSON.parse(readFileSync(p, "utf8")) as Partial<ArlModeState>
+      if (raw && typeof raw === "object") disk = sanitizeMode(raw)
+    } catch {
+      disk = emptyArlMode()
+    }
+  }
+  const next: ArlModeState = { ...disk, enabled, autoRefine: cur.autoRefine ?? disk.autoRefine }
   saveArlMode(next)
-  return next
+  return loadArlMode()
 }
 
 export function arlEnabled(): boolean {
@@ -57,17 +77,21 @@ export function parseArlModeArg(raw: string | undefined | null): boolean | null 
 
 export function arlModeStatusText(): string {
   const env = parseEnabled(process.env.AXI_ARL)
-  const disk = (() => {
-    const p = globalArlModePath()
-    if (!existsSync(p)) return emptyArlMode()
+  const p = globalArlModePath()
+  let disk = emptyArlMode()
+  if (existsSync(p)) {
     try {
       const raw = JSON.parse(readFileSync(p, "utf8")) as Partial<ArlModeState>
-      return { enabled: Boolean(raw?.enabled) }
+      if (raw && typeof raw === "object") disk = sanitizeMode(raw)
     } catch {
-      return emptyArlMode()
+      disk = emptyArlMode()
     }
-  })()
+  }
   const effective = env != null ? env : disk.enabled
   const source = env != null ? "env AXI_ARL" : "profile (~/.axi/arl/mode.json)"
-  return `arl  ${effective ? "on" : "off"}  (${source}; disk ${disk.enabled ? "on" : "off"})`
+  const auto = disk.autoRefine ?? normalizeAutoRefine(null)
+  return [
+    `arl  ${effective ? "on" : "off"}  (${source}; disk ${disk.enabled ? "on" : "off"})`,
+    `auto-refine  ${effective ? "on" : "off"}  (every ${auto.turnInterval} turns · compact ${auto.compact ? "on" : "off"} · cooldown ${Math.round(auto.cooldownMs / 60000)}m)`,
+  ].join("\n")
 }

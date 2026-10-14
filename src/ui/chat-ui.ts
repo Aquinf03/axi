@@ -10,7 +10,8 @@ import { runWelcomeSplash } from "./splash.js"
 import { compactHistory } from "../core/compact.js"
 import {
   formatRefinementNotice,
-  flushArlRefine,
+  flushArlAfterTurn,
+  markCompactAutoRefinePending,
   runRefine,
   runRefineRollback,
   setArlSessionId,
@@ -595,6 +596,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         if (!r.ok) note(r.skip)
         else {
           replaceHistory(r.history)
+          markCompactAutoRefinePending(spec.id)
           saveChat(train, spec, history)
           note(`compacted  ${r.pct}`)
         }
@@ -1404,9 +1406,9 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         playCue("message")
         notifyReply(reply, spec.name ? `axi · ${spec.name}` : "axi")
         history.push({ role: "assistant", content: reply })
-        // End-of-turn: apply agent-scheduled arl_refine, then refresh digest.
+        // End-of-turn: agent-scheduled refine, else auto-refine gates; refresh digest.
         try {
-          const flushed = await flushArlRefine(history)
+          const flushed = await flushArlAfterTurn(history, spec.id)
           if (flushed) {
             write(`${DIM}${flushed.notice.split("\n").join(`\n${DIM}`)}${RESET}\n`)
             replaceHistory(history)

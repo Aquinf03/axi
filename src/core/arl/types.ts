@@ -47,9 +47,49 @@ export type ArlState = {
   refinements: ArlRefinementEvent[]
 }
 
+/**
+ * Auto-refine options (Prime-like). Active whenever `/arl on` — no separate toggle.
+ * Tunable via `/arl interval` · `/arl cooldown` · `/arl compact`.
+ */
+export type AutoRefineSettings = {
+  /** Run a review every N settled assistant turns (min 1). */
+  turnInterval: number
+  /** Arm a review after /compact. */
+  compact: boolean
+  /** Minimum ms between auto-refine reviews. */
+  cooldownMs: number
+}
+
+export const DEFAULT_AUTO_REFINE: AutoRefineSettings = {
+  turnInterval: 25,
+  compact: true,
+  cooldownMs: 20 * 60 * 1000,
+}
+
+export function normalizeAutoRefine(
+  raw?: (Partial<AutoRefineSettings> & { enabled?: boolean }) | null,
+): AutoRefineSettings {
+  const d = DEFAULT_AUTO_REFINE
+  if (!raw || typeof raw !== "object") return { ...d }
+  const interval = Number(raw.turnInterval)
+  const cooldown = Number(raw.cooldownMs)
+  return {
+    turnInterval: Math.max(
+      1,
+      Math.floor(Number.isFinite(interval) ? interval : d.turnInterval),
+    ),
+    compact: raw.compact == null ? d.compact : Boolean(raw.compact),
+    cooldownMs: Math.max(
+      0,
+      Math.floor(Number.isFinite(cooldown) ? cooldown : d.cooldownMs),
+    ),
+  }
+}
+
 export type ArlModeState = {
   /** When false, arl store exists but is not injected / refined. Default off. */
   enabled: boolean
+  autoRefine?: AutoRefineSettings
 }
 
 export const ARL_STATE_SCHEMA = 1
