@@ -3,4 +3,4 @@
  * Outside code imports this file only — not `compact/*.ts` internals.
  */
 
-export { compactHistory, type CompactResult } from "./compact/compact.js"
+export { compactHistory, type CompactOptions, type CompactResult } from "./compact/compact.js"

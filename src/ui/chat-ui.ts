@@ -8,6 +8,7 @@ import { createAltScreen } from "./alt-screen.js"
 import { renderMarkdown } from "./markdown.js"
 import { runWelcomeSplash } from "./splash.js"
 import { compactHistory } from "../core/compact.js"
+import { withArlDigest } from "../core/arl.js"
 import { beginUndo, clearUndo, commitUndo, undoLast } from "../core/agent/undo.js"
 import { measureContext, contextFull } from "../core/agent/context.js"
 import { createUsageMeter, hasUsage } from "../core/usage.js"
@@ -240,7 +241,13 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
   let keyFor: ProviderId | null = null
   let busy = false
   let spec: ChatSpec = resumeId ? loadSpec(train, resumeId) : createChat(train)
-  const history: ChatMsg[] = resumeId ? loadMessages(train, spec.id) : []
+  const history: ChatMsg[] = []
+  /** Cold-boundary history swap — refreshes arl digest when mode is on. */
+  const replaceHistory = (msgs: ChatMsg[]) => {
+    history.length = 0
+    history.push(...withArlDigest(msgs, { sessionId: spec.id }))
+  }
+  replaceHistory(resumeId ? loadMessages(train, spec.id) : [])
   let named = spec.name !== "new chat"
   let chatFocus = spec.id
   let renameFor = false
@@ -577,11 +584,10 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       write("\x1b[?25l")
       write(`\r\x1b[K${DIM}compacting${RESET}\x1b[J`)
       try {
-        const r = await compactHistory(train, history, contextWindow())
+        const r = await compactHistory(train, history, contextWindow(), { sessionId: spec.id })
         if (!r.ok) note(r.skip)
         else {
-          history.length = 0
-          history.push(...r.history)
+          replaceHistory(r.history)
           saveChat(train, spec, history)
           note(`compacted  ${r.pct}`)
         }
@@ -686,8 +692,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       if (r.resumeChat) {
         saveChat(train, spec, history)
         spec = loadSpec(train, chatFocus)
-        history.length = 0
-        history.push(...loadMessages(train, spec.id))
+        replaceHistory(loadMessages(train, spec.id))
         named = spec.name !== "new chat"
         setTabTitle(spec.name)
         leaveScreen()
@@ -701,7 +706,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       if (r.newChat) {
         saveChat(train, spec, history)
         spec = createChat(train)
-        history.length = 0
+        replaceHistory([])
         named = false
         chatFocus = spec.id
         setTabTitle(spec.name)
@@ -745,12 +750,11 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
           const next = listChats(train)[0]
           if (next) {
             spec = next
-            history.length = 0
-            history.push(...loadMessages(train, spec.id))
+            replaceHistory(loadMessages(train, spec.id))
             named = spec.name !== "new chat"
           } else {
             spec = createChat(train)
-            history.length = 0
+            replaceHistory([])
             named = false
           }
           setTabTitle(spec.name)
@@ -800,8 +804,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       pendingImages.length = 0
       clearUndo()
       spec = loadSpec(train, id)
-      history.length = 0
-      history.push(...loadMessages(train, spec.id))
+      replaceHistory(loadMessages(train, spec.id))
       named = spec.name !== "new chat"
       chatFocus = spec.id
       setTabTitle(spec.name)
@@ -814,7 +817,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       pendingImages.length = 0
       clearUndo()
       spec = createChat(train)
-      history.length = 0
+      replaceHistory([])
       named = false
       chatFocus = spec.id
       setTabTitle(spec.name)
@@ -853,12 +856,11 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         const next = listChats(train)[0]
         if (next) {
           spec = next
-          history.length = 0
-          history.push(...loadMessages(train, spec.id))
+          replaceHistory(loadMessages(train, spec.id))
           named = spec.name !== "new chat"
         } else {
           spec = createChat(train)
-          history.length = 0
+          replaceHistory([])
           named = false
         }
         setTabTitle(spec.name)
@@ -1001,7 +1003,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         saveChat(train, spec, history)
         const gone = deleteAllChats(train)
         spec = createChat(train)
-        history.length = 0
+        replaceHistory([])
         named = false
         chatFocus = spec.id
         setTabTitle(spec.name)

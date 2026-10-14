@@ -32,7 +32,8 @@ Continual harness store for self-improving lessons (prompt notes, memories, skil
 
 - Mode: `/arl on|off|status` (default **off**). Env `AXI_ARL=on|off` overrides disk.
 - Global: `~/.axi/arl/harness_state.json` + `mode.json`; local: `~/.axi/chats/<id>/arl/`.
-- Digest / `/refine` come later — store + mode first.
+- Digest: when on, a ranked `[arl-digest]` user row is injected at cold boundaries (chat start/resume, post-`/compact`, `axi ask`) — never merged into `BASE_PROMPT`.
+- `/refine` comes next.
 
 ## Permissions
 

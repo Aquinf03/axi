@@ -1,11 +1,17 @@
 /** Fold older chat turns into a recap so the same session can continue. */
 
 import { measureContext, contextFull } from "../agent/context.js"
+import { withArlDigest } from "../arl.js"
 import { streamTurn, type ChatMsg } from "../../gateway.js"
 
 export type CompactResult =
   | { ok: true; history: ChatMsg[]; pct: string }
   | { ok: false; skip: string }
+
+export type CompactOptions = {
+  /** Chat session id — local arl harness for post-compact digest. */
+  sessionId?: string
+}
 
 function lastUserIndex(history: ChatMsg[], n: number): number {
   let seen = 0
@@ -41,6 +47,7 @@ export async function compactHistory(
   train: string,
   history: ChatMsg[],
   window: number,
+  opts: CompactOptions = {},
 ): Promise<CompactResult> {
   const snap = measureContext(train, history, window)
   const chat = snap.parts.find((p) => p.id === "chat")?.tokens ?? 0
@@ -85,6 +92,8 @@ export async function compactHistory(
   if (contextFull(measureContext(train, next, window))) {
     next = build([])
   }
+  // Cold boundary: refresh arl digest at the compaction head (when mode is on).
+  next = withArlDigest(next, { sessionId: opts.sessionId })
   const after = measureContext(train, next, window)
   return { ok: true, history: next, pct: after.pct }
 }

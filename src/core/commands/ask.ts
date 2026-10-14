@@ -3,6 +3,7 @@
 import { stdout } from "node:process"
 import path from "node:path"
 import { runTurn } from "../agent/agent-loop.js"
+import { withArlDigest } from "../arl.js"
 import { createAskHost } from "../hosts.js"
 import { AskSnapshot, renderSnapshot } from "../output.js"
 import { parsePermissionMode, type PermissionMode } from "../permissions.js"
@@ -69,7 +70,10 @@ export async function ask(argv: string[]): Promise<void> {
       { workspace: train, quiet: json, autoYes: yes },
       tools,
     )
-    const { text, usage, harness } = await runTurn([{ role: "user", content: prompt }], host)
+    const history = withArlDigest([{ role: "user" as const, content: prompt }], {
+      recentTexts: [prompt],
+    })
+    const { text, usage, harness } = await runTurn(history, host)
     const model = activeLabel()
     const cost = estimateCost(usage, model)
     const usageJson = hasUsage(usage)

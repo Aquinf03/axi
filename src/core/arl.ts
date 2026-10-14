@@ -60,3 +60,25 @@ export {
   updateArlEntry,
   type UpsertArlInput,
 } from "./arl/store.js"
+
+export {
+  ARL_DIGEST_PREFIX,
+  ARL_DIGEST_SUFFIX,
+  DEFAULT_OVERVIEW_CONTENT_LIMIT,
+  DEFAULT_OVERVIEW_ENTRY_LIMIT,
+  DEFAULT_OVERVIEW_REFINEMENT_LIMIT,
+  arlDigestFingerprint,
+  arlDigestMessageText,
+  arlQueryTerms,
+  buildArlDigest,
+  digestQueryTerms,
+  formatArlStateForPrompt,
+  isArlDigestContent,
+  recentTextsFromHistory,
+  scoreArlEntry,
+  withArlDigest,
+  type ArlDigestBuildOpts,
+  type ArlDigestRender,
+  type ArlDigestRenderOptions,
+  type ArlQueryTerms,
+} from "./arl/digest.js"

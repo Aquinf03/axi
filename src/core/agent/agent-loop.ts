@@ -60,6 +60,7 @@ const WISH =
 function isInjectedUser(c: string): boolean {
   return (
     c.startsWith("Earlier in this chat") ||
+    c.startsWith("[arl-digest]") ||
     c.startsWith("Answer the user now") ||
     c.startsWith("Recover:") ||
     c.startsWith("Stop calling tools.") ||
