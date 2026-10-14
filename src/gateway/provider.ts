@@ -23,6 +23,13 @@ import {
   sessionGrants,
 } from "../core/permissions.js"
 import { resolveConfig, setPermissionModeWorkspace } from "../core/config.js"
+import {
+  arlModeStatusText,
+  countArlEntries,
+  loadMergedArlState,
+  parseArlModeArg,
+  setArlEnabled,
+} from "../core/arl.js"
 
 export type { ChatImage }
 export type { ProviderId }
@@ -544,7 +551,7 @@ export function applyChoice(c: Choice): {
         "  sound      click + message cues",
         "  notify     desktop alert when a reply finishes (if terminal unfocused)",
         "",
-        "slash: /new /rename /open /delete [/delete all] /compact /undo /image /status /doctor /spawn /provider /model /temp /key /sound /notify",
+        "slash: /new /rename /open /delete [/delete all] /compact /undo /image /status /doctor /spawn /provider /model /temp /key /sound /notify /arl /mode",
         "",
         "keys: axi provider openai",
         "now: " + activeLabel(),
@@ -707,6 +714,8 @@ export async function providerCmd(argv: string[]): Promise<void> {
 export type SlashOpts = {
   /** Injected workspace root — do not rely on process.cwd() in core callers. */
   workspace?: string
+  /** Current chat session id — used for local arl harness paths. */
+  sessionId?: string
 }
 
 export function runSlash(line: string, opts: SlashOpts = {}): SlashResult {
@@ -826,6 +835,19 @@ export function runSlash(line: string, opts: SlashOpts = {}): SlashResult {
     if (!mode) return { text: "usage: /mode ask|auto|plan|full-access" }
     setPermissionModeWorkspace(workspace, mode)
     return { text: `mode  ${mode}  (profile workspace)` }
+  }
+  if (cmd === "/arl") {
+    const sub = arg.trim().toLowerCase()
+    if (!sub || sub === "status") {
+      const merged = loadMergedArlState(opts.sessionId)
+      const n = countArlEntries(merged)
+      const scope = opts.sessionId ? `session ${opts.sessionId}` : "global only (no session)"
+      return { text: `${arlModeStatusText()}\nentries  ${n}  (${scope})` }
+    }
+    const enabled = parseArlModeArg(sub)
+    if (enabled == null) return { text: "usage: /arl [on|off|status]" }
+    setArlEnabled(enabled)
+    return { text: arlModeStatusText() }
   }
   const hits = slashMatches(raw ?? "")
   if (hits.length > 1) {

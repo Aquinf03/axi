@@ -26,6 +26,14 @@ Implementations stay in `src/tools/` + `core/tooling/dispatch.ts` — not schema
 - **Deferred** (`DEFERRED_TOOLS`): `aq_*`, spawn, plot, memory — schemas appear only after `tools_search` loads them for the session.
 - `toolsForTrain` = core + loaded deferred + MCP extras. Discover ≠ authorize.
 
+## arl (auto RL)
+
+Continual harness store for self-improving lessons (prompt notes, memories, skill stubs, subagent specs). Front door: `core/arl.ts`.
+
+- Mode: `/arl on|off|status` (default **off**). Env `AXI_ARL=on|off` overrides disk.
+- Global: `~/.axi/arl/harness_state.json` + `mode.json`; local: `~/.axi/chats/<id>/arl/`.
+- Digest / `/refine` come later — store + mode first.
+
 ## Permissions
 
 Every sensitive tool goes through `authorizeTool` in `core/permissions` — no bypasses.
@@ -77,6 +85,13 @@ Import fat subsystems only through their front doors:
 | Skills / MCP | `core/skills.ts` |
 | Compact | `core/compact.ts` |
 | Session | `core/session.ts` |
+| arl (auto RL) | `core/arl.ts` |
+| Output | `core/output.ts` |
+| Permissions | `core/permissions.ts` |
+| Config | `core/config.ts` |
+| Hosts | `core/hosts.ts` |
+| Usage | `core/usage.ts` |
+| Gateway | `gateway.ts` |
 
 ## Usage / cost
 
@@ -112,8 +127,3 @@ They are hidden from `listChats`. The parent keeps a bounded registry at
 the current chat; CLI `axi spawn` creates workspace workers (`owner: _workspace`).
 Worker `ask` writes `~/.axi/chats/<id>/handoff.json` (artifact/receipt IDs + usage).
 `spawn_log` / `spawn_list` surface evidence first — model prose is not proof (`core/agent/handoff.ts`).
-| Output | `core/output.ts` |
-| Permissions | `core/permissions.ts` |
-| Config | `core/config.ts` |
-| Hosts | `core/hosts.ts` |
-| Gateway | `gateway.ts` |

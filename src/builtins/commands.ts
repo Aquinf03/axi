@@ -128,6 +128,7 @@ export const SLASH_SPECS: SlashSpec[] = [
   { name: "/sound", hint: "on · off" },
   { name: "/notify", hint: "on · off · reply desktop alerts" },
   { name: "/mode", hint: "ask · auto · plan · full-access (permission mode)" },
+  { name: "/arl", hint: "auto RL continual harness · on · off · status" },
   { name: "/permissions", hint: "mode, session always, saved rules", aliases: ["/perms"] },
   { name: "/exit", hint: "leave", aliases: ["/quit"] },
 ]

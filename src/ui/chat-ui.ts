@@ -886,7 +886,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       })
 
     const applySlash = async (line: string) => {
-      const r = runSlash(line, { workspace: hostEnv.workspaceRoot })
+      const r = runSlash(line, { workspace: hostEnv.workspaceRoot, sessionId: spec.id })
       if (r.quit) {
         quit()
         return
