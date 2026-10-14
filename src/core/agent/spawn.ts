@@ -20,6 +20,7 @@ import {
   type ChatSpec,
 } from "../session.js"
 import { formatHandoff, readHandoff, rollupChildUsage } from "./handoff.js"
+import { resolveArlSubagent } from "../arl.js"
 
 const KILLER_PREAMBLE = [
   "Your job is the cheapest disproof, not agreement.",
@@ -125,7 +126,13 @@ export function listAgents(train: string, parentId?: string): AgentSpec[] {
 export async function startAgent(
   train: string,
   prompt: string,
-  opts?: { name?: string; kill?: boolean; parentId?: string },
+  opts?: {
+    name?: string
+    kill?: boolean
+    parentId?: string
+    /** Arl harness subagent id (already resolved into prompt when set from tools). */
+    harnessSpec?: string
+  },
 ): Promise<AgentSpec> {
   const raw = prompt.trim()
   const text = (opts?.kill ? KILLER_PREAMBLE + "\n\n" : "") + raw
@@ -235,10 +242,12 @@ export function spawnHelp(): string {
   return [
     "axi spawn",
     "",
-    "  axi spawn agent [dir] [--name NAME] [--kill] -- <prompt>",
+    "  axi spawn agent [dir] [--name NAME] [--kill] [--spec ID] -- <prompt|task>",
     "  axi spawn list [dir]",
     "  axi spawn log [dir] <id>",
     "  axi spawn cancel [dir] <id>",
+    "",
+    "  --spec ID  load arl harness subagent (requires /arl on); prompt becomes optional task suffix",
   ].join("\n")
 }
 
@@ -276,18 +285,38 @@ export async function spawnCmd(argv: string[]): Promise<void> {
     let dir = "."
     let name: string | undefined
     let kill = false
+    let harnessSpec: string | undefined
     let i = 0
     if (rest[0] && !rest[0].startsWith("-") && isTrain(path.resolve(rest[0]))) {
       dir = rest[0]
       i = 1
     }
+    const launch = async (taskOrPrompt: string) => {
+      const train = assertTrain(dir)
+      let prompt = taskOrPrompt
+      let spawnName = name
+      if (harnessSpec) {
+        const resolved = resolveArlSubagent(harnessSpec, {
+          task: taskOrPrompt || undefined,
+        })
+        prompt = resolved.prompt
+        if (!spawnName) spawnName = resolved.name
+      }
+      if (!prompt.trim()) {
+        throw new Error("usage: axi spawn agent [dir] [--name NAME] [--kill] [--spec ID] -- <prompt|task>")
+      }
+      const spec = await startAgent(train, prompt, {
+        name: spawnName,
+        kill,
+        harnessSpec,
+      })
+      console.log("spawned")
+      console.log("  " + spec.id + "  " + spec.status + "  " + spec.name)
+      if (harnessSpec) console.log("  arl subagent  " + harnessSpec)
+    }
     while (i < rest.length) {
       if (rest[i] === "--") {
-        const prompt = rest.slice(i + 1).join(" ").trim()
-        const train = assertTrain(dir)
-        const spec = await startAgent(train, prompt, { name, kill })
-        console.log("spawned")
-        console.log("  " + spec.id + "  " + spec.status + "  " + spec.name)
+        await launch(rest.slice(i + 1).join(" ").trim())
         return
       }
       if (rest[i] === "--name") {
@@ -300,14 +329,19 @@ export async function spawnCmd(argv: string[]): Promise<void> {
         i += 1
         continue
       }
-      const prompt = rest.slice(i).join(" ").trim()
-      const train = assertTrain(dir)
-      const spec = await startAgent(train, prompt, { name, kill })
-      console.log("spawned")
-      console.log("  " + spec.id + "  " + spec.status + "  " + spec.name)
+      if (rest[i] === "--spec") {
+        harnessSpec = rest[i + 1]
+        i += 2
+        continue
+      }
+      await launch(rest.slice(i).join(" ").trim())
       return
     }
-    throw new Error("usage: axi spawn agent [dir] [--name NAME] [--kill] -- <prompt>")
+    if (harnessSpec) {
+      await launch("")
+      return
+    }
+    throw new Error("usage: axi spawn agent [dir] [--name NAME] [--kill] [--spec ID] -- <prompt|task>")
   }
   throw new Error(`unknown spawn command: ${sub}\n${spawnHelp()}`)
 }

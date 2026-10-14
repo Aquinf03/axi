@@ -133,3 +133,14 @@ export {
   type AutoRefineReview,
   type MaybeAutoRefineOpts,
 } from "./arl/auto.js"
+
+export {
+  mergeMemoryHits,
+  mirrorMemoryWriteToArl,
+  readArlMemory,
+  resolveArlSubagent,
+  searchArlMemories,
+  searchArlSkillStubs,
+  type BridgedMemoryHit,
+  type ResolvedArlSubagent,
+} from "./arl/bridge.js"

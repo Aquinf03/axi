@@ -35,6 +35,7 @@ Continual harness store for self-improving lessons (prompt notes, memories, skil
 - Digest: when on, a ranked `[arl-digest]` user row is injected at cold boundaries (chat start/resume, post-`/compact`, `axi ask`) — never merged into `BASE_PROMPT`.
 - Refine: `/refine [--global] [focus]` plans+applies harness edits; `/refine rollback <id>` undoes. Agent tool `arl_refine` only *schedules* — host applies when the turn ends, then refreshes the digest.
 - Auto-refine follows `/arl on`. Options: `/arl interval <n>` · `/arl cooldown <m>` · `/arl compact on|off`. Reviewer gate every N turns and after compact (cooldown). Local-only unless the reviewer asks global.
+- Unify: `memory_write` dual-writes workspace + global arl memory; `memory_search`/`read` merge both. Skill stubs stay inventory (no auto `SKILL.md`). `spawn spec=<id>` loads harness subagents. Learned policy stays in digest/`prompt` entries — not `BASE_PROMPT`.
 
 ## Permissions
 

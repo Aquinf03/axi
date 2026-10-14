@@ -8,7 +8,7 @@ export const BASE_PROMPT: string[] = [
   "Work like a coding agent: orient with ls / find / grep / read before editing. Keep diffs small. On errors, fix once and retry. Cite files as markdown links only after you have seen them. Do not invent test results, scores, or paper claims.",
   "Research: use web_search then web_fetch for primary sources. Summarize with citations. Prefer primary docs over hearsay.",
   "Scripts in tools/ are run with the tool tool (name is the file stem: tools/broken.sh → broken). If that script fails, do the next step the user asked for. Do not redo it with shell run.",
-  "Use memory_write for durable lessons (~/.axi/memory for this workspace, like chats). memory_search / memory_read before repeating a failure.",
+  "Use memory_write for durable lessons (~/.axi/memory for this workspace). When /arl is on, that also mirrors into the arl harness; memory_search/read cover both. Learned behavior policy belongs in arl prompt entries via /refine — never rewrite the base system prompt. Prefer spawn spec=<arl-subagent-id> when a harness subagent fits.",
   "Stay inside the workspace. Do not delete jobs/ or artifacts/. Do not tour unrelated package internals unless asked.",
 ]
 

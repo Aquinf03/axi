@@ -9,7 +9,17 @@ import {
   searchMemory,
   writeMemory,
 } from "../session.js"
-import { arlEnabled, arlRefinePending, scheduleArlRefine } from "../arl.js"
+import {
+  arlEnabled,
+  arlRefinePending,
+  mergeMemoryHits,
+  mirrorMemoryWriteToArl,
+  readArlMemory,
+  resolveArlSubagent,
+  scheduleArlRefine,
+  searchArlMemories,
+  searchArlSkillStubs,
+} from "../arl.js"
 import { formatCards, searchTools, toolsDigest } from "./registry.js"
 import { find as findPaths, glob as globPaths, grep as grepFiles, ls, readPath } from "../../tools/explore.js"
 import { cpAt, editFileAt, mkdirAt, mvAt, previewEditDiff, previewWriteDiff, rmAt, writeFileAt } from "../../tools/files.js"
@@ -214,13 +224,31 @@ export async function runAgentTool(train: string, name: string, rawArgs: string)
     }
   }
   if (name === "memory_search") {
-    const hits = searchMemory(train, jsonArg(args, "query"))
-    return hits.length ? hits.map((h) => `${h.name}: ${h.snippet}`).join("\n") : "no memory hits"
+    const query = jsonArg(args, "query")
+    const workspace = searchMemory(train, query)
+    const arl = searchArlMemories(query)
+    const hits = mergeMemoryHits(workspace, arl)
+    return hits.length
+      ? hits.map((h) => `${h.name} [${h.source}]: ${h.snippet}`).join("\n")
+      : "no memory hits"
   }
-  if (name === "memory_read") return readMemory(train, jsonArg(args, "name"))
+  if (name === "memory_read") {
+    const n = jsonArg(args, "name")
+    try {
+      return readMemory(train, n)
+    } catch (err) {
+      const arl = readArlMemory(n)
+      if (arl != null) return arl
+      throw err
+    }
+  }
   if (name === "memory_write") {
     const n = writeMemory(train, jsonArg(args, "name"), jsonArg(args, "body"))
-    return `wrote memory entry "${n}" (~/.axi/memory)`
+    const body = jsonArg(args, "body")
+    const bridged = mirrorMemoryWriteToArl(n, body)
+    return bridged
+      ? `wrote memory entry "${n}" (~/.axi/memory) · mirrored arl memory:${bridged.id}`
+      : `wrote memory entry "${n}" (~/.axi/memory)`
   }
   if (name === "arl_refine") {
     if (!arlEnabled()) return "arl is off — ask the user to /arl on before refining"
@@ -288,7 +316,15 @@ export async function runAgentTool(train: string, name: string, rawArgs: string)
   if (name === "skills_search") {
     const q = typeof args.query === "string" ? args.query : ""
     const hits = searchSkills(train, q)
-    return hits.length ? hits.map((h) => `${h.name}: ${h.blurb}`).join("\n") : "no skills"
+    const stubs = searchArlSkillStubs(
+      q,
+      hits.map((h) => h.name),
+    )
+    const lines = [
+      ...hits.map((h) => `${h.name}: ${h.blurb}`),
+      ...stubs.map((h) => `${h.name}: ${h.blurb}`),
+    ]
+    return lines.length ? lines.join("\n") : "no skills"
   }
   if (name === "plot") {
     const kind = typeof args.kind === "string" && args.kind.trim() ? args.kind.trim() : "all"
@@ -296,11 +332,22 @@ export async function runAgentTool(train: string, name: string, rawArgs: string)
     return runAq(train, ["plot", kind, ...extra])
   }
   if (name === "spawn") {
-    const spec = await startAgent(train, jsonArg(args, "prompt"), {
-      name: typeof args.name === "string" ? args.name : undefined,
+    const harnessId = typeof args.spec === "string" ? args.spec.trim() : ""
+    const rawPrompt = typeof args.prompt === "string" ? args.prompt : ""
+    let prompt = rawPrompt
+    let name = typeof args.name === "string" ? args.name : undefined
+    if (harnessId) {
+      const resolved = resolveArlSubagent(harnessId, { task: rawPrompt || undefined })
+      prompt = resolved.prompt
+      if (!name) name = resolved.name
+    }
+    if (!prompt.trim()) throw new Error("spawn needs prompt or spec")
+    const spec = await startAgent(train, prompt, {
+      name,
       kill: args.kill === true,
+      harnessSpec: harnessId || undefined,
     })
-    return `spawned ${spec.id}  ${spec.status}  ${spec.name}\njob ${spec.jobId}`
+    return `spawned ${spec.id}  ${spec.status}  ${spec.name}\njob ${spec.jobId}${harnessId ? `\narl subagent  ${harnessId}` : ""}`
   }
   if (name === "spawn_list") return formatAgents(train)
   if (name === "spawn_log") return agentLog(train, jsonArg(args, "id"))

@@ -83,8 +83,8 @@ Never rewrite the immutable base system prompt (id base_system_prompt).
 Kinds:
 - prompt: narrow behavioral policy addendums only
 - memory: durable facts, decisions, failures, preferences, outcomes
-- skill: repeatable procedure stubs — reference must be {"type":"skill"|"tool","name":"..."} plus arguments object (use {} if none)
-- subagent: reusable delegation role — purpose, instructions, when to invoke
+- skill: repeatable procedure *stubs* only (inventory) — reference must be {"type":"skill"|"tool","name":"..."} plus arguments object (use {} if none). Never invent a full SKILL.md package; packaging stays a reviewed skill-creator path. If reference.name already exists as a package, agents skill_load it.
+- subagent: reusable delegation role — purpose, instructions, when to invoke. Agents spawn with spec=<id>.
 
 Scope:
 - Default store is local to this chat session. Use it for session progress, blockers, coordination.

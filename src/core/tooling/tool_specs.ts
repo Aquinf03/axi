@@ -283,7 +283,8 @@ export const CORE_TOOLS: AgentToolDef[] = [
 export const DEFERRED_TOOLS: AgentToolDef[] = [
   {
     name: "memory_search",
-    description: "Search memory for this train (~/.axi/memory, keyed like chats).",
+    description:
+      "Search workspace memory (~/.axi/memory) and, when /arl on, arl harness memories. Hits tagged [workspace] or [arl].",
     parameters: {
       type: "object",
       properties: { query: { type: "string", description: "keywords" } },
@@ -292,7 +293,8 @@ export const DEFERRED_TOOLS: AgentToolDef[] = [
   },
   {
     name: "memory_read",
-    description: "Read one memory entry by title (~/.axi/memory for this train).",
+    description:
+      "Read one memory by title from ~/.axi/memory, or arl harness memory when /arl on and workspace miss.",
     parameters: {
       type: "object",
       properties: { name: { type: "string", description: "note stem" } },
@@ -301,7 +303,8 @@ export const DEFERRED_TOOLS: AgentToolDef[] = [
   },
   {
     name: "memory_write",
-    description: "Save a durable memory entry for this train (~/.axi/memory). Like pinning a chat note — not a file in the experiment folder.",
+    description:
+      "Save a durable workspace memory (~/.axi/memory). When /arl on, also mirrors into the global arl harness memory inventory.",
     parameters: {
       type: "object",
       properties: {
@@ -343,15 +346,21 @@ export const DEFERRED_TOOLS: AgentToolDef[] = [
   {
     name: "spawn",
     description:
-      "Start a worker axi on this train (same as `axi spawn agent`). Runs in the background as a job (artifacts/agents/<id>/). Use spawn_list and spawn_log to follow. kill true = cheapest-disproof critic, not a cheerleader.",
+      "Start a worker axi on this train (same as `axi spawn agent`). Optional spec = arl harness subagent id (/arl on). prompt is the task (or full prompt when no spec). kill true = cheapest-disproof critic.",
     parameters: {
       type: "object",
       properties: {
-        prompt: { type: "string", description: "what the worker should do" },
+        prompt: {
+          type: "string",
+          description: "task for the worker; with spec, appended as Task; without spec, full prompt (required if no spec)",
+        },
+        spec: {
+          type: "string",
+          description: "arl harness subagent id or title (requires /arl on)",
+        },
         name: { type: "string", description: "optional short name" },
         kill: { type: "boolean", description: "true: critic whose job is cheapest disproof" },
       },
-      required: ["prompt"],
     },
   },
   {

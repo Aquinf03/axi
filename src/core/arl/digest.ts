@@ -172,7 +172,7 @@ export function formatArlStateForPrompt(
     "",
     "When to refine: after a repeated failure, a reusable tactic, a repeated delegation role, a durable fact/preference, a narrow behavior policy, or a user correction that should persist. Call arl_refine (schedules end-of-turn) or the user can /refine. Keep edits small and evidence-backed.",
     "",
-    "Call contract: use axi tools (memory_*, skills, spawn, arl_refine) and slash /arl /refine. Skill stubs name a skill/tool; full SKILL.md packages are separate. Spawn a subagent spec by composing a task prompt for axi spawn.",
+    "Call contract: use axi tools (memory_*, skills_search/skill_load, spawn, arl_refine) and slash /arl /refine. memory_write dual-writes workspace + arl memory. Skill stubs are inventory only — skill_load when a matching SKILL.md package exists; do not invent packages from stubs. Spawn a harness subagent with spawn spec=<id> (optional prompt = task suffix).",
     "",
   ]
 
