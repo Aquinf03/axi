@@ -82,3 +82,35 @@ export {
   type ArlDigestRenderOptions,
   type ArlQueryTerms,
 } from "./arl/digest.js"
+
+export {
+  applyRefinementProposal,
+  appendRefinementResult,
+  extractJsonObject,
+  findRefinementResult,
+  formatRefinementNotice,
+  loadRefinementResults,
+  parseProposal,
+  rollbackProposal,
+  runRefine,
+  runRefineRollback,
+  type AppliedRefinementEdit,
+  type ApplyOptions,
+  type RefinementAction,
+  type RefinementEdit,
+  type RefinementProposal,
+  type RefinementResult,
+  type RefinementSource,
+  type RunRefineOpts,
+} from "./arl/refine.js"
+
+export {
+  arlRefinePending,
+  clearArlRefinePending,
+  flushArlRefine,
+  getArlSessionId,
+  scheduleArlRefine,
+  setArlSessionId,
+  takeArlRefinePending,
+  type PendingRefine,
+} from "./arl/schedule.js"

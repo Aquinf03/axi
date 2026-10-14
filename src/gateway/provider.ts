@@ -551,7 +551,7 @@ export function applyChoice(c: Choice): {
         "  sound      click + message cues",
         "  notify     desktop alert when a reply finishes (if terminal unfocused)",
         "",
-        "slash: /new /rename /open /delete [/delete all] /compact /undo /image /status /doctor /spawn /provider /model /temp /key /sound /notify /arl /mode",
+        "slash: /new /rename /open /delete [/delete all] /compact /undo /image /status /doctor /spawn /provider /model /temp /key /sound /notify /arl /refine /mode",
         "",
         "keys: axi provider openai",
         "now: " + activeLabel(),
@@ -592,6 +592,8 @@ export type SlashResult = {
   quit?: boolean
   text?: string
   compact?: boolean
+  /** Run arl /refine against current chat history. */
+  refine?: { instructions?: string; global?: boolean; rollbackId?: string }
   undo?: boolean
   newChat?: boolean
   rename?: true | string
@@ -848,6 +850,21 @@ export function runSlash(line: string, opts: SlashOpts = {}): SlashResult {
     if (enabled == null) return { text: "usage: /arl [on|off|status]" }
     setArlEnabled(enabled)
     return { text: arlModeStatusText() }
+  }
+  if (cmd === "/refine") {
+    const tokens = arg.trim().split(/\s+/).filter(Boolean)
+    if (tokens[0]?.toLowerCase() === "rollback") {
+      const id = tokens[1]
+      if (!id) return { text: "usage: /refine rollback <id>" }
+      return { refine: { rollbackId: id } }
+    }
+    let global = false
+    const rest: string[] = []
+    for (const t of tokens) {
+      if (t === "--global" || t === "-g") global = true
+      else rest.push(t)
+    }
+    return { refine: { instructions: rest.join(" ").trim() || undefined, global } }
   }
   const hits = slashMatches(raw ?? "")
   if (hits.length > 1) {

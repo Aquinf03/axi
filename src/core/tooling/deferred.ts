@@ -74,7 +74,7 @@ export function requireDeferredLoaded(train: string, name: string): void {
 export function deferredDigest(train: string): string {
   const loadedNames = loadedDeferredNames(train)
   const n = DEFERRED_TOOLS.length
-  return `deferred (${n}): aq_*/spawn/plot/memory via tools_search. loaded: ${
+  return `deferred (${n}): aq_*/spawn/plot/memory/arl_refine via tools_search. loaded: ${
     loadedNames.length ? loadedNames.join(" ") : "none"
   }`
 }

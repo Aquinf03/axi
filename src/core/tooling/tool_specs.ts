@@ -64,7 +64,7 @@ export const CORE_TOOLS: AgentToolDef[] = [
   {
     name: "tools_search",
     description:
-      "Search builtins, aq commands, tools/, and skills. Matching deferred tools (aq_*, spawn, plot, memory_*) are loaded into this session so you can call them next. Discovering a tool does not approve it — sensitive calls still need a permit.",
+      "Search builtins, aq commands, tools/, and skills. Matching deferred tools (aq_*, spawn, plot, memory_*, arl_refine) are loaded into this session so you can call them next. Discovering a tool does not approve it — sensitive calls still need a permit.",
     parameters: {
       type: "object",
       properties: { query: { type: "string", description: "keywords" } },
@@ -309,6 +309,24 @@ export const DEFERRED_TOOLS: AgentToolDef[] = [
         body: { type: "string", description: "markdown body" },
       },
       required: ["name", "body"],
+    },
+  },
+  {
+    name: "arl_refine",
+    description:
+      "Schedule an arl continual-harness refine for when this turn ends (same path as /refine). Use after a repeated failure, reusable tactic, durable preference, or user correction worth persisting. Returns immediately — do not wait for apply. Requires /arl on.",
+    parameters: {
+      type: "object",
+      properties: {
+        instructions: {
+          type: "string",
+          description: "optional focus for the refine (what lesson to capture)",
+        },
+        global: {
+          type: "boolean",
+          description: "true = write global harness; default local to this chat",
+        },
+      },
     },
   },
   {

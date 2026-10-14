@@ -8,7 +8,14 @@ import { createAltScreen } from "./alt-screen.js"
 import { renderMarkdown } from "./markdown.js"
 import { runWelcomeSplash } from "./splash.js"
 import { compactHistory } from "../core/compact.js"
-import { withArlDigest } from "../core/arl.js"
+import {
+  formatRefinementNotice,
+  flushArlRefine,
+  runRefine,
+  runRefineRollback,
+  setArlSessionId,
+  withArlDigest,
+} from "../core/arl.js"
 import { beginUndo, clearUndo, commitUndo, undoLast } from "../core/agent/undo.js"
 import { measureContext, contextFull } from "../core/agent/context.js"
 import { createUsageMeter, hasUsage } from "../core/usage.js"
@@ -930,6 +937,36 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         await runCompact()
         return
       }
+      if (r.refine) {
+        if (busy) {
+          note("busy — wait for the turn to finish")
+          paintComposer()
+          return
+        }
+        busy = true
+        write("\x1b[?25l")
+        write(`\r\x1b[K${DIM}refining${RESET}\x1b[J`)
+        try {
+          const result = r.refine.rollbackId
+            ? await runRefineRollback(r.refine.rollbackId, spec.id, "user")
+            : await runRefine({
+                history,
+                sessionId: spec.id,
+                instructions: r.refine.instructions,
+                global: r.refine.global,
+                source: "user",
+              })
+          replaceHistory(history)
+          saveChat(train, spec, history)
+          note(formatRefinementNotice(result))
+        } catch (err) {
+          note(err instanceof Error ? err.message : String(err))
+        }
+        write("\x1b[?25h")
+        busy = false
+        paintComposer()
+        return
+      }
       if (r.image) {
         try {
           const img = loadImage(train, r.image.path)
@@ -1351,7 +1388,14 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
           },
         }
         usageMeter.beginTurn()
-        const { text: reply, usage } = await runTurn(history, host)
+        setArlSessionId(spec.id)
+        let reply = ""
+        let usage
+        try {
+          ;({ text: reply, usage } = await runTurn(history, host))
+        } finally {
+          setArlSessionId(undefined)
+        }
         usageMeter.record(usage)
         usageMeter.endTurn()
         stopSpin()
@@ -1360,6 +1404,17 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         playCue("message")
         notifyReply(reply, spec.name ? `axi · ${spec.name}` : "axi")
         history.push({ role: "assistant", content: reply })
+        // End-of-turn: apply agent-scheduled arl_refine, then refresh digest.
+        try {
+          const flushed = await flushArlRefine(history)
+          if (flushed) {
+            write(`${DIM}${flushed.notice.split("\n").join(`\n${DIM}`)}${RESET}\n`)
+            replaceHistory(history)
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          write(`${DIM}refine failed  ${msg}${RESET}\n`)
+        }
         commitUndo()
         saveChat(train, spec, history)
         if (!named) {

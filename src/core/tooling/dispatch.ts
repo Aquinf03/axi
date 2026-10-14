@@ -9,6 +9,7 @@ import {
   searchMemory,
   writeMemory,
 } from "../session.js"
+import { arlEnabled, arlRefinePending, scheduleArlRefine } from "../arl.js"
 import { formatCards, searchTools, toolsDigest } from "./registry.js"
 import { find as findPaths, glob as globPaths, grep as grepFiles, ls, readPath } from "../../tools/explore.js"
 import { cpAt, editFileAt, mkdirAt, mvAt, previewEditDiff, previewWriteDiff, rmAt, writeFileAt } from "../../tools/files.js"
@@ -220,6 +221,18 @@ export async function runAgentTool(train: string, name: string, rawArgs: string)
   if (name === "memory_write") {
     const n = writeMemory(train, jsonArg(args, "name"), jsonArg(args, "body"))
     return `wrote memory entry "${n}" (~/.axi/memory)`
+  }
+  if (name === "arl_refine") {
+    if (!arlEnabled()) return "arl is off — ask the user to /arl on before refining"
+    const instructions =
+      typeof args.instructions === "string" && args.instructions.trim()
+        ? args.instructions.trim()
+        : undefined
+    const global = args.global === true
+    const out = scheduleArlRefine({ instructions, global })
+    if (!out.scheduled) return `refine not scheduled: ${out.reason}`
+    const pending = arlRefinePending()
+    return `refine scheduled for end of turn (${pending?.global ? "global" : "local"}${pending?.instructions ? `; focus: ${pending.instructions}` : ""}). Continue working — host applies after this turn.`
   }
   if (name === "tools_search") {
     const cards = searchTools(train, jsonArg(args, "query"))

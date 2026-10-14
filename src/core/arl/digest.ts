@@ -170,9 +170,9 @@ export function formatArlStateForPrompt(
     "Prefer local lessons for current-task progress; promote global only for stable cross-session prefs, reusable skills/subagents, or explicitly project-qualified facts.",
     "Use prompt notes, memories, skill stubs, and subagent specs when relevant. The base system prompt is immutable; prompt entries are supplemental only.",
     "",
-    "When to refine (later /refine): after a repeated failure, a reusable tactic, a repeated delegation role, a durable fact/preference, a narrow behavior policy, or a user correction that should persist. Keep edits small and evidence-backed.",
+    "When to refine: after a repeated failure, a reusable tactic, a repeated delegation role, a durable fact/preference, a narrow behavior policy, or a user correction that should persist. Call arl_refine (schedules end-of-turn) or the user can /refine. Keep edits small and evidence-backed.",
     "",
-    "Call contract: use axi tools (memory_*, skills, spawn) and slash /arl. Skill stubs name a skill/tool; full SKILL.md packages are separate. Spawn a subagent spec by composing a task prompt for axi spawn.",
+    "Call contract: use axi tools (memory_*, skills, spawn, arl_refine) and slash /arl /refine. Skill stubs name a skill/tool; full SKILL.md packages are separate. Spawn a subagent spec by composing a task prompt for axi spawn.",
     "",
   ]
 
