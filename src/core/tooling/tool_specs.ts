@@ -64,7 +64,7 @@ export const CORE_TOOLS: AgentToolDef[] = [
   {
     name: "tools_search",
     description:
-      "Search builtins, aq commands, tools/, and skills. Matching deferred tools (aq_*, spawn, plot, memory_*, arl_refine) are loaded into this session so you can call them next. Discovering a tool does not approve it — sensitive calls still need a permit.",
+      "Search builtins, aq commands, tools/, and skills. Matching deferred tools (aq_*, spawn, plot, memory_*, arl_refine, mission_done) are loaded into this session so you can call them next. Discovering a tool does not approve it — sensitive calls still need a permit.",
     parameters: {
       type: "object",
       properties: { query: { type: "string", description: "keywords" } },
@@ -328,6 +328,20 @@ export const DEFERRED_TOOLS: AgentToolDef[] = [
         global: {
           type: "boolean",
           description: "true = write global harness; default local to this chat",
+        },
+      },
+    },
+  },
+  {
+    name: "mission_done",
+    description:
+      "Mark the active mission objective complete (same as /mission done). Only call when the user asked for a mission and the objective is actually finished — not for drive/pulse alone.",
+    parameters: {
+      type: "object",
+      properties: {
+        summary: {
+          type: "string",
+          description: "optional one-line what was accomplished",
         },
       },
     },

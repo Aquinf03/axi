@@ -37,6 +37,15 @@ Continual harness store for self-improving lessons (prompt notes, memories, skil
 - Auto-refine follows `/arl on`. Options: `/arl interval <n>` · `/arl cooldown <m>` · `/arl compact on|off`. Reviewer gate every N turns and after compact (cooldown). Local-only unless the reviewer asks global.
 - Unify: `memory_write` dual-writes workspace + global arl memory; `memory_search`/`read` merge both. Skill stubs stay inventory (no auto `SKILL.md`). `spawn spec=<id>` loads harness subagents. Learned policy stays in digest/`prompt` entries — not `BASE_PROMPT`.
 
+## Mission
+
+Keep working when the human goes quiet — one product, three facets. Front door: `core/mission.ts`. Persist `~/.axi/chats/<id>/mission.json`.
+
+- `/mission set [--budget N] <objective>` · `pause|resume|clear|done` — Objective re-injects at turn end until done/budget; weights arl digest via `goalObjective`.
+- `/mission drive on|off` — bounded keep-going (continuations/turns/tokens/timeout); optional `--gate CMD` shell quality gates (pass → stop Drive only, not objective); Objective preempts Drive.
+- `/mission pulse [--every 5m] <instruction>` — wall-clock wake while chat is open (in-process timer); deferred if busy.
+- Agent: deferred `mission_done` when the objective is actually finished.
+
 ## Permissions
 
 Every sensitive tool goes through `authorizeTool` in `core/permissions` — no bypasses.
@@ -89,6 +98,7 @@ Import fat subsystems only through their front doors:
 | Compact | `core/compact.ts` |
 | Session | `core/session.ts` |
 | arl (auto RL) | `core/arl.ts` |
+| mission | `core/mission.ts` |
 | Output | `core/output.ts` |
 | Permissions | `core/permissions.ts` |
 | Config | `core/config.ts` |

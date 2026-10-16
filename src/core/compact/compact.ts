@@ -2,6 +2,7 @@
 
 import { measureContext, contextFull } from "../agent/context.js"
 import { withArlDigest } from "../arl.js"
+import { activeObjectiveText } from "../mission.js"
 import { streamTurn, type ChatMsg } from "../../gateway.js"
 
 export type CompactResult =
@@ -93,7 +94,10 @@ export async function compactHistory(
     next = build([])
   }
   // Cold boundary: refresh arl digest at the compaction head (when mode is on).
-  next = withArlDigest(next, { sessionId: opts.sessionId })
+  next = withArlDigest(next, {
+    sessionId: opts.sessionId,
+    goalObjective: opts.sessionId ? activeObjectiveText(opts.sessionId) : undefined,
+  })
   const after = measureContext(train, next, window)
   return { ok: true, history: next, pct: after.pct }
 }

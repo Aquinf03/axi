@@ -12,6 +12,7 @@ import {
 import {
   arlEnabled,
   arlRefinePending,
+  getArlSessionId,
   mergeMemoryHits,
   mirrorMemoryWriteToArl,
   readArlMemory,
@@ -20,6 +21,7 @@ import {
   searchArlMemories,
   searchArlSkillStubs,
 } from "../arl.js"
+import { completeObjective, loadMission } from "../mission.js"
 import { formatCards, searchTools, toolsDigest } from "./registry.js"
 import { find as findPaths, glob as globPaths, grep as grepFiles, ls, readPath } from "../../tools/explore.js"
 import { cpAt, editFileAt, mkdirAt, mvAt, previewEditDiff, previewWriteDiff, rmAt, writeFileAt } from "../../tools/files.js"
@@ -261,6 +263,20 @@ export async function runAgentTool(train: string, name: string, rawArgs: string)
     if (!out.scheduled) return `refine not scheduled: ${out.reason}`
     const pending = arlRefinePending()
     return `refine scheduled for end of turn (${pending?.global ? "global" : "local"}${pending?.instructions ? `; focus: ${pending.instructions}` : ""}). Continue working — host applies after this turn.`
+  }
+  if (name === "mission_done") {
+    const sid = getArlSessionId()
+    if (!sid) return "mission_done needs an open chat session"
+    const before = loadMission(sid).objective
+    if (!before || before.status === "idle" || before.status === "complete") {
+      return "no active mission objective to complete"
+    }
+    completeObjective(sid)
+    const summary =
+      typeof args.summary === "string" && args.summary.trim() ? args.summary.trim() : ""
+    return summary
+      ? `mission objective complete — ${summary}`
+      : "mission objective marked complete"
   }
   if (name === "tools_search") {
     const cards = searchTools(train, jsonArg(args, "query"))

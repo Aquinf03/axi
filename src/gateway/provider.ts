@@ -32,6 +32,7 @@ import {
   saveAutoRefineSettings,
   setArlEnabled,
 } from "../core/arl.js"
+import { runMissionSlash } from "../core/mission.js"
 
 export type { ChatImage }
 export type { ProviderId }
@@ -553,7 +554,7 @@ export function applyChoice(c: Choice): {
         "  sound      click + message cues",
         "  notify     desktop alert when a reply finishes (if terminal unfocused)",
         "",
-        "slash: /new /rename /open /delete [/delete all] /compact /undo /image /status /doctor /spawn /provider /model /temp /key /sound /notify /arl /refine /mode",
+        "slash: /new /rename /open /delete [/delete all] /compact /undo /image /status /doctor /spawn /provider /model /temp /key /sound /notify /arl /refine /mission /mode",
         "",
         "keys: axi provider openai",
         "now: " + activeLabel(),
@@ -618,6 +619,10 @@ export type SlashResult = {
   promptKey?: ProviderId
   openKey?: boolean
   image?: { path: string; caption: string }
+  /** Mission slash: kick an immediate continuation turn. */
+  missionKick?: string
+  /** Mission pulse timer should re-arm. */
+  missionRearmPulse?: boolean
 }
 
 function resolveSlash(cmd: string): string {
@@ -900,6 +905,14 @@ export function runSlash(line: string, opts: SlashOpts = {}): SlashResult {
       else rest.push(t)
     }
     return { refine: { instructions: rest.join(" ").trim() || undefined, global } }
+  }
+  if (cmd === "/mission") {
+    const out = runMissionSlash(opts.sessionId, arg)
+    return {
+      text: out.text,
+      missionKick: out.kick,
+      missionRearmPulse: out.rearmPulse,
+    }
   }
   const hits = slashMatches(raw ?? "")
   if (hits.length > 1) {

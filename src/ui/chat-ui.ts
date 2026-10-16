@@ -17,6 +17,16 @@ import {
   setArlSessionId,
   withArlDigest,
 } from "../core/arl.js"
+import {
+  activeObjectiveText,
+  armPulseTimer,
+  clearPulseTimer,
+  consumePulseWake,
+  flushMissionAfterTurn,
+  markPulsePending,
+  onPulseFire,
+  usageToTurnTokens,
+} from "../core/mission.js"
 import { beginUndo, clearUndo, commitUndo, undoLast } from "../core/agent/undo.js"
 import { measureContext, contextFull } from "../core/agent/context.js"
 import { createUsageMeter, hasUsage } from "../core/usage.js"
@@ -253,9 +263,37 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
   /** Cold-boundary history swap — refreshes arl digest when mode is on. */
   const replaceHistory = (msgs: ChatMsg[]) => {
     history.length = 0
-    history.push(...withArlDigest(msgs, { sessionId: spec.id }))
+    history.push(
+      ...withArlDigest(msgs, {
+        sessionId: spec.id,
+        goalObjective: activeObjectiveText(spec.id),
+      }),
+    )
   }
   replaceHistory(resumeId ? loadMessages(train, spec.id) : [])
+  /** Chained mission continuations from one human submit (safety cap). */
+  let missionChain = 0
+  const MAX_MISSION_CHAIN = 32
+  /** Queued mission kick after the current turn settles. */
+  let pendingMissionKick: string | null = null
+  /** Filled once `submit` is defined — pulse / slash kicks use this. */
+  let submitFn: (text: string) => Promise<void> = async () => {}
+
+  const armMissionPulse = () => {
+    onPulseFire(spec.id, (sid) => {
+      if (sid !== spec.id) return
+      if (busy) {
+        markPulsePending(sid)
+        return
+      }
+      const wake = consumePulseWake(sid)
+      if (!wake) return
+      note(`mission pulse  run#${wake.runCount}`)
+      void submitFn(wake.message)
+    })
+    armPulseTimer(spec.id)
+  }
+  armMissionPulse()
   let named = spec.name !== "new chat"
   let chatFocus = spec.id
   let renameFor = false
@@ -809,27 +847,35 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
     }
 
     const switchChat = (id: string) => {
+      clearPulseTimer(spec.id)
       saveChat(train, spec, history)
       pendingImages.length = 0
       clearUndo()
+      missionChain = 0
+      pendingMissionKick = null
       spec = loadSpec(train, id)
       replaceHistory(loadMessages(train, spec.id))
       named = spec.name !== "new chat"
       chatFocus = spec.id
       setTabTitle(spec.name)
+      armMissionPulse()
       note(`opened  ${spec.name}  ${spec.id}`)
       paintComposer()
     }
 
     const startNew = () => {
+      clearPulseTimer(spec.id)
       saveChat(train, spec, history)
       pendingImages.length = 0
       clearUndo()
+      missionChain = 0
+      pendingMissionKick = null
       spec = createChat(train)
       replaceHistory([])
       named = false
       chatFocus = spec.id
       setTabTitle(spec.name)
+      armMissionPulse()
       note(`new chat  ${spec.id}`)
       paintComposer()
     }
@@ -1138,7 +1184,14 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         paintComposer()
         return
       }
+      if (r.missionRearmPulse) armMissionPulse()
       if (r.text) note(r.text)
+      if (r.missionKick) {
+        paintComposer()
+        missionChain = 0
+        await submitFn(r.missionKick)
+        return
+      }
       paintComposer()
     }
 
@@ -1417,6 +1470,29 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
           const msg = err instanceof Error ? err.message : String(err)
           write(`${DIM}refine failed  ${msg}${RESET}\n`)
         }
+        // Mission: objective/drive/pulse continuation (one kick; chain via re-submit).
+        try {
+          const flushed = flushMissionAfterTurn({
+            sessionId: spec.id,
+            workspace: train,
+            turnTokens: usageToTurnTokens(usage),
+          })
+          if (flushed.notice && !flushed.continuation) {
+            write(`${DIM}${flushed.notice.split("\n").join(`\n${DIM}`)}${RESET}\n`)
+          }
+          const cont = flushed.continuation
+          if (cont && missionChain < MAX_MISSION_CHAIN) {
+            write(`${DIM}${cont.notice.split("\n").join(`\n${DIM}`)}${RESET}\n`)
+            pendingMissionKick = cont.message
+            missionChain += 1
+          } else {
+            missionChain = 0
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          write(`${DIM}mission failed  ${msg}${RESET}\n`)
+          missionChain = 0
+        }
         commitUndo()
         saveChat(train, spec, history)
         if (!named) {
@@ -1430,6 +1506,8 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         if (contextFull(measureContext(train, history, contextWindow()))) {
           write("\x1b[?25h")
           busy = false
+          pendingMissionKick = null
+          missionChain = 0
           await blockIfFull()
           return
         }
@@ -1442,11 +1520,20 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         commitUndo()
         const msg = err instanceof Error ? err.message : String(err)
         write(`\r\x1b[K${DIM}${msg}${RESET}\n\n`)
+        pendingMissionKick = null
+        missionChain = 0
       }
       write("\x1b[?25h")
       busy = false
+      const kick = pendingMissionKick
+      pendingMissionKick = null
+      if (kick) {
+        await submitFn(kick)
+        return
+      }
       paintComposer()
     }
+    submitFn = submit
 
     const onData = (chunk: Buffer | string) => {
       const parsed = parseKeys(typeof chunk === "string" ? Buffer.from(chunk) : chunk, carry)
