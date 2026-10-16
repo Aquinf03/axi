@@ -10,6 +10,8 @@ export {
   MISSION_OBJECTIVE_PREFIX,
   MISSION_PULSE_PREFIX,
   MISSION_SCHEMA,
+  OBJECTIVE_BACKOFF_BASE_MS,
+  OBJECTIVE_NO_PROGRESS_CAP,
   emptyMission,
   normalizeDriveGates,
   normalizeDriveLimits,
@@ -44,6 +46,19 @@ export {
   resumeObjective,
   setObjective,
 } from "./mission/objective.js"
+
+export {
+  armObjectiveBackoff,
+  backoffDelayMs,
+  clearAllObjectiveBackoffs,
+  clearObjectiveBackoff,
+  gateObjectiveProgress,
+  objectiveBackoffWakeMessage,
+  onObjectiveBackoffWake,
+  turnProducedProgress,
+  CAP_REASON,
+  type ProgressGate,
+} from "./mission/progress.js"
 
 export {
   bumpDriveContinuation,

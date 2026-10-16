@@ -29,7 +29,8 @@ function sanitizeObjective(raw: Partial<ObjectiveFacet> | undefined): ObjectiveF
     status === "active" ||
     status === "paused" ||
     status === "budget_limited" ||
-    status === "complete"
+    status === "complete" ||
+    status === "error"
   return {
     status: ok ? status : "idle",
     objective: objective.slice(0, 4000),
@@ -39,6 +40,11 @@ function sanitizeObjective(raw: Partial<ObjectiveFacet> | undefined): ObjectiveF
         : undefined,
     tokensUsed: Math.max(0, Math.floor(Number(raw.tokensUsed) || 0)),
     continuationsUsed: Math.max(0, Math.floor(Number(raw.continuationsUsed) || 0)),
+    noProgressStreak: Math.max(0, Math.floor(Number(raw.noProgressStreak) || 0)),
+    noProgressTurnAt:
+      typeof raw.noProgressTurnAt === "string" ? raw.noProgressTurnAt : undefined,
+    backoffUntil: typeof raw.backoffUntil === "string" ? raw.backoffUntil : undefined,
+    lastError: typeof raw.lastError === "string" ? raw.lastError.slice(0, 500) : undefined,
     createdAt: typeof raw.createdAt === "string" ? raw.createdAt : new Date().toISOString(),
     updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : new Date().toISOString(),
   }

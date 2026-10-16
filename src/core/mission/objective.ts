@@ -1,8 +1,10 @@
 /** Objective facet — durable “what we’re finishing”. */
 
 import { loadMission, saveMission, updateMission } from "./store.js"
+import { clearObjectiveBackoff } from "./progress.js"
 import {
   MISSION_OBJECTIVE_PREFIX,
+  OBJECTIVE_NO_PROGRESS_CAP,
   type MissionState,
   type ObjectiveFacet,
   type ObjectiveStatus,
@@ -24,6 +26,7 @@ export function setObjective(
 ): MissionState {
   const text = objective.trim().slice(0, 4000)
   if (!text) throw new Error("mission needs an objective")
+  clearObjectiveBackoff(sessionId)
   const t = nowIso()
   return updateMission(sessionId, (cur) => ({
     ...cur,
@@ -33,6 +36,7 @@ export function setObjective(
       tokenBudget: opts?.tokenBudget,
       tokensUsed: 0,
       continuationsUsed: 0,
+      noProgressStreak: 0,
       createdAt: cur.objective?.createdAt ?? t,
       updatedAt: t,
     },
@@ -40,29 +44,40 @@ export function setObjective(
 }
 
 export function pauseObjective(sessionId: string): MissionState {
+  clearObjectiveBackoff(sessionId)
   return updateMission(sessionId, (cur) => {
     if (!cur.objective || cur.objective.status !== "active") return cur
-    return {
-      ...cur,
-      objective: { ...cur.objective, status: "paused", updatedAt: nowIso() },
-    }
+    const next = { ...cur.objective, status: "paused" as const, updatedAt: nowIso() }
+    delete next.backoffUntil
+    return { ...cur, objective: next }
   })
 }
 
 export function resumeObjective(sessionId: string): MissionState {
+  clearObjectiveBackoff(sessionId)
   return updateMission(sessionId, (cur) => {
     if (!cur.objective) return cur
-    if (cur.objective.status !== "paused" && cur.objective.status !== "budget_limited") {
+    if (
+      cur.objective.status !== "paused" &&
+      cur.objective.status !== "budget_limited" &&
+      cur.objective.status !== "error"
+    ) {
       return cur
     }
-    return {
-      ...cur,
-      objective: { ...cur.objective, status: "active", updatedAt: nowIso() },
+    const next = {
+      ...cur.objective,
+      status: "active" as const,
+      noProgressStreak: 0,
+      updatedAt: nowIso(),
     }
+    delete next.backoffUntil
+    delete next.lastError
+    return { ...cur, objective: next }
   })
 }
 
 export function clearObjective(sessionId: string): MissionState {
+  clearObjectiveBackoff(sessionId)
   return updateMission(sessionId, (cur) => {
     const next = { ...cur }
     delete next.objective
@@ -71,12 +86,12 @@ export function clearObjective(sessionId: string): MissionState {
 }
 
 export function completeObjective(sessionId: string): MissionState {
+  clearObjectiveBackoff(sessionId)
   return updateMission(sessionId, (cur) => {
     if (!cur.objective) return cur
-    return {
-      ...cur,
-      objective: { ...cur.objective, status: "complete", updatedAt: nowIso() },
-    }
+    const next = { ...cur.objective, status: "complete" as const, updatedAt: nowIso() }
+    delete next.backoffUntil
+    return { ...cur, objective: next }
   })
 }
 
@@ -129,10 +144,17 @@ export function formatObjectiveStatus(o?: ObjectiveFacet): string {
   if (!o) return "objective  (none)"
   const budget =
     o.tokenBudget != null ? ` · budget ${o.tokensUsed}/${o.tokenBudget}` : ` · used ${o.tokensUsed} tok`
-  return [
-    `objective  ${o.status}${budget} · cont ${o.continuationsUsed}`,
+  const streak =
+    o.noProgressStreak > 0
+      ? ` · no-progress ${o.noProgressStreak}/${OBJECTIVE_NO_PROGRESS_CAP}`
+      : ""
+  const lines = [
+    `objective  ${o.status}${budget} · cont ${o.continuationsUsed}${streak}`,
     `  ${o.objective.replace(/\s+/g, " ").slice(0, 200)}`,
-  ].join("\n")
+  ]
+  if (o.lastError) lines.push(`  error  ${o.lastError}`)
+  if (o.backoffUntil && o.status === "active") lines.push(`  backoff until  ${o.backoffUntil}`)
+  return lines.join("\n")
 }
 
 export { saveMission }

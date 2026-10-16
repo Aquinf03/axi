@@ -13,6 +13,12 @@ export type ObjectiveStatus =
   | "paused"
   | "budget_limited"
   | "complete"
+  | "error"
+
+/** Consecutive empty turns before Objective stops. */
+export const OBJECTIVE_NO_PROGRESS_CAP = 3
+/** Backoff base: 10s × 2^(streak-1) → 10s, 20s (cap stops before 40s). */
+export const OBJECTIVE_BACKOFF_BASE_MS = 10_000
 
 export type ObjectiveFacet = {
   status: ObjectiveStatus
@@ -20,6 +26,13 @@ export type ObjectiveFacet = {
   tokenBudget?: number
   tokensUsed: number
   continuationsUsed: number
+  /** Consecutive empty assistant turns (no text, no tools). */
+  noProgressStreak: number
+  /** ISO of last turn examined for progress. */
+  noProgressTurnAt?: string
+  /** ISO — refuse immediate continue until this time; arm wake. */
+  backoffUntil?: string
+  lastError?: string
   createdAt: string
   updatedAt: string
 }

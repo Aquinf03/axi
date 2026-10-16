@@ -20,10 +20,14 @@ import {
 import {
   activeObjectiveText,
   armPulseTimer,
+  clearObjectiveBackoff,
   clearPulseTimer,
   consumePulseWake,
   flushMissionAfterTurn,
+  loadMission,
   markPulsePending,
+  objectiveBackoffWakeMessage,
+  onObjectiveBackoffWake,
   onPulseFire,
   usageToTurnTokens,
 } from "../core/mission.js"
@@ -293,7 +297,24 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
     })
     armPulseTimer(spec.id)
   }
+  const armMissionObjectiveBackoff = () => {
+    onObjectiveBackoffWake(spec.id, (sid) => {
+      if (sid !== spec.id) return
+      const o = loadMission(sid).objective
+      if (!o || o.status !== "active") return
+      const msg = objectiveBackoffWakeMessage(o)
+      note(
+        `mission objective  backoff wake · streak ${o.noProgressStreak}`,
+      )
+      if (busy) {
+        pendingMissionKick = msg
+        return
+      }
+      void submitFn(msg)
+    })
+  }
   armMissionPulse()
+  armMissionObjectiveBackoff()
   let named = spec.name !== "new chat"
   let chatFocus = spec.id
   let renameFor = false
@@ -848,6 +869,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
 
     const switchChat = (id: string) => {
       clearPulseTimer(spec.id)
+      clearObjectiveBackoff(spec.id)
       saveChat(train, spec, history)
       pendingImages.length = 0
       clearUndo()
@@ -859,12 +881,14 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       chatFocus = spec.id
       setTabTitle(spec.name)
       armMissionPulse()
+      armMissionObjectiveBackoff()
       note(`opened  ${spec.name}  ${spec.id}`)
       paintComposer()
     }
 
     const startNew = () => {
       clearPulseTimer(spec.id)
+      clearObjectiveBackoff(spec.id)
       saveChat(train, spec, history)
       pendingImages.length = 0
       clearUndo()
@@ -876,6 +900,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       chatFocus = spec.id
       setTabTitle(spec.name)
       armMissionPulse()
+      armMissionObjectiveBackoff()
       note(`new chat  ${spec.id}`)
       paintComposer()
     }
@@ -1476,6 +1501,8 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
             sessionId: spec.id,
             workspace: train,
             turnTokens: usageToTurnTokens(usage),
+            assistantText: reply,
+            usedTools: toolCount > 0 || Boolean(lastTool),
           })
           if (flushed.notice && !flushed.continuation) {
             write(`${DIM}${flushed.notice.split("\n").join(`\n${DIM}`)}${RESET}\n`)

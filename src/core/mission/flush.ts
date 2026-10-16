@@ -9,6 +9,7 @@ import {
   objectiveOwnsBoundary,
   recordObjectiveUsage,
 } from "./objective.js"
+import { gateObjectiveProgress } from "./progress.js"
 import {
   bumpDriveContinuation,
   decideDrive,
@@ -43,6 +44,10 @@ export type FlushMissionOpts = {
   /** Tokens from the just-finished turn (input+output). */
   turnTokens?: number
   nowMs?: number
+  /** Last assistant text — empty + no tools = no-progress strike. */
+  assistantText?: string
+  /** True if any tool ran this turn. */
+  usedTools?: boolean
 }
 
 function tokenTotal(usage?: { input?: number; output?: number } | null): number {
@@ -74,6 +79,14 @@ export function flushMissionAfterTurn(opts: FlushMissionOpts): FlushMissionResul
       return { continuation: null }
     }
     if (state.objective?.status === "active") {
+      const gate = gateObjectiveProgress(sessionId, {
+        assistantText: opts.assistantText,
+        usedTools: opts.usedTools,
+        nowMs: opts.nowMs,
+      })
+      if (gate.kind === "capped" || gate.kind === "backoff" || gate.kind === "waiting") {
+        return { continuation: null, notice: gate.notice }
+      }
       bumpObjectiveContinuation(sessionId)
       const o = loadMission(sessionId).objective!
       return {

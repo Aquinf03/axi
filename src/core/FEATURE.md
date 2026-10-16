@@ -41,7 +41,7 @@ Continual harness store for self-improving lessons (prompt notes, memories, skil
 
 Keep working when the human goes quiet — one product, three facets. Front door: `core/mission.ts`. Persist `~/.axi/chats/<id>/mission.json`.
 
-- `/mission set [--budget N] <objective>` · `pause|resume|clear|done` — Objective re-injects at turn end until done/budget; weights arl digest via `goalObjective`.
+- `/mission set [--budget N] <objective>` · `pause|resume|clear|done` — Objective re-injects at turn end until done/budget; empty turns (no text/tools) streak with 10s/20s backoff wakes, stop at 3; weights arl digest via `goalObjective`.
 - `/mission drive on|off` — bounded keep-going (continuations/turns/tokens/timeout); optional `--gate CMD` shell quality gates (pass → stop Drive only, not objective); Objective preempts Drive.
 - `/mission pulse [--every 5m|--in 20m|--at 15:30|--cron 0 9 * * 1-5] <instruction>` — wall-clock wake; durable `~/.axi/pulse-jobs.json`; `axi mission tick` marks due when chat is closed; catch-up on open.
 - Agent: deferred `mission_done` when the objective is actually finished.

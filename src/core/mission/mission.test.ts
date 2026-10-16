@@ -4,18 +4,25 @@ import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import {
+  backoffDelayMs,
+  clearAllObjectiveBackoffs,
   clearAllPulseTimers,
   clearObjective,
+  clearObjectiveBackoff,
   completeObjective,
   decideDrive,
   disableDrive,
   enableDrive,
   flushMissionAfterTurn,
+  gateObjectiveProgress,
   listDuePulseJobs,
   loadMission,
   loadPulseIndex,
   markDuePulses,
   nextCronAfter,
+  OBJECTIVE_BACKOFF_BASE_MS,
+  OBJECTIVE_NO_PROGRESS_CAP,
+  onObjectiveBackoffWake,
   parseCron,
   parseEvery,
   parsePulseSchedule,
@@ -27,6 +34,7 @@ import {
   setObjective,
   setPulse,
   syncPulseIndex,
+  turnProducedProgress,
   updateMission,
 } from "../mission.js"
 
@@ -40,10 +48,12 @@ describe("mission", () => {
     prevHome = process.env.AXI_HOME
     process.env.AXI_HOME = home
     clearAllPulseTimers()
+    clearAllObjectiveBackoffs()
   })
 
   afterEach(() => {
     clearAllPulseTimers()
+    clearAllObjectiveBackoffs()
     if (prevHome === undefined) delete process.env.AXI_HOME
     else process.env.AXI_HOME = prevHome
     rmSync(home, { recursive: true, force: true })
@@ -100,11 +110,139 @@ describe("mission", () => {
   it("flush prefers objective over drive", () => {
     setObjective(sid, "do the thing")
     enableDrive(sid, { maxContinuations: 5, maxTurns: 20 })
-    const cont = flushMissionAfterTurn({ sessionId: sid, turnTokens: 10 }).continuation
+    const cont = flushMissionAfterTurn({
+      sessionId: sid,
+      turnTokens: 10,
+      assistantText: "working on it",
+    }).continuation
     assert.ok(cont)
     assert.equal(cont!.kind, "objective")
     assert.match(cont!.message, /\[mission: objective\]/)
     assert.equal(loadMission(sid).objective?.continuationsUsed, 1)
+  })
+
+  it("turnProducedProgress and backoff delays", () => {
+    assert.equal(turnProducedProgress({ assistantText: "  " }), false)
+    assert.equal(turnProducedProgress({ assistantText: "" }), false)
+    assert.equal(turnProducedProgress({ assistantText: "hi" }), true)
+    assert.equal(turnProducedProgress({ usedTools: true }), true)
+    assert.equal(turnProducedProgress({ assistantText: "", usedTools: true }), true)
+    assert.equal(backoffDelayMs(1), OBJECTIVE_BACKOFF_BASE_MS)
+    assert.equal(backoffDelayMs(2), OBJECTIVE_BACKOFF_BASE_MS * 2)
+  })
+
+  it("no-progress streak backs off then caps", () => {
+    setObjective(sid, "keep going")
+    const t0 = 1_000_000
+
+    const a = flushMissionAfterTurn({
+      sessionId: sid,
+      turnTokens: 1,
+      assistantText: "",
+      usedTools: false,
+      nowMs: t0,
+    })
+    assert.equal(a.continuation, null)
+    assert.match(a.notice ?? "", /no progress ×1/)
+    assert.equal(loadMission(sid).objective?.noProgressStreak, 1)
+    assert.ok(loadMission(sid).objective?.backoffUntil)
+
+    // Still waiting — no mint
+    const wait = flushMissionAfterTurn({
+      sessionId: sid,
+      turnTokens: 1,
+      assistantText: "",
+      nowMs: t0 + 1_000,
+    })
+    assert.equal(wait.continuation, null)
+    assert.match(wait.notice ?? "", /backoff/)
+
+    // After backoff expires, empty again → streak 2
+    clearObjectiveBackoff(sid)
+    updateMission(sid, (m) => {
+      if (!m.objective) return m
+      const next = { ...m.objective }
+      delete next.backoffUntil
+      return { ...m, objective: next }
+    })
+    const b = flushMissionAfterTurn({
+      sessionId: sid,
+      turnTokens: 1,
+      assistantText: "   ",
+      nowMs: t0 + OBJECTIVE_BACKOFF_BASE_MS + 100,
+    })
+    assert.equal(b.continuation, null)
+    assert.match(b.notice ?? "", /no progress ×2/)
+    assert.equal(loadMission(sid).objective?.noProgressStreak, 2)
+
+    // Clear backoff and strike 3 → error
+    clearObjectiveBackoff(sid)
+    updateMission(sid, (m) => {
+      if (!m.objective) return m
+      const next = { ...m.objective }
+      delete next.backoffUntil
+      return { ...m, objective: next }
+    })
+    const c = flushMissionAfterTurn({
+      sessionId: sid,
+      turnTokens: 1,
+      assistantText: "",
+      nowMs: t0 + 60_000,
+    })
+    assert.equal(c.continuation, null)
+    assert.match(c.notice ?? "", /stopped/)
+    assert.equal(loadMission(sid).objective?.status, "error")
+    assert.equal(loadMission(sid).objective?.noProgressStreak, OBJECTIVE_NO_PROGRESS_CAP)
+  })
+
+  it("progress resets streak; tools count as progress", () => {
+    setObjective(sid, "ship it")
+    const t0 = 2_000_000
+    gateObjectiveProgress(sid, { assistantText: "", nowMs: t0 })
+    assert.equal(loadMission(sid).objective?.noProgressStreak, 1)
+
+    clearObjectiveBackoff(sid)
+    updateMission(sid, (m) => {
+      if (!m.objective) return m
+      const next = { ...m.objective }
+      delete next.backoffUntil
+      return { ...m, objective: next }
+    })
+    const ok = flushMissionAfterTurn({
+      sessionId: sid,
+      turnTokens: 5,
+      assistantText: "",
+      usedTools: true,
+      nowMs: t0 + 20_000,
+    })
+    assert.equal(ok.continuation?.kind, "objective")
+    assert.equal(loadMission(sid).objective?.noProgressStreak, 0)
+  })
+
+  it("objective backoff wake fires after delay", async () => {
+    setObjective(sid, "wake me")
+    const t0 = Date.now()
+    gateObjectiveProgress(sid, { assistantText: "", nowMs: t0 })
+    // Force near-immediate wake for the test
+    updateMission(sid, (m) => {
+      if (!m.objective) return m
+      return {
+        ...m,
+        objective: {
+          ...m.objective,
+          backoffUntil: new Date(Date.now() + 50).toISOString(),
+        },
+      }
+    })
+    const woke = await new Promise<boolean>((resolve) => {
+      const timer = setTimeout(() => resolve(false), 2000)
+      onObjectiveBackoffWake(sid, () => {
+        clearTimeout(timer)
+        resolve(true)
+      })
+    })
+    assert.equal(woke, true)
+    assert.equal(loadMission(sid).objective?.backoffUntil, undefined)
   })
 
   it("drive continues when no objective", () => {
