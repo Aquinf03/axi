@@ -62,16 +62,35 @@ function sanitizePulse(raw: Partial<PulseFacet> | undefined): PulseFacet | undef
   if (!raw || typeof raw !== "object") return undefined
   const instruction = typeof raw.instruction === "string" ? raw.instruction.trim() : ""
   if (!instruction) return undefined
-  const everyMs = Math.max(1000, Math.floor(Number(raw.everyMs) || 300_000))
+  const everyMs = Math.max(0, Math.floor(Number(raw.everyMs) || 0))
   const schedule =
-    typeof raw.schedule === "string" && raw.schedule.trim() ? raw.schedule.trim() : `every ${Math.round(everyMs / 60000)}m`
+    typeof raw.schedule === "string" && raw.schedule.trim()
+      ? raw.schedule.trim()
+      : everyMs > 0
+        ? `every ${Math.max(1, Math.round(everyMs / 60000))}m`
+        : "every 5m"
+  const kindRaw = raw.kind
+  const kind =
+    kindRaw === "in" || kindRaw === "at" || kindRaw === "cron" || kindRaw === "every"
+      ? kindRaw
+      : schedule.startsWith("cron ")
+        ? "cron"
+        : schedule.startsWith("in ")
+          ? "in"
+          : schedule.startsWith("at ")
+            ? "at"
+            : "every"
   return {
     status: raw.status === "paused" ? "paused" : "active",
+    kind,
     schedule,
-    everyMs,
+    everyMs: kind === "every" ? Math.max(1000, everyMs || 300_000) : everyMs,
+    cron: typeof raw.cron === "string" && raw.cron.trim() ? raw.cron.trim() : undefined,
+    oneShot: raw.oneShot === true || kind === "in" || kind === "at" ? true : undefined,
     instruction: instruction.slice(0, 4000),
     nextRunAt: typeof raw.nextRunAt === "string" ? raw.nextRunAt : new Date().toISOString(),
     runCount: Math.max(0, Math.floor(Number(raw.runCount) || 0)),
+    pendingDue: raw.pendingDue === true ? true : undefined,
     createdAt: typeof raw.createdAt === "string" ? raw.createdAt : new Date().toISOString(),
     updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : new Date().toISOString(),
   }

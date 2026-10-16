@@ -12,6 +12,7 @@ export type CliKind =
   | "doctor"
   | "spawn"
   | "provider"
+  | "mission"
 
 export type CliSpec = {
   kind: CliKind
@@ -91,6 +92,17 @@ export const CLI_SPECS: CliSpec[] = [
     details: ["axi doctor [dir]    health check (agent, provider, workspace, skills, mcp, aq)"],
   },
   {
+    kind: "mission",
+    tokens: ["mission"],
+    usage: "axi mission tick|status|rebuild-index",
+    summary: "mission pulse tick (durable schedules when chat is closed)",
+    details: [
+      "axi mission tick         mark due pulses (~/.axi/pulse-jobs.json)",
+      "axi mission status [id]  list pulse jobs or one chat mission",
+      "axi mission rebuild-index  rescan chats into the pulse index",
+    ],
+  },
+  {
     kind: "spawn",
     tokens: ["spawn"],
     usage: "axi spawn agent|list|log|cancel …",
@@ -130,7 +142,7 @@ export const SLASH_SPECS: SlashSpec[] = [
   { name: "/mode", hint: "ask · auto · plan · full-access (permission mode)" },
   { name: "/arl", hint: "auto RL · on|off|status · interval · cooldown · compact" },
   { name: "/refine", hint: "arl: learn from this chat · [--global] [focus] · rollback <id>" },
-  { name: "/mission", hint: "keep going · set|pause|done · drive [--gate] · pulse" },
+  { name: "/mission", hint: "keep going · set|pause|done · drive [--gate] · pulse [--every|--in|--at|--cron]" },
   { name: "/permissions", hint: "mode, session always, saved rules", aliases: ["/perms"] },
   { name: "/exit", hint: "leave", aliases: ["/quit"] },
 ]

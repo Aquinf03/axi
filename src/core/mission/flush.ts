@@ -87,7 +87,9 @@ export function flushMissionAfterTurn(opts: FlushMissionOpts): FlushMissionResul
     return { continuation: null }
   }
 
-  if (takePulsePending(sessionId)) {
+  const pulsePending =
+    takePulsePending(sessionId) || Boolean(loadMission(sessionId).pulse?.pendingDue)
+  if (pulsePending) {
     const wake = consumePulseWake(sessionId)
     if (wake) {
       return {

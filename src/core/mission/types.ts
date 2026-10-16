@@ -3,6 +3,10 @@
  * Different stop rules and clocks; compose freely.
  */
 
+import type { PulseScheduleKind } from "./schedule.js"
+export type { PulseScheduleKind }
+export { parseEvery, parsePulseSchedule, nextPulseRunAt } from "./schedule.js"
+
 export type ObjectiveStatus =
   | "idle"
   | "active"
@@ -63,16 +67,23 @@ export type DriveFacet = {
 
 export type PulseStatus = "active" | "paused"
 
-/** v1: only `every <n><s|m|h>`. */
+/** Wall-clock wake schedule — every / in / at / cron. */
 export type PulseFacet = {
   status: PulseStatus
-  /** Normalized like "every 5m". */
+  kind: PulseScheduleKind
+  /** Normalized label: "every 5m" | "in 20m" | "at 15:30" | "cron 0 9 * * 1-5". */
   schedule: string
-  /** Parsed interval ms. */
+  /** Interval ms for `every`; 0 for in/at/cron. */
   everyMs: number
+  /** 5-field cron when kind=cron. */
+  cron?: string
+  /** One-shot (in/at) — cleared after fire. */
+  oneShot?: boolean
   instruction: string
   nextRunAt: string
   runCount: number
+  /** Set by `axi mission tick` / overdue catch-up when chat was closed. */
+  pendingDue?: boolean
   createdAt: string
   updatedAt: string
 }
@@ -130,20 +141,4 @@ export function normalizeDriveGates(
     lastCommand: typeof raw.lastCommand === "string" ? raw.lastCommand : undefined,
     lastOutput: typeof raw.lastOutput === "string" ? raw.lastOutput.slice(0, 4000) : undefined,
   }
-}
-
-/** Parse `every 5m` / `every 30s` / `every 1h`. Default 5m. */
-export function parseEvery(raw?: string | null): { schedule: string; everyMs: number } | null {
-  const s = (raw ?? "every 5m").trim().toLowerCase()
-  const m = s.match(/^(?:every|each)\s+(\d+)\s*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours)$/)
-  if (!m) return null
-  const n = parseInt(m[1]!, 10)
-  if (!Number.isFinite(n) || n < 1) return null
-  const unit = m[2]!
-  let ms = n * 60_000
-  if (unit.startsWith("s")) ms = n * 1000
-  else if (unit.startsWith("h")) ms = n * 3_600_000
-  const label =
-    unit.startsWith("s") ? `every ${n}s` : unit.startsWith("h") ? `every ${n}h` : `every ${n}m`
-  return { schedule: label, everyMs: ms }
 }

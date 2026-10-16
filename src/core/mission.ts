@@ -13,7 +13,6 @@ export {
   emptyMission,
   normalizeDriveGates,
   normalizeDriveLimits,
-  parseEvery,
   type DriveFacet,
   type DriveGateConfig,
   type DriveLimits,
@@ -68,18 +67,47 @@ export {
 
 export {
   armPulseTimer,
+  catchUpPulse,
   clearAllPulseTimers,
   clearPulse,
   clearPulseTimer,
   consumePulseWake,
   formatPulseStatus,
+  markDuePulses,
   markPulsePending,
   onPulseFire,
   pausePulse,
   resumePulse,
   setPulse,
   takePulsePending,
+  type SetPulseOpts,
 } from "./mission/pulse.js"
+
+export {
+  emptyPulseIndex,
+  listDuePulseJobs,
+  loadPulseIndex,
+  rebuildPulseIndex,
+  savePulseIndex,
+  syncPulseIndex,
+  PULSE_JOBS_FILE,
+  type PulseJobIndex,
+  type PulseJobRow,
+} from "./mission/pulse-store.js"
+
+export {
+  nextCronAfter,
+  nextPulseRunAt,
+  parseAt,
+  parseCron,
+  parseEvery,
+  parseIn,
+  parsePulseSchedule,
+  type ParsedCron,
+  type ParsedPulseSchedule,
+  type PulseScheduleKind,
+  type PulseScheduleState,
+} from "./mission/schedule.js"
 
 export {
   flushMissionAfterTurn,

@@ -5,7 +5,7 @@
  * /mission set [--budget N] <objective>
  * /mission pause | resume | clear | done
  * /mission drive on [--max-cont N] … [--gate CMD]… [--gate-retries N] | off
- * /mission pulse [--every 5m] <instruction> | pause | resume | clear
+ * /mission pulse [--every|--in|--at|--cron …] <instruction> | pause | resume | clear
  */
 
 import {
@@ -171,14 +171,35 @@ export function runMissionSlash(sessionId: string | undefined, arg: string): Mis
       return { text: missionStatusText(sessionId), rearmPulse: true }
     }
     const rest = tokens.slice(1)
-    const every = takeFlag(rest, "--every") ?? takeFlag(rest, "-e")
-    takeBoolFlag(rest, "--steer") // ignored in v1
+    takeBoolFlag(rest, "--steer")
     takeBoolFlag(rest, "--follow-up")
+    // Schedule flags — value may be multi-token until next --flag for cron.
+    let schedule: string | undefined
+    const every = takeFlag(rest, "--every") ?? takeFlag(rest, "-e")
+    const inn = takeFlag(rest, "--in")
+    const at = takeFlag(rest, "--at")
+    if (every) schedule = `every ${every}`
+    else if (inn) schedule = `in ${inn}`
+    else if (at) schedule = `at ${at}`
+    else {
+      const ci = rest.findIndex((t) => t === "--cron")
+      if (ci >= 0) {
+        rest.splice(ci, 1)
+        const parts: string[] = []
+        while (ci < rest.length && !rest[ci]!.startsWith("--") && parts.length < 5) {
+          parts.push(rest[ci]!)
+          rest.splice(ci, 1)
+        }
+        if (parts.length) schedule = `cron ${parts.join(" ")}`
+      }
+    }
     const instruction = rest.join(" ").trim()
     if (!instruction) {
-      return { text: "usage: /mission pulse [--every 5m] <instruction> · pause|resume|clear" }
+      return {
+        text: 'usage: /mission pulse [--every 5m|--in 20m|--at 15:30|--cron 0 9 * * 1-5] <instruction> · pause|resume|clear',
+      }
     }
-    setPulse(sessionId, instruction, every ?? undefined)
+    setPulse(sessionId, instruction, schedule)
     return { text: missionStatusText(sessionId), rearmPulse: true }
   }
 
@@ -188,7 +209,7 @@ export function runMissionSlash(sessionId: string | undefined, arg: string): Mis
       "  /mission  ·  /mission set [--budget N] <objective>",
       "  /mission pause|resume|clear|done",
       "  /mission drive on|off …",
-      "  /mission pulse [--every 5m] <instruction> | pause|resume|clear",
+      '  /mission pulse [--every|--in|--at|--cron …] <instruction> | pause|resume|clear',
     ].join("\n"),
   }
 }

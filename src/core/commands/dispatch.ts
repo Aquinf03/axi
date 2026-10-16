@@ -10,6 +10,7 @@ import { chatCmd } from "./chat.js"
 import { doctorCmd } from "./doctor.js"
 import { spawnCmd } from "../agent/spawn.js"
 import { providerCmd } from "../../gateway.js"
+import { missionCmd } from "./mission.js"
 
 function takeFlag(argv: string[], name: string): { argv: string[]; present: boolean } {
   const i = argv.indexOf(name)
@@ -56,6 +57,11 @@ export async function dispatchCli(argv: string[]): Promise<void> {
 
   if (kind === "spawn") {
     await spawnCmd(argv.slice(1))
+    return
+  }
+
+  if (kind === "mission") {
+    await missionCmd(argv.slice(1))
     return
   }
 

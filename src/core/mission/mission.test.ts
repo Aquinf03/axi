@@ -11,8 +11,14 @@ import {
   disableDrive,
   enableDrive,
   flushMissionAfterTurn,
+  listDuePulseJobs,
   loadMission,
+  loadPulseIndex,
+  markDuePulses,
+  nextCronAfter,
+  parseCron,
   parseEvery,
+  parsePulseSchedule,
   pauseObjective,
   recordObjectiveUsage,
   resumeObjective,
@@ -20,6 +26,8 @@ import {
   runShellGate,
   setObjective,
   setPulse,
+  syncPulseIndex,
+  updateMission,
 } from "../mission.js"
 
 describe("mission", () => {
@@ -41,11 +49,28 @@ describe("mission", () => {
     rmSync(home, { recursive: true, force: true })
   })
 
-  it("parses every schedules", () => {
+  it("parses every / in / at / cron schedules", () => {
     assert.deepEqual(parseEvery("every 5m"), { schedule: "every 5m", everyMs: 300_000 })
     assert.equal(parseEvery("every 30s")?.everyMs, 30_000)
     assert.equal(parseEvery("each 2h")?.schedule, "every 2h")
     assert.equal(parseEvery("bogus"), null)
+
+    const inn = parsePulseSchedule("in 20m", 1_000_000)
+    assert.equal(inn?.kind, "in")
+    assert.equal(inn?.oneShot, true)
+    assert.equal(inn?.firstAtMs, 1_000_000 + 20 * 60_000)
+
+    const at = parsePulseSchedule("at 2026-12-01T12:00:00.000Z", Date.parse("2026-11-01T00:00:00.000Z"))
+    assert.equal(at?.kind, "at")
+    assert.ok(at?.firstAtMs && at.firstAtMs > Date.parse("2026-11-01T00:00:00.000Z"))
+
+    const cron = parseCron("0 9 * * 1-5")
+    assert.ok(cron)
+    const next = nextCronAfter(cron!, Date.parse("2026-10-16T08:00:00")) // Thu local-ish
+    assert.ok(Number.isFinite(next))
+
+    assert.equal(parsePulseSchedule("cron 0 9 * * 1-5")?.kind, "cron")
+    assert.equal(parsePulseSchedule("0 * * * *")?.kind, "cron")
   })
 
   it("objective set/pause/resume/done/clear", () => {
@@ -169,13 +194,41 @@ describe("mission", () => {
     assert.match(runMissionSlash(sid, "").text, /finish unify/)
   })
 
-  it("pulse set persists schedule", () => {
+  it("pulse set persists schedule and index", () => {
     setPulse(sid, "nudge progress", "every 1m")
     const p = loadMission(sid).pulse
     assert.equal(p?.status, "active")
+    assert.equal(p?.kind, "every")
     assert.equal(p?.schedule, "every 1m")
     assert.equal(p?.everyMs, 60_000)
     assert.match(p!.instruction, /nudge/)
+    assert.equal(loadPulseIndex().jobs[sid]?.schedule, "every 1m")
+    clearAllPulseTimers()
+  })
+
+  it("pulse in/at one-shot and cron via slash", () => {
+    setPulse(sid, "soon", { schedule: "in 1m", nowMs: 5_000_000 })
+    assert.equal(loadMission(sid).pulse?.kind, "in")
+    assert.equal(loadMission(sid).pulse?.oneShot, true)
+
+    const out = runMissionSlash(sid, "pulse --cron 0 9 * * 1-5 weekday check")
+    assert.match(out.text, /cron 0 9/)
+    assert.equal(loadMission(sid).pulse?.kind, "cron")
+  })
+
+  it("markDuePulses flags pending when overdue", () => {
+    setPulse(sid, "overdue", { schedule: "every 1m", nowMs: Date.now() })
+    updateMission(sid, (m) => ({
+      ...m,
+      pulse: m.pulse
+        ? { ...m.pulse, nextRunAt: new Date(Date.now() - 60_000).toISOString() }
+        : m.pulse,
+    }))
+    syncPulseIndex(sid, loadMission(sid).pulse)
+    assert.equal(listDuePulseJobs().length, 1)
+    const marked = markDuePulses()
+    assert.equal(marked.length, 1)
+    assert.equal(loadMission(sid).pulse?.pendingDue, true)
     clearAllPulseTimers()
   })
 
