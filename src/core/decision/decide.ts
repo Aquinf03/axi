@@ -3,7 +3,8 @@
  * Default model = active chat provider (streamTurn). No separate System One required.
  */
 
-import { activeLabel, streamTurn } from "../../gateway.js"
+import { activeLabel, streamTurn, type ChatImage } from "../../gateway.js"
+import { resolveDecisionImages } from "../agent/assets.js"
 import {
   DEFAULT_DECIDE_TIMEOUT_MS,
   MAX_ACTIONS,
@@ -44,8 +45,12 @@ export function validateImages(images: string[] | undefined): string[] {
   if (!images?.length) return []
   if (images.length > MAX_IMAGES) throw new Error(`decision supports at most ${MAX_IMAGES} images`)
   for (const img of images) {
-    if (typeof img !== "string" || !img.startsWith("data:image/")) {
-      throw new Error("decision images must be data URL strings (data:image/…)")
+    if (typeof img !== "string" || !img.trim()) {
+      throw new Error("decision images must be data URLs (data:image/…) or filesystem paths")
+    }
+    const s = img.trim()
+    if (s.startsWith("data:") && !s.startsWith("data:image/")) {
+      throw new Error("decision data URLs must be image/*")
     }
   }
   return images
@@ -135,20 +140,27 @@ export function parseDecisionAnswer(
 async function defaultCallModel(input: {
   system: string
   user: string
+  images?: ChatImage[]
 }): Promise<string> {
   const out = await streamTurn([{ role: "user", content: input.user }], () => {}, {
     system: input.system,
     tools: [],
+    images: input.images,
   })
   return out.text
 }
 
 /**
  * One System 1 decision. Validates choice ∈ actions.
+ * Optional images (data URLs or paths) ride the active provider's multimodal path.
  */
 export async function decide(opts: DecideOpts): Promise<DecisionAnswer> {
   const actionNames = validateActions(opts.actions)
   validateImages(opts.images)
+  const chatImages = resolveDecisionImages(opts.workspace, opts.images)
+  if (chatImages.length > MAX_IMAGES) {
+    throw new Error(`decision supports at most ${MAX_IMAGES} images`)
+  }
   const user = buildDecideUserText({
     observation: opts.observation,
     actions: opts.actions,
@@ -156,18 +168,17 @@ export async function decide(opts: DecideOpts): Promise<DecisionAnswer> {
     instructions: opts.instructions,
     history: opts.history,
   })
-  // Images: noted in state for providers that accept image blocks later; v1 is text-only.
-  if (opts.images?.length) {
-    // Attach as text hint so the model knows images were supplied but not encoded yet.
-    // Full vision blocks land when gateway supports multimodal decide.
-  }
 
   const started = nowMs()
   const call = opts.callModel ?? defaultCallModel
   void opts.timeoutMs
   void DEFAULT_DECIDE_TIMEOUT_MS
 
-  const text = await call({ system: DECISION_SYSTEM_PROMPT, user })
+  const text = await call({
+    system: DECISION_SYSTEM_PROMPT,
+    user,
+    images: chatImages.length ? chatImages : undefined,
+  })
   const latency_ms = Math.round((nowMs() - started) * 10) / 10
   let model = opts.modelLabel ?? "unknown"
   try {

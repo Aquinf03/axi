@@ -27,14 +27,24 @@ export type DecideOpts = {
   goal?: string
   instructions?: string
   history?: Array<{ action: string; confidence?: number | null }>
+  /**
+   * Vision: data URLs (`data:image/…`) or filesystem paths (resolved via `workspace`).
+   * Attached as multimodal content on the decide call when the provider supports it.
+   */
   images?: string[]
+  /** Workspace cwd for resolving image paths. */
+  workspace?: string
   /** Wall-clock bound for the model call. */
   timeoutMs?: number
   /**
    * Inject model text for tests. Live path uses the active provider via streamTurn.
    * Return body is raw assistant text (JSON).
    */
-  callModel?: (input: { system: string; user: string }) => Promise<string>
+  callModel?: (input: {
+    system: string
+    user: string
+    images?: import("../agent/image.js").ChatImage[]
+  }) => Promise<string>
   /** Override model label in the answer (tests). */
   modelLabel?: string
 }

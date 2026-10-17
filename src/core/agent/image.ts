@@ -4,7 +4,7 @@ import { existsSync, readFileSync, statSync } from "node:fs"
 import path from "node:path"
 
 const MAX = 12 * 1024 * 1024
-const MIME: Record<string, string> = {
+export const MIME: Record<string, string> = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",

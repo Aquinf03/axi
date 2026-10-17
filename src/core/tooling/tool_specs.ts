@@ -118,11 +118,30 @@ export const CORE_TOOLS: AgentToolDef[] = [
   },
   {
     name: "read",
-    description: "Read a file in the train. If path is a directory, lists it.",
+    description:
+      "Read a text file in the train. If path is a directory, lists it. For images (png/jpg/gif/webp) use view so the model can see them.",
     parameters: {
       type: "object",
       properties: { path: { type: "string", description: "relative path" } },
       required: ["path"],
+    },
+  },
+  {
+    name: "view",
+    description:
+      "View workspace assets for this turn: images (png/jpg/gif/webp) are attached multimodally; light text assets (svg, md, json, …) are inlined. Use when you need to see a screenshot, plot, or other file the user pointed at — not for Mission keep-going.",
+    parameters: {
+      type: "object",
+      properties: {
+        path: {
+          type: "string",
+          description: "one relative path (or omit if paths is set)",
+        },
+        paths: {
+          type: "string",
+          description: "optional JSON array of paths, e.g. [\"plots/a.png\",\"shot.png\"]",
+        },
+      },
     },
   },
   {
@@ -363,6 +382,11 @@ export const DEFERRED_TOOLS: AgentToolDef[] = [
         },
         goal: { type: "string", description: "optional goal / strategy" },
         instructions: { type: "string", description: "optional decision instructions" },
+        images: {
+          type: "string",
+          description:
+            'optional JSON array of image paths or data URLs for vision decide, e.g. ["shot.png"]',
+        },
       },
       required: ["observation", "actions"],
     },

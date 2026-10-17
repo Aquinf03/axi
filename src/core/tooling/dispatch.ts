@@ -21,6 +21,8 @@ import {
   searchArlMemories,
   searchArlSkillStubs,
 } from "../arl.js"
+import { queueViewImages } from "../agent/view-buffer.js"
+import { viewAssets } from "../agent/assets.js"
 import {
   decide,
   formatDecideAnswer,
@@ -143,9 +145,9 @@ export function permitLabel(train: string, name: string, rawArgs: string): strin
     const verb = name === "aq" ? "" : name.slice(3)
     return `aq ${verb} ${extra}`.replace(/\s+/g, " ").trim()
   }
-  if (name === "read") {
+  if (name === "read" || name === "view") {
     const p = typeof args.path === "string" ? args.path : "?"
-    return `read ${p}`
+    return `${name} ${p}`
   }
   if (name === "mkdir" || name === "rm") {
     const p = typeof args.path === "string" ? args.path : "?"
@@ -185,6 +187,22 @@ function jsonArg(args: Record<string, unknown>, key: string): string {
   const v = args[key]
   if (typeof v !== "string") throw new Error(`need ${key}`)
   return v
+}
+
+function parseStringListArg(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    return raw.filter((x): x is string => typeof x === "string" && Boolean(x.trim()))
+  }
+  if (typeof raw !== "string" || !raw.trim()) return []
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (Array.isArray(parsed)) {
+      return parsed.filter((x): x is string => typeof x === "string" && Boolean(x.trim()))
+    }
+  } catch {
+    /* single path */
+  }
+  return [raw.trim()]
 }
 
 /** Decision tools accept actions as a JSON object or a JSON string. */
@@ -317,8 +335,16 @@ export async function runAgentTool(train: string, name: string, rawArgs: string)
     const actions = parseActionsArg(args.actions)
     const goal = typeof args.goal === "string" ? args.goal : undefined
     const instructions = typeof args.instructions === "string" ? args.instructions : undefined
+    const images = parseStringListArg(args.images)
     try {
-      const ans = await decide({ observation, actions, goal, instructions })
+      const ans = await decide({
+        observation,
+        actions,
+        goal,
+        instructions,
+        images: images.length ? images : undefined,
+        workspace: train,
+      })
       return formatDecideAnswer(ans)
     } catch (err) {
       return `decision_decide failed: ${err instanceof Error ? err.message : String(err)}`
@@ -397,6 +423,24 @@ export async function runAgentTool(train: string, name: string, rawArgs: string)
     return grepFiles(train, jsonArg(args, "query"), root, g)
   }
   if (name === "read") return readPath(train, jsonArg(args, "path"))
+  if (name === "view") {
+    const paths: string[] = []
+    if (typeof args.path === "string" && args.path.trim()) paths.push(args.path.trim())
+    if (typeof args.paths === "string" && args.paths.trim()) {
+      try {
+        const parsed = JSON.parse(args.paths) as unknown
+        if (Array.isArray(parsed)) {
+          for (const x of parsed) if (typeof x === "string" && x.trim()) paths.push(x.trim())
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    if (!paths.length) throw new Error("view needs path or paths")
+    const { text, images } = viewAssets(train, paths)
+    queueViewImages(train || "_", images)
+    return text
+  }
   if (name === "write") return writeFileAt(train, jsonArg(args, "path"), jsonArg(args, "content"))
   if (name === "edit") {
     const all = args.all === true

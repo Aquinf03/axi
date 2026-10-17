@@ -140,13 +140,19 @@ export function grep(
   return lines.length ? lines.join("\n") : "no matches"
 }
 
+const IMAGE_EXT = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp"])
+
 export function readPath(train: string, rel: string): string {
   const p = insideTrain(train, rel)
   if (!existsSync(p)) throw new Error(`no path ${rel}`)
   const st = statSync(p)
   if (st.isDirectory()) return ls(train, rel)
+  const ext = path.extname(p).toLowerCase()
+  if (IMAGE_EXT.has(ext)) {
+    return `image  ${rel}  ${st.size} bytes  — use view tool to see it (read is text-only)`
+  }
   const buf = readFileSync(p)
-  if (buf.includes(0)) return `binary  ${rel}  ${buf.length} bytes`
+  if (buf.includes(0)) return `binary  ${rel}  ${buf.length} bytes  — try view for supported assets`
   const text = buf.toString("utf8")
   if (text.length > MAX_BYTES) return text.slice(0, MAX_BYTES) + "\n…"
   return text

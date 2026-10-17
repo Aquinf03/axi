@@ -1069,6 +1069,14 @@ function openaiMessages(system: string, history: ChatMsg[]) {
   for (const m of history) {
     if (m.role === "tool") {
       out.push({ role: "tool", content: m.content, tool_call_id: m.tool_call_id })
+      // OpenAI tool messages are text-only — follow with a user image turn.
+      if (m.images?.length) {
+        const content: unknown[] = [{ type: "text", text: "[viewed assets attached]" }]
+        for (const img of m.images) {
+          content.push({ type: "image_url", image_url: { url: dataUrl(img) } })
+        }
+        out.push({ role: "user", content })
+      }
       continue
     }
     if (m.role === "assistant" && m.tool_calls?.length) {
@@ -1102,7 +1110,18 @@ function anthropicMessages(history: ChatMsg[]): Record<string, unknown>[] {
   for (const m of history) {
     if (m.role === "tool") {
       const prev = out[out.length - 1]
-      const block = { type: "tool_result", tool_use_id: m.tool_call_id, content: m.content }
+      let toolContent: unknown = m.content
+      if (m.images?.length) {
+        const blocks: unknown[] = [{ type: "text", text: m.content || "(viewed assets)" }]
+        for (const img of m.images) {
+          blocks.push({
+            type: "image",
+            source: { type: "base64", media_type: img.mime, data: img.data },
+          })
+        }
+        toolContent = blocks
+      }
+      const block = { type: "tool_result", tool_use_id: m.tool_call_id, content: toolContent }
       if (prev && prev.role === "user" && Array.isArray(prev.content)) {
         ;(prev.content as unknown[]).push(block)
       } else {
@@ -1184,6 +1203,13 @@ function responsesInput(history: ChatMsg[]): Record<string, unknown>[] {
   for (const m of history) {
     if (m.role === "tool") {
       out.push({ type: "function_call_output", call_id: m.tool_call_id, output: m.content })
+      if (m.images?.length) {
+        const content: unknown[] = [{ type: "input_text", text: "[viewed assets attached]" }]
+        for (const img of m.images) {
+          content.push({ type: "input_image", image_url: dataUrl(img) })
+        }
+        out.push({ role: "user", content })
+      }
       continue
     }
     if (m.role === "assistant" && m.tool_calls?.length) {
@@ -1299,7 +1325,7 @@ async function streamResponses(
 export async function streamTurn(
   history: ChatMsg[],
   onDelta: (chunk: string) => void,
-  opts: { system: string; tools: AgentToolJson[] },
+  opts: { system: string; tools: AgentToolJson[]; images?: ChatImage[] },
 ): Promise<StreamOut> {
   const id = activeId()
   if (!id) throw new Error("no provider. axi provider openai")
@@ -1313,6 +1339,20 @@ export async function streamTurn(
   const system = opts.system
   const tools = opts.tools
   const fns = clientTools(id, tools)
+  // Attach one-shot images onto the last user message (Decision / helpers).
+  let hist = history
+  if (opts.images?.length) {
+    hist = history.map((m, i) => {
+      if (i !== history.length - 1 || m.role !== "user") return m
+      return { ...m, images: [...(m.images ?? []), ...opts.images!] }
+    })
+    if (!hist.length || hist[hist.length - 1]?.role !== "user") {
+      hist = [
+        ...history,
+        { role: "user", content: "(decision state)", images: opts.images },
+      ]
+    }
+  }
 
   if (e.kind === "anthropic") {
     const res = await fetch(`${base}/v1/messages`, {
@@ -1327,7 +1367,7 @@ export async function streamTurn(
         max_tokens: 2048,
         stream: true,
         system,
-        messages: anthropicMessages(history),
+        messages: anthropicMessages(hist),
         ...temperatureBody(),
         ...(fns.length || wantsWebSearch(tools)
           ? {
@@ -1407,7 +1447,7 @@ export async function streamTurn(
   }
 
   if (id === "openai" || id === "grok") {
-    return streamResponses(base, key, model, system, history, fns, wantsWebSearch(tools), onDelta, id)
+    return streamResponses(base, key, model, system, hist, fns, wantsWebSearch(tools), onDelta, id)
   }
 
   const res = await fetch(`${base}/chat/completions`, {
@@ -1420,7 +1460,7 @@ export async function streamTurn(
       model,
       stream: true,
       stream_options: { include_usage: true },
-      messages: openaiMessages(system, history),
+      messages: openaiMessages(system, hist),
       ...temperatureBody(),
       ...(fns.length ? { tools: openaiTools(fns) } : {}),
     }),

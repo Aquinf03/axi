@@ -24,6 +24,7 @@ const READ_TOOLS = new Set([
   "glob",
   "grep",
   "read",
+  "view",
   "web_search",
   "web_fetch",
   "skills_search",

@@ -75,6 +75,26 @@ describe("decision", () => {
     assert.equal(ans.model, "mock")
   })
 
+  it("decide passes resolved images into callModel", async () => {
+    const url =
+      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+    let saw = 0
+    const ans = await decide({
+      observation: "board",
+      actions: { hit: "hit", stay: "stay" },
+      images: [url],
+      callModel: async (input) => {
+        saw = input.images?.length ?? 0
+        return JSON.stringify({
+          action: { choice: "hit", confidence: 0.6, probabilities: { hit: 0.6, stay: 0.4 } },
+        })
+      },
+      modelLabel: "mock",
+    })
+    assert.equal(saw, 1)
+    assert.equal(ans.action, "hit")
+  })
+
   it("host loop observe → decide → act", async () => {
     const ws = path.join(home, "ws")
     mkdirSync(ws, { recursive: true })

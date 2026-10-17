@@ -309,7 +309,18 @@ async function runTurnInner(
           progress.push(line)
           scratch.push(`tool.${progress.length}`, line)
         }
-        msgs.push({ role: "tool", content: o.result, tool_call_id: o.call.id })
+        let viewed: import("./image.js").ChatImage[] | undefined
+        if (o.call.name === "view") {
+          const { takeViewImages } = await import("./view-buffer.js")
+          const imgs = takeViewImages(host.workspace || "_")
+          if (imgs.length) viewed = imgs
+        }
+        msgs.push({
+          role: "tool",
+          content: o.result,
+          tool_call_id: o.call.id,
+          images: viewed,
+        })
       }
 
       if (denied) {

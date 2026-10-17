@@ -46,13 +46,20 @@ Keep working when the human goes quiet — one product, three facets. Front door
 - `/mission pulse [--every 5m|--in 20m|--at 15:30|--cron 0 9 * * 1-5] <instruction>` — wall-clock wake; durable `~/.axi/pulse-jobs.json`; `axi mission tick` marks due when chat is closed; catch-up on open.
 - Agent: deferred `mission_done` when the objective is actually finished.
 
+## Assets / vision
+
+- User attach: `/image <path> [caption]` → multimodal user turn (png/jpg/gif/webp).
+- Agent tool **`view`** (core, read-safe): loads images into the tool-result for the model; inlines light text assets (svg, md, json, …); meta-only for unsupported binaries. Prefer `view` over `read` for images (`read` will hint).
+- Decision `decide({ images })` accepts data URLs or paths (via `workspace`) and attaches them on the System 1 call.
+
 ## Decision API
 
 Fast choose-from-options (System 1) for research ticks and forks — not Mission keep-going. Front door: `core/decision.ts`. Uses the **active chat model** (no separate System One / clef required).
 
-- One-shot: `decide()` / deferred `decision_decide` / `/decision decide --action name=desc … <observation>` → `{action, confidence, probabilities}`.
+- One-shot: `decide()` / deferred `decision_decide` / `/decision decide --action name=desc … <observation>` → `{action, confidence, probabilities}`. Optional vision via `images`.
 - Host Loop: `/decision loop start --observe CMD --act CMD --action …` (or `decision_loop_*` tools). Tick: observe shell → decide → act shell (`{action}` / `AXI_DECISION_ACTION`). System 2 only `set-goal`. Persist `~/.axi/chats/<id>/decision.json`.
 - arl wire: auto-refine gate uses Decision actions `refine_local|refine_global|skip|defer` (confidence threshold). Optional per-edit triage via `runRefine({ triageEdits: true })` (`keep|drop|promote_global`). Decision picks; `/refine` still writes harness.
+- **Research recipe (optional):** Loop `observe` = eval score / failing test note → decide next probe → `set-goal` when strategy shifts → kick `/refine` when evidence is strong. Keep products separate (Decision picks, refine writes, Mission continues).
 
 ## Permissions
 
