@@ -5,15 +5,17 @@
  */
 
 import type { ChatMsg } from "../../gateway.js"
-import { streamTurn } from "../../gateway.js"
-import { formatArlStateForPrompt } from "./digest.js"
 import { arlEnabled, loadArlMode, saveArlMode } from "./mode.js"
+import {
+  DEFAULT_CONFIDENCE_THRESHOLD,
+  reviewAutoRefineViaDecide,
+  type DecisionAnswer,
+} from "../decision.js"
 import {
   formatRefinementNotice,
   runRefine,
   type RefinementResult,
 } from "./refine.js"
-import { loadMergedArlState } from "./store.js"
 import {
   DEFAULT_AUTO_REFINE,
   normalizeAutoRefine,
@@ -129,48 +131,37 @@ export function autoRefineInstructions(reason: string, review: AutoRefineReview)
   )
 }
 
-function conversationBlob(history: ChatMsg[], cap = 20_000): string {
-  const parts: string[] = []
-  for (const m of history) {
-    if (m.role === "tool") continue
-    let body = m.content.trim()
-    if (!body) continue
-    if (body.startsWith("[arl-digest]")) body = body.slice(0, 300) + "…"
-    parts.push(`${m.role}: ${body}`)
-  }
-  let blob = parts.join("\n\n")
-  if (blob.length > cap) blob = blob.slice(blob.length - cap)
-  return blob
-}
-
 export type ReviewAutoRefineOpts = {
   history: ChatMsg[]
   sessionId: string
   reason: string
   turnsSinceLastReview: number
-  /** Injected for tests. */
+  /**
+   * Injected for tests — legacy free-form JSON reviewer.
+   * Prefer `decideAnswer` for the Decision-API gate.
+   */
   reviewText?: string
+  /** Injected Decision answer (tests / override). */
+  decideAnswer?: DecisionAnswer
+  confidenceThreshold?: number
 }
 
 export async function reviewAutoRefine(opts: ReviewAutoRefineOpts): Promise<AutoRefineReview> {
   if (opts.reviewText != null) return parseReview(opts.reviewText)
 
-  const overview = formatArlStateForPrompt(loadMergedArlState(opts.sessionId), {
-    maxEntriesPerKind: 6,
-    maxContentLength: 160,
+  const gate = await reviewAutoRefineViaDecide({
+    history: opts.history,
+    sessionId: opts.sessionId,
+    reason: opts.reason,
+    turnsSinceLastReview: opts.turnsSinceLastReview,
+    decideAnswer: opts.decideAnswer,
+    confidenceThreshold: opts.confidenceThreshold ?? DEFAULT_CONFIDENCE_THRESHOLD,
   })
-  const user = [
-    `<trigger>\n${opts.reason}; ${opts.turnsSinceLastReview} assistant turns since last auto-refine review\n</trigger>`,
-    `<current_harness_state>\n${overview}\n</current_harness_state>`,
-    `<conversation>\n${conversationBlob(opts.history)}\n</conversation>`,
-    "Return shouldRefine=true when the trajectory contains evidence useful to this session's future turns. Prefer local harness edits. Ask for global only for durable cross-session lessons.",
-  ].join("\n\n")
-
-  const out = await streamTurn([{ role: "user", content: user }], () => {}, {
-    system: AUTO_REFINE_REVIEW_SYSTEM_PROMPT,
-    tools: [],
-  })
-  return parseReview(out.text)
+  return {
+    shouldRefine: gate.shouldRefine,
+    rationale: gate.rationale,
+    instructions: gate.instructions,
+  }
 }
 
 export type MaybeAutoRefineOpts = {
@@ -178,6 +169,8 @@ export type MaybeAutoRefineOpts = {
   sessionId: string
   /** Test hooks */
   reviewText?: string
+  decideAnswer?: DecisionAnswer
+  confidenceThreshold?: number
   planText?: string
   nowMs?: number
 }
@@ -221,6 +214,8 @@ export async function maybeAutoRefine(
     reason,
     turnsSinceLastReview: turns,
     reviewText: opts.reviewText,
+    decideAnswer: opts.decideAnswer,
+    confidenceThreshold: opts.confidenceThreshold,
   })
 
   if (!review.shouldRefine) {

@@ -487,6 +487,10 @@ export type RunRefineOpts = {
   source?: RefinementSource
   /** Injected for tests — skips the live model call. */
   planText?: string
+  /** When true, Decision triage keeps/drops each proposed edit before apply. */
+  triageEdits?: boolean
+  /** Injected triage answers aligned with proposal.edits (tests). */
+  triageAnswers?: import("../decision.js").DecisionAnswer[]
 }
 
 export async function runRefine(opts: RunRefineOpts): Promise<RefinementResult> {
@@ -528,7 +532,14 @@ export async function runRefine(opts: RunRefineOpts): Promise<RefinementResult> 
     planText = out.text
   }
 
-  const proposal = parseProposal(planText)
+  let proposal = parseProposal(planText)
+  if (opts.triageEdits && proposal.edits.length) {
+    const { triageRefinementEdits } = await import("../decision.js")
+    const { kept } = await triageRefinementEdits(proposal.edits, {
+      decideAnswers: opts.triageAnswers,
+    })
+    proposal = { ...proposal, edits: kept }
+  }
   const baseline = loadArlState(scope, opts.sessionId)
   // Work on a clone
   const working: ArlState = JSON.parse(JSON.stringify(baseline)) as ArlState

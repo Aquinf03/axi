@@ -18,6 +18,13 @@ import {
   withArlDigest,
 } from "../core/arl.js"
 import {
+  armDecisionLoop,
+  clearDecisionLoopTimer,
+  decide,
+  formatDecideAnswer,
+  onDecisionLoopTick,
+} from "../core/decision.js"
+import {
   activeObjectiveText,
   armPulseTimer,
   clearObjectiveBackoff,
@@ -315,6 +322,14 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
   }
   armMissionPulse()
   armMissionObjectiveBackoff()
+  const armMissionDecisionLoop = () => {
+    onDecisionLoopTick(spec.id, (sid, notice) => {
+      if (sid !== spec.id) return
+      note(notice)
+    })
+    armDecisionLoop(spec.id)
+  }
+  armMissionDecisionLoop()
   let named = spec.name !== "new chat"
   let chatFocus = spec.id
   let renameFor = false
@@ -870,6 +885,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
     const switchChat = (id: string) => {
       clearPulseTimer(spec.id)
       clearObjectiveBackoff(spec.id)
+      clearDecisionLoopTimer(spec.id)
       saveChat(train, spec, history)
       pendingImages.length = 0
       clearUndo()
@@ -882,6 +898,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       setTabTitle(spec.name)
       armMissionPulse()
       armMissionObjectiveBackoff()
+      armMissionDecisionLoop()
       note(`opened  ${spec.name}  ${spec.id}`)
       paintComposer()
     }
@@ -889,6 +906,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
     const startNew = () => {
       clearPulseTimer(spec.id)
       clearObjectiveBackoff(spec.id)
+      clearDecisionLoopTimer(spec.id)
       saveChat(train, spec, history)
       pendingImages.length = 0
       clearUndo()
@@ -901,6 +919,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       setTabTitle(spec.name)
       armMissionPulse()
       armMissionObjectiveBackoff()
+      armMissionDecisionLoop()
       note(`new chat  ${spec.id}`)
       paintComposer()
     }
@@ -1210,6 +1229,17 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         return
       }
       if (r.missionRearmPulse) armMissionPulse()
+      if (r.decisionRearmLoop) armMissionDecisionLoop()
+      if (r.decisionDecide) {
+        try {
+          const ans = await decide(r.decisionDecide)
+          note(formatDecideAnswer(ans))
+        } catch (err) {
+          note(`decision failed  ${err instanceof Error ? err.message : String(err)}`)
+        }
+        paintComposer()
+        return
+      }
       if (r.text) note(r.text)
       if (r.missionKick) {
         paintComposer()

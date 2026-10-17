@@ -64,7 +64,7 @@ export const CORE_TOOLS: AgentToolDef[] = [
   {
     name: "tools_search",
     description:
-      "Search builtins, aq commands, tools/, and skills. Matching deferred tools (aq_*, spawn, plot, memory_*, arl_refine, mission_done) are loaded into this session so you can call them next. Discovering a tool does not approve it — sensitive calls still need a permit.",
+      "Search builtins, aq commands, tools/, and skills. Matching deferred tools (aq_*, spawn, plot, memory_*, arl_refine, mission_done, decision_*) are loaded into this session so you can call them next. Discovering a tool does not approve it — sensitive calls still need a permit.",
     parameters: {
       type: "object",
       properties: { query: { type: "string", description: "keywords" } },
@@ -345,6 +345,68 @@ export const DEFERRED_TOOLS: AgentToolDef[] = [
         },
       },
     },
+  },
+  {
+    name: "decision_decide",
+    description:
+      "System 1 choose-from-options: pick exactly one action from a fixed menu given an observation (and optional goal). Uses the active chat model. Prefer this for research next-step forks — not for Mission keep-going.",
+    parameters: {
+      type: "object",
+      properties: {
+        observation: {
+          type: "string",
+          description: "current situation / state to decide from (JSON string ok)",
+        },
+        actions: {
+          type: "string",
+          description: 'JSON object map of action name → when it applies, e.g. {"left":"go left","right":"go right"}',
+        },
+        goal: { type: "string", description: "optional goal / strategy" },
+        instructions: { type: "string", description: "optional decision instructions" },
+      },
+      required: ["observation", "actions"],
+    },
+  },
+  {
+    name: "decision_loop_start",
+    description:
+      "Start a host Decision Loop: shell observe → decide → shell act on a timer. System 2 only updates the goal afterward. actCmd may include {action}; AXI_DECISION_ACTION is set.",
+    parameters: {
+      type: "object",
+      properties: {
+        objective: { type: "string" },
+        observe_cmd: { type: "string", description: "shell; stdout = observation; empty stdout ends loop" },
+        act_cmd: { type: "string", description: "shell; {action} replaced" },
+        actions: {
+          type: "string",
+          description: 'JSON object map of action name → when it applies',
+        },
+        goal: { type: "string" },
+        tick_ms: { type: "number" },
+        max_steps: { type: "number" },
+        on_error: { type: "string", description: "stop | skip" },
+      },
+      required: ["objective", "observe_cmd", "act_cmd", "actions"],
+    },
+  },
+  {
+    name: "decision_loop_set_goal",
+    description: "Update the live Decision Loop goal (System 2). Next tick sees it.",
+    parameters: {
+      type: "object",
+      properties: { goal: { type: "string" } },
+      required: ["goal"],
+    },
+  },
+  {
+    name: "decision_loop_status",
+    description: "Show Decision Loop status / last step.",
+    parameters: { type: "object", properties: {} },
+  },
+  {
+    name: "decision_loop_stop",
+    description: "Stop the Decision Loop and clear its timer.",
+    parameters: { type: "object", properties: {} },
   },
   {
     name: "aq",

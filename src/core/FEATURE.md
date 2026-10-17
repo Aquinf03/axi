@@ -46,6 +46,14 @@ Keep working when the human goes quiet — one product, three facets. Front door
 - `/mission pulse [--every 5m|--in 20m|--at 15:30|--cron 0 9 * * 1-5] <instruction>` — wall-clock wake; durable `~/.axi/pulse-jobs.json`; `axi mission tick` marks due when chat is closed; catch-up on open.
 - Agent: deferred `mission_done` when the objective is actually finished.
 
+## Decision API
+
+Fast choose-from-options (System 1) for research ticks and forks — not Mission keep-going. Front door: `core/decision.ts`. Uses the **active chat model** (no separate System One / clef required).
+
+- One-shot: `decide()` / deferred `decision_decide` / `/decision decide --action name=desc … <observation>` → `{action, confidence, probabilities}`.
+- Host Loop: `/decision loop start --observe CMD --act CMD --action …` (or `decision_loop_*` tools). Tick: observe shell → decide → act shell (`{action}` / `AXI_DECISION_ACTION`). System 2 only `set-goal`. Persist `~/.axi/chats/<id>/decision.json`.
+- arl wire: auto-refine gate uses Decision actions `refine_local|refine_global|skip|defer` (confidence threshold). Optional per-edit triage via `runRefine({ triageEdits: true })` (`keep|drop|promote_global`). Decision picks; `/refine` still writes harness.
+
 ## Permissions
 
 Every sensitive tool goes through `authorizeTool` in `core/permissions` — no bypasses.

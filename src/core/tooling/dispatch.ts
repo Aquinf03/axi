@@ -21,6 +21,15 @@ import {
   searchArlMemories,
   searchArlSkillStubs,
 } from "../arl.js"
+import {
+  decide,
+  formatDecideAnswer,
+  formatDecisionLoopStatus,
+  loadDecisionLoop,
+  setDecisionGoal,
+  startDecisionLoop,
+  stopDecisionLoop,
+} from "../decision.js"
 import { completeObjective, loadMission } from "../mission.js"
 import { formatCards, searchTools, toolsDigest } from "./registry.js"
 import { find as findPaths, glob as globPaths, grep as grepFiles, ls, readPath } from "../../tools/explore.js"
@@ -178,6 +187,26 @@ function jsonArg(args: Record<string, unknown>, key: string): string {
   return v
 }
 
+/** Decision tools accept actions as a JSON object or a JSON string. */
+function parseActionsArg(raw: unknown): Record<string, string> {
+  let obj: unknown = raw
+  if (typeof raw === "string") {
+    try {
+      obj = JSON.parse(raw)
+    } catch {
+      return {}
+    }
+  }
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) return {}
+  const out: Record<string, string> = {}
+  for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+    if (typeof k === "string" && k.trim() && typeof v === "string" && v.trim()) {
+      out[k.trim()] = v.trim()
+    }
+  }
+  return out
+}
+
 export function workspaceLines(train: string): string[] {
   const kids = childTrains(train)
   const lines = [
@@ -277,6 +306,68 @@ export async function runAgentTool(train: string, name: string, rawArgs: string)
     return summary
       ? `mission objective complete — ${summary}`
       : "mission objective marked complete"
+  }
+  if (name === "decision_decide") {
+    const observation =
+      typeof args.observation === "string"
+        ? args.observation
+        : args.observation != null
+          ? JSON.stringify(args.observation)
+          : ""
+    const actions = parseActionsArg(args.actions)
+    const goal = typeof args.goal === "string" ? args.goal : undefined
+    const instructions = typeof args.instructions === "string" ? args.instructions : undefined
+    try {
+      const ans = await decide({ observation, actions, goal, instructions })
+      return formatDecideAnswer(ans)
+    } catch (err) {
+      return `decision_decide failed: ${err instanceof Error ? err.message : String(err)}`
+    }
+  }
+  if (name === "decision_loop_start") {
+    const sid = getArlSessionId()
+    if (!sid) return "decision_loop_start needs an open chat session"
+    const objective = typeof args.objective === "string" ? args.objective : ""
+    const observeCmd = typeof args.observe_cmd === "string" ? args.observe_cmd : ""
+    const actCmd = typeof args.act_cmd === "string" ? args.act_cmd : ""
+    const actions = parseActionsArg(args.actions)
+    try {
+      const s = startDecisionLoop({
+        sessionId: sid,
+        workspace: train,
+        objective,
+        observeCmd,
+        actCmd,
+        actions,
+        goal: typeof args.goal === "string" ? args.goal : undefined,
+        tickMs: typeof args.tick_ms === "number" ? args.tick_ms : 0,
+        maxSteps: typeof args.max_steps === "number" ? args.max_steps : 100,
+        onError: args.on_error === "skip" ? "skip" : "stop",
+      })
+      return formatDecisionLoopStatus(s)
+    } catch (err) {
+      return `decision_loop_start failed: ${err instanceof Error ? err.message : String(err)}`
+    }
+  }
+  if (name === "decision_loop_set_goal") {
+    const sid = getArlSessionId()
+    if (!sid) return "decision_loop_set_goal needs an open chat session"
+    try {
+      const s = setDecisionGoal(sid, typeof args.goal === "string" ? args.goal : "")
+      return `decision goal  ${s.goal}`
+    } catch (err) {
+      return err instanceof Error ? err.message : String(err)
+    }
+  }
+  if (name === "decision_loop_status") {
+    const sid = getArlSessionId()
+    if (!sid) return "decision_loop_status needs an open chat session"
+    return formatDecisionLoopStatus(loadDecisionLoop(sid))
+  }
+  if (name === "decision_loop_stop") {
+    const sid = getArlSessionId()
+    if (!sid) return "decision_loop_stop needs an open chat session"
+    return formatDecisionLoopStatus(stopDecisionLoop(sid))
   }
   if (name === "tools_search") {
     const cards = searchTools(train, jsonArg(args, "query"))

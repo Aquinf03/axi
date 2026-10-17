@@ -143,6 +143,7 @@ export const SLASH_SPECS: SlashSpec[] = [
   { name: "/arl", hint: "auto RL · on|off|status · interval · cooldown · compact" },
   { name: "/refine", hint: "arl: learn from this chat · [--global] [focus] · rollback <id>" },
   { name: "/mission", hint: "keep going · set|pause|done · drive [--gate] · pulse [--every|--in|--at|--cron]" },
+  { name: "/decision", hint: "choose-from-options · decide · loop start|stop · set-goal" },
   { name: "/permissions", hint: "mode, session always, saved rules", aliases: ["/perms"] },
   { name: "/exit", hint: "leave", aliases: ["/quit"] },
 ]

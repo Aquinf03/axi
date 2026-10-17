@@ -32,6 +32,7 @@ import {
   saveAutoRefineSettings,
   setArlEnabled,
 } from "../core/arl.js"
+import { runDecisionSlash } from "../core/decision.js"
 import { runMissionSlash } from "../core/mission.js"
 
 export type { ChatImage }
@@ -554,7 +555,7 @@ export function applyChoice(c: Choice): {
         "  sound      click + message cues",
         "  notify     desktop alert when a reply finishes (if terminal unfocused)",
         "",
-        "slash: /new /rename /open /delete [/delete all] /compact /undo /image /status /doctor /spawn /provider /model /temp /key /sound /notify /arl /refine /mission /mode",
+        "slash: /new /rename /open /delete [/delete all] /compact /undo /image /status /doctor /spawn /provider /model /temp /key /sound /notify /arl /refine /mission /decision /mode",
         "",
         "keys: axi provider openai",
         "now: " + activeLabel(),
@@ -623,6 +624,10 @@ export type SlashResult = {
   missionKick?: string
   /** Mission pulse timer should re-arm. */
   missionRearmPulse?: boolean
+  /** Decision slash: await decide() in chat-ui. */
+  decisionDecide?: import("../core/decision.js").DecideOpts
+  /** Decision loop timer should re-arm. */
+  decisionRearmLoop?: boolean
 }
 
 function resolveSlash(cmd: string): string {
@@ -912,6 +917,14 @@ export function runSlash(line: string, opts: SlashOpts = {}): SlashResult {
       text: out.text,
       missionKick: out.kick,
       missionRearmPulse: out.rearmPulse,
+    }
+  }
+  if (cmd === "/decision") {
+    const out = runDecisionSlash(opts.sessionId, arg, { workspace: opts.workspace })
+    return {
+      text: out.text,
+      decisionDecide: out.decideOpts,
+      decisionRearmLoop: out.rearmLoop,
     }
   }
   const hits = slashMatches(raw ?? "")

@@ -9,6 +9,7 @@ Format is inspired by [Keep a Changelog](https://keepachangelog.com/). Versions 
 
 - Mission product: Objective / Drive / Pulse under `/mission` (shell gates, durable pulse schedules + tick, objective no-progress streak / backoff)
 - arl (auto RL): harness store, digest, `/refine`, auto-refine, unify with memory / skills / spawn
+- Decision API: choose-from-options on the active chat model (`/decision`, `decision_*` tools), host observe→decide→act loop, auto-refine gate via Decision
 
 ### Notes
 
