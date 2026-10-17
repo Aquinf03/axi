@@ -1,11 +1,18 @@
 # axi
 
+[![CI](https://github.com/Aquinf03/axi/actions/workflows/ci.yml/badge.svg)](https://github.com/Aquinf03/axi/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](./LICENSE)
+
 Coding / research / chat agent for the current folder.  
 Model **train / eval / fleet** stay in the **aq** CLI (separate install). axi shells out to `aq` when you work in a train (`recipe.yaml`).
 
 Chats, keys, and memory live in **`~/.axi`** (first run migrates `~/.aq` if present).
 
-This directory **is the repo**. Drag it out, `git init`, and publish when you want — nothing here depends on living inside aqfw.
+**Repo:** https://github.com/Aquinf03/axi · **Changelog:** [`CHANGELOG.md`](./CHANGELOG.md) · **aq:** https://github.com/aquinf03/aq
+
+**Contributing** · [`CONTRIBUTING.md`](./CONTRIBUTING.md) · **Code of conduct** · [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md) · **Security** · [`SECURITY.md`](./SECURITY.md) · **License** · [`LICENSE`](./LICENSE)
+
+Good first contributions: docs clarifications, tighter unit tests next to `src/`, small slash/CLI fixes with a reproduction, and eval cases under `scripts/tests/`.
 
 ## Install
 
@@ -70,3 +77,5 @@ npm run check:corpus     # every case classified in scripts/tests/corpus.json
 ```
 
 `ready` / `smoke` exercise the built `bin/axi`, not whatever is on PATH. Needs a configured provider (`axi provider …`) for agent evals. Train-related evals also need a reachable `aq`. Cases are classified training / verification / excluded — see `scripts/tests/README.md`.
+
+See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for PR expectations and higher-bar areas.
