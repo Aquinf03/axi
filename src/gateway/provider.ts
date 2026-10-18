@@ -257,7 +257,19 @@ export function setKey(id: ProviderId, key: string): string {
   return "saved  " + activeLabel()
 }
 
-export type MenuId = "root" | "provider" | "model" | "key" | "context" | "chats" | "chat" | "chat-delete" | "spawn" | "spawn-agent"
+export type MenuId =
+  | "root"
+  | "provider"
+  | "model"
+  | "key"
+  | "context"
+  | "chats"
+  | "chat"
+  | "chat-delete"
+  | "spawn"
+  | "spawn-agent"
+  | "agents"
+  | "agents-agent"
 
 export type Choice = {
   id: string
@@ -286,6 +298,10 @@ export type Choice = {
     | "spawn-log"
     | "spawn-cancel"
     | "spawn-watch"
+    | "focus-agent"
+    | "agent-log"
+    | "agent-cancel"
+    | "agents-refresh"
   open?: MenuId
 }
 
@@ -303,10 +319,42 @@ export function menuChoices(
     full?: boolean
     agents?: { id: string; name: string; status: string }[]
     spawnFocus?: { id: string; name: string; status: string }
+    /** Prebuilt agents-view rows (glyph + sections). */
+    agentRows?: { id: string; label: string; hint: string; section?: string }[]
+    agentFocus?: { id: string; name: string; status: string }
   },
 ): Choice[] {
   const cfg = load()
   const active = activeId()
+  if (screen === "agents") {
+    const rows: Choice[] = (ctx?.agentRows ?? []).map((a) => {
+      const header = a.section === "header" || a.section === "meta" || a.id.startsWith("_")
+      return {
+        id: a.id,
+        label: a.label,
+        hint: a.hint,
+        kind: header ? ("info" as const) : ("focus-agent" as const),
+      }
+    })
+    if (!(ctx?.chatQuery?.trim())) {
+      rows.unshift({
+        id: "refresh",
+        label: "refresh",
+        hint: "reload statuses",
+        kind: "agents-refresh",
+      })
+    }
+    rows.push({ id: "back", label: "back", hint: "", kind: "back" })
+    return rows
+  }
+  if (screen === "agents-agent") {
+    const focus = ctx?.agentFocus
+    return [
+      { id: "log", label: "log", hint: focus?.status ?? "", kind: "agent-log" },
+      { id: "cancel", label: "cancel", hint: focus?.id ?? "", kind: "agent-cancel" },
+      { id: "back", label: "back", hint: "", kind: "open", open: "agents" },
+    ]
+  }
   if (screen === "spawn") {
     const q = ctx?.chatQuery?.trim() ?? ""
     const rows: Choice[] = (ctx?.agents ?? [])
@@ -442,6 +490,13 @@ export function menuChoices(
       open: "spawn",
     },
     {
+      id: "agents",
+      label: "agents",
+      hint: "live roster · this chat + workspace",
+      kind: "open",
+      open: "agents",
+    },
+    {
       id: "context",
       label: "context",
       hint: ctx?.pct ?? "—",
@@ -508,6 +563,10 @@ export function applyChoice(c: Choice): {
   spawnLog?: boolean
   spawnCancel?: boolean
   spawnWatch?: boolean
+  focusAgent?: string
+  agentLog?: boolean
+  agentCancel?: boolean
+  agentsRefresh?: boolean
 } {
   if (c.kind === "open") return { open: c.open ?? "root" }
   if (c.kind === "compact") return { compact: true }
@@ -516,6 +575,10 @@ export function applyChoice(c: Choice): {
   if (c.kind === "spawn-log") return { spawnLog: true }
   if (c.kind === "spawn-cancel") return { spawnCancel: true }
   if (c.kind === "spawn-watch") return { spawnWatch: true }
+  if (c.kind === "focus-agent") return { open: "agents-agent", focusAgent: c.id }
+  if (c.kind === "agent-log") return { agentLog: true }
+  if (c.kind === "agent-cancel") return { agentCancel: true }
+  if (c.kind === "agents-refresh") return { agentsRefresh: true }
   if (c.kind === "focus-chat") return { open: "chat", focusChat: c.id }
   if (c.kind === "open-chat") return { resumeChat: true }
   if (c.kind === "new-chat") return { newChat: true }
@@ -558,6 +621,7 @@ export function applyChoice(c: Choice): {
         "  path       this train directory",
         "  chats      new, open, rename, delete",
         "  spawn      worker agents",
+        "  agents     live roster (this chat + workspace)",
         "  context    how full the context window is",
         "  compact    summarize older chat",
         "  sound      click + message cues",
@@ -642,6 +706,8 @@ export type SlashResult = {
   factoryRearm?: boolean
   /** Factory poll ticker should stop. */
   factoryStopTick?: boolean
+  /** Open interactive agents roster screen. */
+  agentsView?: boolean
 }
 
 function resolveSlash(cmd: string): string {
@@ -929,11 +995,15 @@ export function runSlash(line: string, opts: SlashOpts = {}): SlashResult {
     return runCodemodeSlash(opts.sessionId, arg)
   }
   if (cmd === "/agents") {
-    const parent =
-      arg.trim().toLowerCase() === "children" || arg.trim().toLowerCase() === "kids"
-        ? opts.sessionId
-        : undefined
-    return { text: formatAgentsRoster(workspace, parent) }
+    const head = arg.trim().toLowerCase()
+    if (head === "list" || head === "text" || head === "board") {
+      return { text: formatAgentsRoster(workspace, opts.sessionId) }
+    }
+    if (head === "children" || head === "kids") {
+      return { text: formatAgentsRoster(workspace, opts.sessionId) }
+    }
+    // Default: open live interactive view in chat-ui.
+    return { agentsView: true }
   }
   if (cmd === "/daemon") {
     const head = arg.trim().split(/\s+/)[0]?.toLowerCase() ?? "status"

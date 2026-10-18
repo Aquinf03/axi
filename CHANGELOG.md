@@ -17,6 +17,7 @@ Format is inspired by [Keep a Changelog](https://keepachangelog.com/). Versions 
 - Factory: subagent DAG runs (`/factory run|status|list|stop`), bundled `builder`/`review` machines, live TUI dock above the composer
 - Factory: guards (`when`), loops, foreach, MACHINE.md import, `/factory log|cancel|import` (dock chrome unchanged)
 - Daemon: background supervisor (`axi daemon start|stop|status`), pulse/factory ticks, spawn-via-daemon, `axi agents` / `/agents` roster
+- Agents view: `/agents` opens a live multi-agent TUI (daemon status, this-chat + workspace sections, filter, log/cancel); `/agents list` keeps the text board
 
 
 ### Notes

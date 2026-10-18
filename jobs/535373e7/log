@@ -1,0 +1,13 @@
+{
+  "text": "Hello from a test agent! 👋",
+  "tools": [],
+  "usage": {
+    "input": 6585,
+    "output": 12,
+    "cachedInput": 0,
+    "cacheWrite": 0,
+    "calls": 1,
+    "usd": 0.008351250000000001
+  },
+  "harness": "4cbeb2d903d93c0b"
+}

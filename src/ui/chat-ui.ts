@@ -24,7 +24,7 @@ import {
   formatDecideAnswer,
   onDecisionLoopTick,
 } from "../core/decision.js"
-import { daemonIsUp } from "../core/daemon.js"
+import { agentsMenuRows, daemonIsUp } from "../core/daemon.js"
 import {
   factoryActive,
   formatFactoryDock,
@@ -379,6 +379,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
   let renameFor = false
   let spawnFor = false
   let spawnFocus = ""
+  let agentFocus = ""
   let menuRows = 0
   const pendingImages: ChatImage[] = []
   setTabTitle(spec.name)
@@ -392,6 +393,13 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
     if (s === "key") return "api key"
     if (s === "chat-delete") return "delete"
     if (s === "spawn") return "spawn"
+    if (s === "agents") return "agents"
+    if (s === "agents-agent") {
+      const a =
+        chatAgents().find((x) => x.id === agentFocus) ??
+        listAgents(train).find((x) => x.id === agentFocus)
+      return a?.name ?? "agent"
+    }
     if (s === "spawn-agent") {
       const a = chatAgents().find((x) => x.id === spawnFocus)
       return a?.name ?? "agent"
@@ -454,7 +462,10 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
 
   const menuCtx = () => {
     const snap = measureContext(train, history, contextWindow())
-    const q = screen === "chats" || screen === "spawn" ? chars.join("").replace(/^\//, "").trim().toLowerCase() : ""
+    const q =
+      screen === "chats" || screen === "spawn" || screen === "agents"
+        ? chars.join("").replace(/^\//, "").trim().toLowerCase()
+        : ""
     let focusName = spec.name
     if (chatFocus !== spec.id) {
       try {
@@ -478,6 +489,13 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       agents: chatAgents().map((a) => ({ id: a.id, name: a.name, status: a.status })),
       spawnFocus: (() => {
         const a = chatAgents().find((x) => x.id === spawnFocus)
+        return a ? { id: a.id, name: a.name, status: a.status } : undefined
+      })(),
+      agentRows: agentsMenuRows(train, spec.id, q),
+      agentFocus: (() => {
+        const a =
+          chatAgents().find((x) => x.id === agentFocus) ??
+          listAgents(train).find((x) => x.id === agentFocus)
         return a ? { id: a.id, name: a.name, status: a.status } : undefined
       })(),
       parts: snap.parts.map((p) => ({
@@ -572,7 +590,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
     write("\x1b[J")
     if (painted) write(`\x1b[${painted}A`)
     menuRows = painted
-    if (inside && screen !== "chats") write("\x1b[?25l")
+    if (inside && screen !== "chats" && screen !== "agents" && screen !== "spawn") write("\x1b[?25l")
     else write("\x1b[?25h")
     write(`\x1b[${promptPlain.length + cur + 1}G`)
   }
@@ -830,6 +848,34 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
           note(lines.join("\n"))
         }
         paintComposer()
+        return true
+      }
+      if (r.focusAgent) agentFocus = r.focusAgent
+      if (r.agentsRefresh) {
+        enterScreen("agents")
+        paintComposer()
+        return true
+      }
+      if (r.agentLog) {
+        try {
+          note(agentLog(train, agentFocus))
+        } catch (err) {
+          note(err instanceof Error ? err.message : String(err))
+        }
+        paintComposer()
+        return true
+      }
+      if (r.agentCancel) {
+        void cancelAgent(train, agentFocus)
+          .then((a) => {
+            note(`canceled  ${a.id}  ${a.status}`)
+            enterScreen("agents")
+            paintComposer()
+          })
+          .catch((err) => {
+            note(err instanceof Error ? err.message : String(err))
+            paintComposer()
+          })
         return true
       }
       if (r.focusChat) chatFocus = r.focusChat
@@ -1238,6 +1284,14 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       }
       if (r.spawn) {
         enterScreen("spawn")
+        paintComposer()
+        return
+      }
+      if (r.agentsView) {
+        enterScreen("agents")
+        chars.length = 0
+        cursor = 0
+        pick = 0
         paintComposer()
         return
       }

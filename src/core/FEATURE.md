@@ -55,7 +55,7 @@ Background supervisor so work continues when the TUI is closed. Front door: `cor
 - Socket + pid under `~/.axi/daemon/` (`daemon.sock`, `daemon.pid`, `daemon.log`)
 - Tick (~2s): mark due mission pulses and deliver via spawn; tick active factory runs
 - When up, `startAgent` / agent `spawn` prefer the daemon (survives chat exit); set `AXI_DAEMON=0` to force local
-- Roster: `axi agents [dir]` · `/agents` · `/agents children` (kids of this chat)
+- Roster: `axi agents [dir]` · `/agents` opens live TUI board · `/agents list` text · `/agents children` (kids of this chat)
 
 ## Factory
 

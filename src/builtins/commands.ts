@@ -157,7 +157,7 @@ export const SLASH_SPECS: SlashSpec[] = [
   { name: "/status", hint: "session snapshot · tokens / cache-hit / ~$" },
   { name: "/doctor", hint: "health check" },
   { name: "/spawn", hint: "worker agents" },
-  { name: "/agents", hint: "agents roster · daemon status" },
+  { name: "/agents", hint: "live agents view · list for text board" },
   { name: "/daemon", hint: "background supervisor · status|start|stop" },
   { name: "/provider", hint: "openai · anthropic · grok · ollama" },
   { name: "/model", hint: "set model id" },

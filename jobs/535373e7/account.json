@@ -1,0 +1,22 @@
+{
+  "wallMs": 3760,
+  "cpu": {
+    "sec": 0.14
+  },
+  "ram": {
+    "peakRssKb": 83408
+  },
+  "gpu": {
+    "kind": "mps",
+    "peakMemMb": null
+  },
+  "disk": {
+    "cwdDeltaKb": 4,
+    "readBytes": null,
+    "writeBytes": null
+  },
+  "network": {
+    "rxBytes": null,
+    "txBytes": null
+  }
+}

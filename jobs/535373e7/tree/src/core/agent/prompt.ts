@@ -1,0 +1,27 @@
+/** Assemble the agent system prompt from builtins data. */
+
+import {
+  BASE_PROMPT,
+  PROJECT_SPECIALTY,
+  TRAIN_SPECIALTY,
+} from "../../builtins/system_prompt.js"
+import { isTrain } from "../schema.js"
+
+export type PromptBits = {
+  extra?: string
+  objective?: string
+  progress?: string
+}
+
+export function systemPrompt(train: string, extraOrBits: string | PromptBits = ""): string {
+  const bits: PromptBits = typeof extraOrBits === "string" ? { extra: extraOrBits } : extraOrBits
+  const specialty = isTrain(train) ? TRAIN_SPECIALTY : PROJECT_SPECIALTY
+  const lines = [
+    ...BASE_PROMPT,
+    ...specialty,
+    bits.objective ? `Current request:\n${bits.objective}` : "",
+    bits.progress ? `This turn so far (do not forget; do not redo):\n${bits.progress}` : "",
+    bits.extra?.trim() ?? "",
+  ]
+  return lines.filter(Boolean).join("\n")
+}

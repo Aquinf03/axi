@@ -26,7 +26,12 @@ export {
   readDaemonPid,
 } from "./daemon/client.js"
 
-export { formatAgentsRoster } from "./daemon/roster.js"
+export {
+  agentsMenuRows,
+  formatAgentsBoard,
+  formatAgentsRoster,
+  statusGlyph,
+} from "./daemon/roster.js"
 
 export { runDaemonTick, type TickSummary } from "./daemon/tick.js"
 

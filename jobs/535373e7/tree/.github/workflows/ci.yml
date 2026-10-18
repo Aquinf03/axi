@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Build, gates, unit, smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Module boundaries
+        run: npm run check:boundaries
+
+      - name: Public surface (no personal paths / secrets)
+        run: npm run check:public-surface
+
+      - name: Size + startup budgets
+        run: npm run check:budgets
+
+      - name: E2E corpus classification
+        run: npm run check:corpus
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: Smoke built binary (happy path)
+        run: npm run smoke
