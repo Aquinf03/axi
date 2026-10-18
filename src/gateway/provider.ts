@@ -917,9 +917,11 @@ export function runSlash(line: string, opts: SlashOpts = {}): SlashResult {
       text: out.text,
       missionKick: out.kick,
       missionRearmPulse: out.rearmPulse,
+      decisionRearmLoop: out.decisionRearmLoop,
     }
   }
   if (cmd === "/decision") {
+    // Power-user / agent surface — humans prefer /mission <goal>.
     const out = runDecisionSlash(opts.sessionId, arg, { workspace: opts.workspace })
     return {
       text: out.text,

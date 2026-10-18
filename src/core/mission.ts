@@ -135,4 +135,8 @@ export {
 
 export { missionStatusText } from "./mission/status.js"
 
-export { runMissionSlash, type MissionSlashResult } from "./mission/slash.js"
+export {
+  runMissionSlash,
+  stopMissionAll,
+  type MissionSlashResult,
+} from "./mission/slash.js"

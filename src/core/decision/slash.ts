@@ -70,13 +70,14 @@ export function runDecisionSlash(
     const loop = sessionId ? loadDecisionLoop(sessionId) : undefined
     return {
       text: [
-        "decision — pick one action from a menu (active chat model)",
+        "decision — choose-from-options (power / agent)",
+        "Day-to-day: /mission <goal> · /mission stop · /mission done",
+        "Agents: decision_decide · decision_loop_* tools",
         formatDecisionLoopStatus(loop),
         "",
         "  /decision decide --action name=desc … [--goal text] <observation>",
-        "  /decision loop start --observe CMD --act CMD --action name=desc … [--tick Ms] [--max N] <objective>",
-        "  /decision loop pause|resume|stop|status",
-        "  /decision set-goal <goal>",
+        "  /decision loop start --observe CMD --act CMD --action … <objective>",
+        "  /decision loop pause|resume|stop|status · /decision set-goal …",
       ].join("\n"),
     }
   }

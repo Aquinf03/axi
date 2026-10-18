@@ -327,9 +327,26 @@ describe("mission", () => {
 
   it("slash set and status", () => {
     const out = runMissionSlash(sid, "set --budget 500 finish unify")
-    assert.match(out.text, /objective  active/)
+    assert.match(out.text, /goal  finish unify|active/)
     assert.ok(out.kick?.includes("finish unify"))
     assert.match(runMissionSlash(sid, "").text, /finish unify/)
+  })
+
+  it("slash bare goal + stop clears engines", () => {
+    const out = runMissionSlash(sid, "ship the feature")
+    assert.match(out.text, /ship the feature/)
+    assert.ok(out.kick)
+    assert.equal(loadMission(sid).objective?.status, "active")
+    assert.equal(loadMission(sid).drive?.enabled, true)
+    const stopped = runMissionSlash(sid, "stop")
+    assert.equal(loadMission(sid).objective, undefined)
+    assert.equal(loadMission(sid).drive?.enabled, false)
+    assert.match(stopped.text, /no goal/)
+  })
+
+  it("slash help stays simple", () => {
+    assert.match(runMissionSlash(sid, "help").text, /\/mission <goal>/)
+    assert.doesNotMatch(runMissionSlash(sid, "help").text, /--gate/)
   })
 
   it("pulse set persists schedule and index", () => {

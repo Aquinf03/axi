@@ -39,12 +39,16 @@ Continual harness store for self-improving lessons (prompt notes, memories, skil
 
 ## Mission
 
-Keep working when the human goes quiet — one product, three facets. Front door: `core/mission.ts`. Persist `~/.axi/chats/<id>/mission.json`.
+Keep working when the human goes quiet. Front door: `core/mission.ts`. Persist `~/.axi/chats/<id>/mission.json`.
 
-- `/mission set [--budget N] <objective>` · `pause|resume|clear|done` — Objective re-injects at turn end until done/budget; empty turns (no text/tools) streak with 10s/20s backoff wakes, stop at 3; weights arl digest via `goalObjective`.
-- `/mission drive on|off` — bounded keep-going (continuations/turns/tokens/timeout); optional `--gate CMD` shell quality gates (pass → stop Drive only, not objective); Objective preempts Drive.
-- `/mission pulse [--every 5m|--in 20m|--at 15:30|--cron 0 9 * * 1-5] <instruction>` — wall-clock wake; durable `~/.axi/pulse-jobs.json`; `axi mission tick` marks due when chat is closed; catch-up on open.
-- Agent: deferred `mission_done` when the objective is actually finished.
+**Human slash (keep tiny):**
+- `/mission <goal>` — start (sets objective + light drive)
+- `/mission` — status
+- `/mission stop` — stop everything (objective, drive, pulse, decision loop)
+- `/mission done` — mark goal finished
+- `/mission advanced` — drive / pulse / set --budget (power path)
+
+**Engines (host, not brochure UX):** Objective re-inject + no-progress backoff · Drive bounds/gates · Pulse schedules · Decision choose tools. Agent: deferred `mission_done`.
 
 ## Assets / vision
 
@@ -54,12 +58,11 @@ Keep working when the human goes quiet — one product, three facets. Front door
 
 ## Decision API
 
-Fast choose-from-options (System 1) for research ticks and forks — not Mission keep-going. Front door: `core/decision.ts`. Uses the **active chat model** (no separate System One / clef required).
+Fast choose-from-options for research ticks and forks. Front door: `core/decision.ts`. **Humans:** `/mission <goal>` day-to-day. **Agents / power:** `decision_*` tools or `/decision …`. Active chat model (no separate System One required).
 
-- One-shot: `decide()` / deferred `decision_decide` / `/decision decide --action name=desc … <observation>` → `{action, confidence, probabilities}`. Optional vision via `images`.
-- Host Loop: `/decision loop start --observe CMD --act CMD --action …` (or `decision_loop_*` tools). Tick: observe shell → decide → act shell (`{action}` / `AXI_DECISION_ACTION`). System 2 only `set-goal`. Persist `~/.axi/chats/<id>/decision.json`.
-- arl wire: auto-refine gate uses Decision actions `refine_local|refine_global|skip|defer` (confidence threshold). Optional per-edit triage via `runRefine({ triageEdits: true })` (`keep|drop|promote_global`). Decision picks; `/refine` still writes harness.
-- **Research recipe (optional):** Loop `observe` = eval score / failing test note → decide next probe → `set-goal` when strategy shifts → kick `/refine` when evidence is strong. Keep products separate (Decision picks, refine writes, Mission continues).
+- `decide()` / `decision_decide` → `{action, confidence}`; optional `images`
+- Host Loop via tools / `/decision loop …`; persist `decision.json`
+- Auto-refine gate + optional edit triage; Decision picks, `/refine` writes
 
 ## Permissions
 

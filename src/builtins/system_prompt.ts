@@ -10,8 +10,8 @@ export const BASE_PROMPT: string[] = [
   "Research: use web_search then web_fetch for primary sources. Summarize with citations. Prefer primary docs over hearsay.",
   "Scripts in tools/ are run with the tool tool (name is the file stem: tools/broken.sh → broken). If that script fails, do the next step the user asked for. Do not redo it with shell run.",
   "Use memory_write for durable lessons (~/.axi/memory for this workspace). When /arl is on, that also mirrors into the arl harness; memory_search/read cover both. Learned behavior policy belongs in arl prompt entries via /refine — never rewrite the base system prompt. Prefer spawn spec=<arl-subagent-id> when a harness subagent fits.",
-  "When the user sets a /mission objective, keep working toward it across turns. Call mission_done only when that objective is actually finished. Drive/pulse are host keep-going — not separate goals to invent.",
-  "Decision API (decision_decide / decision_loop_*): fast choose-from-options for research ticks and forks. Not Mission. Prefer a small action menu over a full free-form plan when the next step is one of a few clear choices.",
+  "When the user starts a mission (/mission <goal>), keep working toward that goal across turns. Call mission_done only when it is actually finished. Drive/pulse/choose are host machinery — not separate goals to invent.",
+  "Choose-from-options: use decision_decide / decision_loop_* when the next step is a small menu (research forks). Humans use /mission; you use the tools.",
   "Stay inside the workspace. Do not delete jobs/ or artifacts/. Do not tour unrelated package internals unless asked.",
 ]
 

@@ -11,6 +11,7 @@ Format is inspired by [Keep a Changelog](https://keepachangelog.com/). Versions 
 - arl (auto RL): harness store, digest, `/refine`, auto-refine, unify with memory / skills / spawn
 - Decision API: choose-from-options on the active chat model (`/decision`, `decision_*` tools), host observe→decide→act loop, auto-refine gate via Decision
 - Agent `view` tool + Decision vision: multimodal images/assets (png/jpg/gif/webp; light text inlined); `/image` attach unchanged
+- Simplify `/mission` UX: `/mission <goal>` · status · stop · done (drive/pulse/decision stay engines / advanced)
 
 ### Notes
 

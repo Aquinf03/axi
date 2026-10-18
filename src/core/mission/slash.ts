@@ -1,11 +1,13 @@
 /**
- * /mission — one slash for Objective / Drive / Pulse.
+ * /mission — simple for humans; engines stay under the hood.
  *
- * /mission
- * /mission set [--budget N] <objective>
- * /mission pause | resume | clear | done
- * /mission drive on [--max-cont N] … [--gate CMD]… [--gate-retries N] | off
- * /mission pulse [--every|--in|--at|--cron …] <instruction> | pause | resume | clear
+ * Happy path:
+ *   /mission <goal>     start (objective + light drive)
+ *   /mission            status
+ *   /mission stop       stop everything
+ *   /mission done       mark goal finished
+ *
+ * Still work (not advertised): set|pause|resume|clear · drive · pulse · advanced
  */
 
 import {
@@ -19,6 +21,7 @@ import { disableDrive, enableDrive } from "./drive.js"
 import { clearPulse, pausePulse, resumePulse, setPulse } from "./pulse.js"
 import { loadMission } from "./store.js"
 import { missionStatusText } from "./status.js"
+import { stopDecisionLoop } from "../decision.js"
 import type { DriveLimits } from "./types.js"
 
 export type MissionSlashResult = {
@@ -27,7 +30,43 @@ export type MissionSlashResult = {
   kick?: string
   /** Restart pulse timer after slash (chat-ui). */
   rearmPulse?: boolean
+  /** Clear / re-arm decision loop timer (chat-ui). */
+  decisionRearmLoop?: boolean
 }
+
+const SIMPLE_USAGE = [
+  "mission — keep working when you go quiet",
+  "  /mission <goal>     start",
+  "  /mission            status",
+  "  /mission stop       stop everything",
+  "  /mission done       goal finished",
+  "  /mission advanced   power-user commands (drive · pulse · …)",
+].join("\n")
+
+const ADVANCED_USAGE = [
+  "mission advanced (engines — prefer /mission <goal> day-to-day)",
+  "  /mission set [--budget N] <objective>",
+  "  /mission pause|resume|clear",
+  "  /mission drive on [--max-cont N] … [--gate CMD]… | off",
+  '  /mission pulse [--every|--in|--at|--cron …] <instruction> | pause|resume|clear',
+  "  choose-from-options: agent tools decision_* (or /decision) — not required for /mission",
+].join("\n")
+
+const RESERVED = new Set([
+  "status",
+  "help",
+  "?",
+  "stop",
+  "done",
+  "complete",
+  "set",
+  "pause",
+  "resume",
+  "clear",
+  "drive",
+  "pulse",
+  "advanced",
+])
 
 function takeFlag(tokens: string[], name: string): string | undefined {
   const i = tokens.findIndex((t) => t === name)
@@ -63,16 +102,71 @@ function takeGateCommands(tokens: string[]): string[] {
   return gates
 }
 
+function startObjective(
+  sessionId: string,
+  objective: string,
+  opts?: { tokenBudget?: number; enableDrive?: boolean },
+): MissionSlashResult {
+  setObjective(sessionId, objective, { tokenBudget: opts?.tokenBudget })
+  if (opts?.enableDrive !== false) {
+    // Light keep-going defaults — human only named the goal.
+    enableDrive(sessionId, {})
+  }
+  return {
+    text: missionStatusText(sessionId),
+    kick: [
+      "[mission: objective]",
+      "",
+      "Mission objective set. Start working toward it now.",
+      "",
+      `<objective>\n${objective}\n</objective>`,
+    ].join("\n"),
+  }
+}
+
+/** Stop objective, drive, pulse, and any decision loop. */
+export function stopMissionAll(sessionId: string): MissionSlashResult {
+  clearObjective(sessionId)
+  disableDrive(sessionId)
+  clearPulse(sessionId)
+  stopDecisionLoop(sessionId)
+  return {
+    text: missionStatusText(sessionId),
+    rearmPulse: true,
+    decisionRearmLoop: true,
+  }
+}
+
 export function runMissionSlash(sessionId: string | undefined, arg: string): MissionSlashResult {
   if (!sessionId) {
     return { text: "mission needs an open chat session" }
   }
-  const tokens = arg.trim().split(/\s+/).filter(Boolean)
-  const head = (tokens[0] ?? "status").toLowerCase()
+  const trimmed = arg.trim()
+  const tokens = trimmed.split(/\s+/).filter(Boolean)
+  const head = (tokens[0] ?? "").toLowerCase()
 
-  if (!arg.trim() || head === "status") {
+  if (!trimmed || head === "status") {
     return { text: missionStatusText(sessionId) }
   }
+
+  if (head === "help" || head === "?") {
+    return { text: SIMPLE_USAGE }
+  }
+
+  if (head === "advanced") {
+    return { text: ADVANCED_USAGE }
+  }
+
+  if (head === "stop") {
+    return stopMissionAll(sessionId)
+  }
+
+  if (head === "done" || head === "complete") {
+    completeObjective(sessionId)
+    return { text: missionStatusText(sessionId) }
+  }
+
+  // --- power path (unchanged behavior, not the brochure) ---
 
   if (head === "set") {
     const rest = tokens.slice(1)
@@ -80,21 +174,11 @@ export function runMissionSlash(sessionId: string | undefined, arg: string): Mis
     const budget = budgetRaw != null ? parseInt(budgetRaw, 10) : undefined
     const objective = rest.join(" ").trim()
     if (!objective) {
-      return { text: "usage: /mission set [--budget N] <objective>" }
+      return { text: "usage: /mission set [--budget N] <objective>\n(or just: /mission <goal>)" }
     }
-    setObjective(sessionId, objective, {
+    return startObjective(sessionId, objective, {
       tokenBudget: Number.isFinite(budget) ? budget : undefined,
     })
-    return {
-      text: missionStatusText(sessionId),
-      kick: [
-        "[mission: objective]",
-        "",
-        "Mission objective set. Start working toward it now.",
-        "",
-        `<objective>\n${objective}\n</objective>`,
-      ].join("\n"),
-    }
   }
 
   if (head === "pause") {
@@ -117,12 +201,8 @@ export function runMissionSlash(sessionId: string | undefined, arg: string): Mis
         : undefined,
     }
   }
-  if (head === "clear" || head === "stop") {
+  if (head === "clear") {
     clearObjective(sessionId)
-    return { text: missionStatusText(sessionId) }
-  }
-  if (head === "done" || head === "complete") {
-    completeObjective(sessionId)
     return { text: missionStatusText(sessionId) }
   }
 
@@ -151,7 +231,7 @@ export function runMissionSlash(sessionId: string | undefined, arg: string): Mis
       return { text: missionStatusText(sessionId) }
     }
     return {
-      text: "usage: /mission drive on [--max-cont N] [--max-turns N] [--max-tokens N] [--timeout-m N] [--gate CMD]… [--gate-retries N] | off | status",
+      text: "usage: /mission drive on|off  (see /mission advanced)",
     }
   }
 
@@ -173,7 +253,6 @@ export function runMissionSlash(sessionId: string | undefined, arg: string): Mis
     const rest = tokens.slice(1)
     takeBoolFlag(rest, "--steer")
     takeBoolFlag(rest, "--follow-up")
-    // Schedule flags — value may be multi-token until next --flag for cron.
     let schedule: string | undefined
     const every = takeFlag(rest, "--every") ?? takeFlag(rest, "-e")
     const inn = takeFlag(rest, "--in")
@@ -195,21 +274,18 @@ export function runMissionSlash(sessionId: string | undefined, arg: string): Mis
     }
     const instruction = rest.join(" ").trim()
     if (!instruction) {
-      return {
-        text: 'usage: /mission pulse [--every 5m|--in 20m|--at 15:30|--cron 0 9 * * 1-5] <instruction> · pause|resume|clear',
-      }
+      return { text: "usage: /mission pulse …  (see /mission advanced)" }
     }
     setPulse(sessionId, instruction, schedule)
     return { text: missionStatusText(sessionId), rearmPulse: true }
   }
 
-  return {
-    text: [
-      "usage:",
-      "  /mission  ·  /mission set [--budget N] <objective>",
-      "  /mission pause|resume|clear|done",
-      "  /mission drive on|off …",
-      '  /mission pulse [--every|--in|--at|--cron …] <instruction> | pause|resume|clear',
-    ].join("\n"),
+  // Bare goal: /mission finish the PR
+  if (!RESERVED.has(head)) {
+    const objective = trimmed
+    if (!objective) return { text: SIMPLE_USAGE }
+    return startObjective(sessionId, objective)
   }
+
+  return { text: SIMPLE_USAGE }
 }
