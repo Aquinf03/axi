@@ -32,6 +32,7 @@ import {
   saveAutoRefineSettings,
   setArlEnabled,
 } from "../core/arl.js"
+import { runCodemodeSlash } from "../core/codemode.js"
 import { runDecisionSlash } from "../core/decision.js"
 import { runMissionSlash } from "../core/mission.js"
 
@@ -555,7 +556,7 @@ export function applyChoice(c: Choice): {
         "  sound      click + message cues",
         "  notify     desktop alert when a reply finishes (if terminal unfocused)",
         "",
-        "slash: /new /rename /open /delete [/delete all] /compact /undo /image /status /doctor /spawn /provider /model /temp /key /sound /notify /arl /refine /mission /decision /mode",
+        "slash: /new /rename /open /delete [/delete all] /compact /undo /image /status /doctor /spawn /provider /model /temp /key /sound /notify /arl /refine /codemode /mission /decision /mode",
         "",
         "keys: axi provider openai",
         "now: " + activeLabel(),
@@ -910,6 +911,9 @@ export function runSlash(line: string, opts: SlashOpts = {}): SlashResult {
       else rest.push(t)
     }
     return { refine: { instructions: rest.join(" ").trim() || undefined, global } }
+  }
+  if (cmd === "/codemode") {
+    return runCodemodeSlash(opts.sessionId, arg)
   }
   if (cmd === "/mission") {
     const out = runMissionSlash(opts.sessionId, arg)

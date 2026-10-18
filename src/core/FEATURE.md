@@ -37,6 +37,16 @@ Continual harness store for self-improving lessons (prompt notes, memories, skil
 - Auto-refine follows `/arl on`. Options: `/arl interval <n>` · `/arl cooldown <m>` · `/arl compact on|off`. Reviewer gate every N turns and after compact (cooldown). Local-only unless the reviewer asks global.
 - Unify: `memory_write` dual-writes workspace + global arl memory; `memory_search`/`read` merge both. Skill stubs stay inventory (no auto `SKILL.md`). `spawn spec=<id>` loads harness subagents. Learned policy stays in digest/`prompt` entries — not `BASE_PROMPT`.
 
+## Codemode
+
+Sticky Node scratchpad for multi-step code cells (not a Prime REPL port). Front door: `core/codemode.ts`.
+
+- Mode: `/codemode on|off|status` (default **on**). Env `AXI_CODEMODE=on|off` overrides disk. Profile: `~/.axi/codemode/mode.json`.
+- `/codemode reset` clears the namespace; `/codemode stop` kills the kernel process.
+- Kernel: lazy child Node worker per chat session; starts on first `codemode_run`. Caps code size + result bytes; vars listing is name/type/short preview only.
+- Deferred tools (via `tools_search`): `codemode_run`, `codemode_vars`. Sensitive — `authorizeTool` like `run`.
+- Sticky bindings: `var` / `globalThis.x` (cell-local `const`/`let` do not persist). Prefer `run` for one-shot shell.
+
 ## Mission
 
 Keep working when the human goes quiet — **one product**, four engines. Front door: `core/mission.ts`. Persist `~/.axi/chats/<id>/mission.json` (includes `choose`).
@@ -112,6 +122,7 @@ Import fat subsystems only through their front doors:
 | Compact | `core/compact.ts` |
 | Session | `core/session.ts` |
 | arl (auto RL) | `core/arl.ts` |
+| codemode | `core/codemode.ts` |
 | mission | `core/mission.ts` |
 | Output | `core/output.ts` |
 | Permissions | `core/permissions.ts` |

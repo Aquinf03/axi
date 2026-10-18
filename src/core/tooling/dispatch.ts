@@ -21,6 +21,7 @@ import {
   searchArlMemories,
   searchArlSkillStubs,
 } from "../arl.js"
+import { codemodeRun, codemodeVars } from "../codemode.js"
 import { queueViewImages } from "../agent/view-buffer.js"
 import { viewAssets } from "../agent/assets.js"
 import {
@@ -113,6 +114,12 @@ export function permitLabel(train: string, name: string, rawArgs: string): strin
     } catch {
       return name
     }
+  }
+  if (name === "codemode_run") {
+    const code = typeof args.code === "string" ? args.code : ""
+    const one = code.trim().split(/\n/)[0] ?? ""
+    const preview = one.length > 80 ? `${one.slice(0, 80)}…` : one
+    return preview ? `codemode ${preview}` : "codemode_run"
   }
   if (name === "write") {
     const p = typeof args.path === "string" ? args.path : "?"
@@ -310,6 +317,21 @@ export async function runAgentTool(train: string, name: string, rawArgs: string)
     if (!out.scheduled) return `refine not scheduled: ${out.reason}`
     const pending = arlRefinePending()
     return `refine scheduled for end of turn (${pending?.global ? "global" : "local"}${pending?.instructions ? `; focus: ${pending.instructions}` : ""}). Continue working — host applies after this turn.`
+  }
+  if (name === "codemode_run") {
+    const code = typeof args.code === "string" ? args.code : ""
+    const timeoutRaw = args.timeout_ms ?? args.timeoutMs
+    const timeoutMs =
+      typeof timeoutRaw === "number" && Number.isFinite(timeoutRaw) ? timeoutRaw : undefined
+    return codemodeRun({
+      code,
+      cwd: train,
+      sessionId: getArlSessionId(),
+      timeoutMs,
+    })
+  }
+  if (name === "codemode_vars") {
+    return codemodeVars({ cwd: train, sessionId: getArlSessionId() })
   }
   if (name === "mission_done") {
     const sid = getArlSessionId()

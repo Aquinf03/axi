@@ -142,6 +142,7 @@ export const SLASH_SPECS: SlashSpec[] = [
   { name: "/mode", hint: "ask · auto · plan · full-access (permission mode)" },
   { name: "/arl", hint: "auto RL · on|off|status · interval · cooldown · compact" },
   { name: "/refine", hint: "arl: learn from this chat · [--global] [focus] · rollback <id>" },
+  { name: "/codemode", hint: "sticky Node scratchpad · on|off|status · reset · stop" },
   { name: "/mission", hint: "<goal> · status · stop · done" },
   { name: "/decision", hint: "mission choose engine (prefer /mission)" },
   { name: "/permissions", hint: "mode, session always, saved rules", aliases: ["/perms"] },

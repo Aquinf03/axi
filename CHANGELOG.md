@@ -13,6 +13,7 @@ Format is inspired by [Keep a Changelog](https://keepachangelog.com/). Versions 
 - Agent `view` tool + Decision vision: multimodal images/assets (png/jpg/gif/webp; light text inlined); `/image` attach unchanged
 - Simplify `/mission` UX: `/mission <goal>` · status · stop · done (drive/pulse/decision stay engines / advanced)
 - Merge Choose (Decision) into Mission: persist `mission.choose`, migrate legacy `decision.json`
+- Codemode: sticky Node scratchpad (`/codemode on|off|reset`, default on; `codemode_run` / `codemode_vars` tools)
 
 ### Notes
 

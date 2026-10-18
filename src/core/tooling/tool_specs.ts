@@ -64,7 +64,7 @@ export const CORE_TOOLS: AgentToolDef[] = [
   {
     name: "tools_search",
     description:
-      "Search builtins, aq commands, tools/, and skills. Matching deferred tools (aq_*, spawn, plot, memory_*, arl_refine, mission_done, decision_*) are loaded into this session so you can call them next. Discovering a tool does not approve it — sensitive calls still need a permit.",
+      "Search builtins, aq commands, tools/, and skills. Matching deferred tools (aq_*, spawn, plot, memory_*, arl_refine, codemode_*, mission_done, decision_*) are loaded into this session so you can call them next. Discovering a tool does not approve it — sensitive calls still need a permit.",
     parameters: {
       type: "object",
       properties: { query: { type: "string", description: "keywords" } },
@@ -349,6 +349,31 @@ export const DEFERRED_TOOLS: AgentToolDef[] = [
           description: "true = write global harness; default local to this chat",
         },
       },
+    },
+  },
+  {
+    name: "codemode_run",
+    description:
+      "Run JavaScript in the sticky Node codemode kernel for this chat (vars persist across cells). Prefer for multi-step code scratchpads; use `run` for one-shot shell. Sticky bindings: use var or globalThis.x (const/let are cell-local). Requires /codemode on (default on). Output is size-capped.",
+    parameters: {
+      type: "object",
+      properties: {
+        code: { type: "string", description: "JavaScript cell to evaluate" },
+        timeout_ms: {
+          type: "number",
+          description: "optional cell timeout in ms (default 30000, max 120000)",
+        },
+      },
+      required: ["code"],
+    },
+  },
+  {
+    name: "codemode_vars",
+    description:
+      "List sticky codemode bindings (name, type, short preview only — not a full dump). Requires /codemode on and a prior codemode_run.",
+    parameters: {
+      type: "object",
+      properties: {},
     },
   },
   {
