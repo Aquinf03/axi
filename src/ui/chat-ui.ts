@@ -24,6 +24,7 @@ import {
   formatDecideAnswer,
   onDecisionLoopTick,
 } from "../core/decision.js"
+import { daemonIsUp } from "../core/daemon.js"
 import {
   factoryActive,
   formatFactoryDock,
@@ -300,6 +301,11 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
   const armMissionPulse = () => {
     onPulseFire(spec.id, (sid) => {
       if (sid !== spec.id) return
+      // Daemon owns delivery when up (spawns a child) — avoid double-fire.
+      if (daemonIsUp()) {
+        note(`mission pulse  run#…  (daemon delivering)`)
+        return
+      }
       if (busy) {
         markPulsePending(sid)
         return

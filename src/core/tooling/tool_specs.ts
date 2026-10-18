@@ -64,7 +64,7 @@ export const CORE_TOOLS: AgentToolDef[] = [
   {
     name: "tools_search",
     description:
-      "Search builtins, aq commands, tools/, and skills. Matching deferred tools (aq_*, spawn, plot, memory_*, arl_refine, codemode_*, factory_*, mission_done, decision_*) are loaded into this session so you can call them next. Discovering a tool does not approve it — sensitive calls still need a permit.",
+      "Search builtins, aq commands, tools/, and skills. Matching deferred tools (aq_*, spawn, plot, memory_*, arl_refine, codemode_*, factory_*, daemon_*, mission_done, decision_*) are loaded into this session so you can call them next. Discovering a tool does not approve it — sensitive calls still need a permit.",
     parameters: {
       type: "object",
       properties: { query: { type: "string", description: "keywords" } },
@@ -423,6 +423,12 @@ export const DEFERRED_TOOLS: AgentToolDef[] = [
       },
       required: ["node"],
     },
+  },
+  {
+    name: "daemon_status",
+    description:
+      "Show whether the axi background daemon is up (ticks mission/factory; preferred spawn host). Same as /daemon status.",
+    parameters: { type: "object", properties: {} },
   },
   {
     name: "mission_done",

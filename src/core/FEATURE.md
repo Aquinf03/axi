@@ -47,6 +47,16 @@ Sticky Node scratchpad for multi-step code cells (not a Prime REPL port). Front 
 - Deferred tools (via `tools_search`): `codemode_run`, `codemode_vars`. Sensitive — `authorizeTool` like `run`.
 - Sticky bindings: `var` / `globalThis.x` (cell-local `const`/`let` do not persist). Prefer `run` for one-shot shell.
 
+## Daemon
+
+Background supervisor so work continues when the TUI is closed. Front door: `core/daemon.ts`.
+
+- CLI: `axi daemon start|stop|status|run` · slash `/daemon` · tool `daemon_status`
+- Socket + pid under `~/.axi/daemon/` (`daemon.sock`, `daemon.pid`, `daemon.log`)
+- Tick (~2s): mark due mission pulses and deliver via spawn; tick active factory runs
+- When up, `startAgent` / agent `spawn` prefer the daemon (survives chat exit); set `AXI_DAEMON=0` to force local
+- Roster: `axi agents [dir]` · `/agents` · `/agents children` (kids of this chat)
+
 ## Factory
 
 DAG of spawned subagents (axi-shaped — not a Prime factory port). Front door: `core/factory.ts`.
@@ -140,6 +150,7 @@ Import fat subsystems only through their front doors:
 | arl (auto RL) | `core/arl.ts` |
 | codemode | `core/codemode.ts` |
 | factory | `core/factory.ts` |
+| daemon | `core/daemon.ts` |
 | mission | `core/mission.ts` |
 | Output | `core/output.ts` |
 | Permissions | `core/permissions.ts` |

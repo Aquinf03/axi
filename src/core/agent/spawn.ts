@@ -21,6 +21,7 @@ import {
 } from "../session.js"
 import { formatHandoff, readHandoff, rollupChildUsage } from "./handoff.js"
 import { resolveArlSubagent } from "../arl.js"
+import { daemonIsUp, daemonSpawn } from "../daemon/client.js"
 
 const KILLER_PREAMBLE = [
   "Your job is the cheapest disproof, not agreement.",
@@ -132,12 +133,34 @@ export async function startAgent(
     parentId?: string
     /** Arl harness subagent id (already resolved into prompt when set from tools). */
     harnessSpec?: string
+    /** Force local enqueue even when daemon is up. */
+    local?: boolean
   },
 ): Promise<AgentSpec> {
   const raw = prompt.trim()
   const text = (opts?.kill ? KILLER_PREAMBLE + "\n\n" : "") + raw
   if (!raw) throw new Error("need a prompt")
   const name = (opts?.name ?? (opts?.kill ? "kill: " + raw : raw)).replace(/\s+/g, " ").trim().slice(0, 48)
+
+  // Prefer daemon when up so spawns outlive the TUI (daemon runs startAgent locally).
+  if (
+    !opts?.local &&
+    !process.env.AXI_DAEMON_INTERNAL &&
+    process.env.AXI_DAEMON !== "0" &&
+    daemonIsUp()
+  ) {
+    try {
+      const remote = await daemonSpawn({
+        workspace: train,
+        prompt: text,
+        name,
+        parentId: opts?.parentId,
+      })
+      if (remote) return refreshSession(train, loadSession(remote.id))
+    } catch {
+      /* fall through to local */
+    }
+  }
 
   const session = opts?.parentId
     ? createChildSession(train, opts.parentId, { name, prompt: text })

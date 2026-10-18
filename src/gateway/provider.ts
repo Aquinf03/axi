@@ -33,6 +33,12 @@ import {
   setArlEnabled,
 } from "../core/arl.js"
 import { runCodemodeSlash } from "../core/codemode.js"
+import {
+  formatAgentsRoster,
+  formatDaemonStatusText,
+  startDaemonDetached,
+  stopDaemon,
+} from "../core/daemon.js"
 import { runDecisionSlash } from "../core/decision.js"
 import { runFactorySlash } from "../core/factory.js"
 import { runMissionSlash } from "../core/mission.js"
@@ -557,7 +563,7 @@ export function applyChoice(c: Choice): {
         "  sound      click + message cues",
         "  notify     desktop alert when a reply finishes (if terminal unfocused)",
         "",
-        "slash: /new /rename /open /delete [/delete all] /compact /undo /image /status /doctor /spawn /provider /model /temp /key /sound /notify /arl /refine /codemode /factory /mission /decision /mode",
+        "slash: /new /rename /open /delete [/delete all] /compact /undo /image /status /doctor /spawn /agents /daemon /provider /model /temp /key /sound /notify /arl /refine /codemode /factory /mission /decision /mode",
         "",
         "keys: axi provider openai",
         "now: " + activeLabel(),
@@ -921,6 +927,26 @@ export function runSlash(line: string, opts: SlashOpts = {}): SlashResult {
   }
   if (cmd === "/codemode") {
     return runCodemodeSlash(opts.sessionId, arg)
+  }
+  if (cmd === "/agents") {
+    const parent =
+      arg.trim().toLowerCase() === "children" || arg.trim().toLowerCase() === "kids"
+        ? opts.sessionId
+        : undefined
+    return { text: formatAgentsRoster(workspace, parent) }
+  }
+  if (cmd === "/daemon") {
+    const head = arg.trim().split(/\s+/)[0]?.toLowerCase() ?? "status"
+    if (head === "start") {
+      try {
+        const { pid, sock } = startDaemonDetached()
+        return { text: `axi daemon  started  pid ${pid}\n  socket  ${sock}` }
+      } catch (err) {
+        return { text: err instanceof Error ? err.message : String(err) }
+      }
+    }
+    if (head === "stop") return { text: stopDaemon() }
+    return { text: formatDaemonStatusText() }
   }
   if (cmd === "/factory") {
     const out = runFactorySlash(opts.sessionId, arg, { workspace })

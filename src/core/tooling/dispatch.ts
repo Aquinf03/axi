@@ -22,6 +22,7 @@ import {
   searchArlSkillStubs,
 } from "../arl.js"
 import { codemodeRun, codemodeVars } from "../codemode.js"
+import { formatDaemonStatusText } from "../daemon.js"
 import {
   cancelFactoryNode,
   factoryNodeLog,
@@ -385,6 +386,9 @@ export async function runAgentTool(train: string, name: string, rawArgs: string)
     } catch (err) {
       return err instanceof Error ? err.message : String(err)
     }
+  }
+  if (name === "daemon_status") {
+    return formatDaemonStatusText()
   }
   if (name === "mission_done") {
     const sid = getArlSessionId()

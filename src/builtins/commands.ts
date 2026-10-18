@@ -13,6 +13,8 @@ export type CliKind =
   | "spawn"
   | "provider"
   | "mission"
+  | "daemon"
+  | "agents"
 
 export type CliSpec = {
   kind: CliKind
@@ -115,6 +117,28 @@ export const CLI_SPECS: CliSpec[] = [
       "axi spawn cancel [dir] <id>",
     ],
   },
+  {
+    kind: "daemon",
+    tokens: ["daemon"],
+    usage: "axi daemon start|stop|status|run",
+    summary: "background supervisor (pulse/factory ticks; spawn host)",
+    details: [
+      "axi daemon start    detach supervisor",
+      "axi daemon stop",
+      "axi daemon status",
+      "axi daemon run      foreground",
+    ],
+  },
+  {
+    kind: "agents",
+    tokens: ["agents"],
+    usage: "axi agents [dir] [--parent <chatId>]",
+    summary: "agents roster + daemon status",
+    details: [
+      "axi agents [dir]                 list workers",
+      "axi agents [dir] --parent <id>   children of a chat",
+    ],
+  },
 ]
 
 export const SLASH_SPECS: SlashSpec[] = [
@@ -133,6 +157,8 @@ export const SLASH_SPECS: SlashSpec[] = [
   { name: "/status", hint: "session snapshot · tokens / cache-hit / ~$" },
   { name: "/doctor", hint: "health check" },
   { name: "/spawn", hint: "worker agents" },
+  { name: "/agents", hint: "agents roster · daemon status" },
+  { name: "/daemon", hint: "background supervisor · status|start|stop" },
   { name: "/provider", hint: "openai · anthropic · grok · ollama" },
   { name: "/model", hint: "set model id" },
   { name: "/temp", hint: "sampling temperature 0–2 · /temp show|reset", aliases: ["/temperature"] },
