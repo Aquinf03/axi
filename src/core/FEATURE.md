@@ -51,13 +51,17 @@ Sticky Node scratchpad for multi-step code cells (not a Prime REPL port). Front 
 
 DAG of spawned subagents (axi-shaped — not a Prime factory port). Front door: `core/factory.ts`.
 
-- Slash: `/factory run <machine>` · `status` · `list` · `stop` · or `/factory <machine>`.
-- Seeds: bundled `builder`, `review` under `core/factory/machines/`; user machines in `~/.axi/factory/machines/*.json`.
-- Spec: `{ name, max_parallel, nodes: [{ id, prompt, name?, needs? }] }`. `{nodeId}` in prompts filled from predecessor handoff prose (capped).
+- Slash: `/factory run <machine>` · `status` · `list` · `stop` · `import <path>` · `log <node>` · `cancel <node>` · or `/factory <machine>`.
+- Seeds: `builder`, `review`, `retry-merge`, `review-sweep` under `core/factory/machines/` (JSON or `MACHINE.md`); user machines in `~/.axi/factory/machines/*.{json,md}`.
+- Spec: `{ name, max_parallel, nodes: [{ id, prompt, name?, needs?, when?, foreach?, loop? }] }`. `{nodeId}` / `{item}` filled from predecessor handoff prose (capped).
+  - **when** — skip node if guard fails (`contains` / `eq` / `exists`, optional `not` / `node`)
+  - **foreach** — expand over a JSON list from `over` (+ optional `path`); join outputs for downstream `{id}`
+  - **loop** — re-run node until `until` guard passes (optional `reset` deps); max entries capped
+- MACHINE.md: frontmatter + fenced `machine-spec` JSON (Prime `subagent` / `inputs[].from` sugar accepted). `/factory import` copies into the user library.
 - Persist: `~/.axi/chats/<id>/factory.json` — one run per chat.
-- Executor: host ticks ~1.5s — settle jobs, spawn ready nodes via `startAgent` (children of the chat), fail-fast.
-- TUI: live dock above the composer (`⚙ factory …` + per-node glyphs) while a run is active / last run until `/factory stop`.
-- Deferred tools: `factory_run`, `factory_status`, `factory_stop`.
+- Executor: host ticks ~1.5s — settle jobs, expand foreach, spawn ready nodes via `startAgent`, fail-fast.
+- TUI: live dock above the composer (`⚙ factory …` + per-node glyphs) — unchanged chrome; node log/cancel via slash/tools only.
+- Deferred tools: `factory_run`, `factory_status`, `factory_stop`, `factory_log`, `factory_cancel`.
 
 ## Mission
 

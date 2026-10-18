@@ -23,6 +23,8 @@ import {
 } from "../arl.js"
 import { codemodeRun, codemodeVars } from "../codemode.js"
 import {
+  cancelFactoryNode,
+  factoryNodeLog,
   formatFactoryStatus,
   loadFactory,
   startFactory,
@@ -360,6 +362,29 @@ export async function runAgentTool(train: string, name: string, rawArgs: string)
     const sid = getArlSessionId()
     if (!sid) return "factory_stop needs an open chat session"
     return formatFactoryStatus(stopFactory(sid, train))
+  }
+  if (name === "factory_log") {
+    const sid = getArlSessionId()
+    if (!sid) return "factory_log needs an open chat session"
+    const node = typeof args.node === "string" ? args.node.trim() : ""
+    if (!node) return "factory_log needs node"
+    const tail = typeof args.tail === "number" && Number.isFinite(args.tail) ? args.tail : 40
+    try {
+      return factoryNodeLog(sid, train, node, tail)
+    } catch (err) {
+      return err instanceof Error ? err.message : String(err)
+    }
+  }
+  if (name === "factory_cancel") {
+    const sid = getArlSessionId()
+    if (!sid) return "factory_cancel needs an open chat session"
+    const node = typeof args.node === "string" ? args.node.trim() : ""
+    if (!node) return "factory_cancel needs node"
+    try {
+      return formatFactoryStatus(cancelFactoryNode(sid, train, node))
+    } catch (err) {
+      return err instanceof Error ? err.message : String(err)
+    }
   }
   if (name === "mission_done") {
     const sid = getArlSessionId()

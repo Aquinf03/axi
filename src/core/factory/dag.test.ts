@@ -55,4 +55,49 @@ describe("factory dag", () => {
     assert.equal(m.nodes.length, 3)
     assert.equal(m.max_parallel, 4)
   })
+
+  it("accepts when / foreach / loop", () => {
+    const m = sanitizeMachine({
+      nodes: [
+        { id: "files", prompt: "list" },
+        {
+          id: "review",
+          prompt: "look at {item}",
+          needs: ["files"],
+          foreach: { over: "files", path: "files", max: 4 },
+        },
+        {
+          id: "gate",
+          prompt: "go",
+          needs: ["review"],
+          when: { node: "review", contains: "clean" },
+          loop: { until: { contains: "DONE" }, max: 2 },
+        },
+      ],
+    })
+    assert.ok(m.nodes[1]!.foreach)
+    assert.ok(m.nodes[2]!.when)
+    assert.ok(m.nodes[2]!.loop)
+  })
+
+  it("accepts Prime-ish subagent + inputs sugar", () => {
+    const m = sanitizeMachine({
+      run: { max_parallel: 3 },
+      nodes: [
+        {
+          id: "files",
+          subagent: { prompt: "list files", name: "src" },
+        },
+        {
+          id: "review",
+          subagent: { prompt: "review {files}" },
+          inputs: [{ name: "files", from: "files.files" }],
+        },
+      ],
+    })
+    assert.equal(m.max_parallel, 3)
+    assert.deepEqual(m.nodes[1]!.needs, ["files"])
+    assert.match(m.nodes[0]!.prompt, /list files/)
+  })
 })
+

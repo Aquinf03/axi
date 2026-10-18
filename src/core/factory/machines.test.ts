@@ -8,6 +8,8 @@ describe("factory machines", () => {
     const names = cards.map((c) => c.name)
     assert.ok(names.includes("builder"))
     assert.ok(names.includes("review"))
+    assert.ok(names.includes("retry-merge"))
+    assert.ok(names.includes("review-sweep"))
   })
 
   it("resolves builder by name", () => {

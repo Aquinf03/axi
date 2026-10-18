@@ -8,8 +8,13 @@ export {
   FACTORY_FILE,
   FACTORY_SCHEMA,
   MAX_FACTORY_NODES,
+  MAX_FOREACH,
+  MAX_LOOP_ENTRIES,
   MAX_OUTPUT_CHARS,
   MAX_PARALLEL_DEFAULT,
+  type FactoryForeach,
+  type FactoryGuard,
+  type FactoryLoop,
   type FactoryMachineSpec,
   type FactoryNodeSpec,
   type FactoryNodeState,
@@ -36,6 +41,7 @@ export {
 
 export {
   countByStatus,
+  depSatisfied,
   fillPrompt,
   outputsFromNodes,
   readyNodeIds,
@@ -43,8 +49,21 @@ export {
 } from "./factory/dag.js"
 
 export {
+  evalGuard,
+  extractList,
+  joinGroupOutput,
+  sanitizeGuard,
+} from "./factory/guard.js"
+
+export {
+  isMachineMarkdownPath,
+  parseMachineMarkdown,
+} from "./factory/markdown.js"
+
+export {
   ensureUserMachinesDir,
   formatMachineList,
+  importMachineFile,
   listMachines,
   resolveMachine,
   saveUserMachine,
@@ -52,7 +71,9 @@ export {
 } from "./factory/machines.js"
 
 export {
+  cancelFactoryNode,
   factoryActive,
+  factoryNodeLog,
   startFactory,
   stopFactory,
   tickFactory,

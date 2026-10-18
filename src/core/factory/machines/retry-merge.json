@@ -1,0 +1,30 @@
+{
+  "name": "retry-merge",
+  "description": "Draft → review loop until APPROVED → finalize",
+  "max_parallel": 2,
+  "nodes": [
+    {
+      "id": "draft",
+      "name": "draft",
+      "prompt": "Write a 3-bullet status draft for this workspace. Plain text only."
+    },
+    {
+      "id": "review",
+      "name": "review",
+      "needs": ["draft"],
+      "prompt": "Review the draft below. If it is clear and concrete, reply with exactly APPROVED on the first line, then a one-line note. Otherwise reply with REVISE and what to fix.\n\n{draft}",
+      "loop": {
+        "until": { "contains": "APPROVED" },
+        "max": 3,
+        "reset": ["draft"]
+      }
+    },
+    {
+      "id": "final",
+      "name": "final",
+      "needs": ["review"],
+      "when": { "node": "review", "contains": "APPROVED" },
+      "prompt": "Produce the final short status note from:\n\n{review}"
+    }
+  ]
+}

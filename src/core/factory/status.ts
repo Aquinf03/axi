@@ -10,6 +10,8 @@ function glyph(status: FactoryNodeState["status"]): string {
       return "✓"
     case "running":
       return "●"
+    case "waiting":
+      return "●"
     case "ready":
       return "▸"
     case "failed":

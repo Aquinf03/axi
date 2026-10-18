@@ -31,6 +31,7 @@ const READ_TOOLS = new Set([
   "spawn_list",
   "spawn_log",
   "factory_status",
+  "factory_log",
   "codemode_vars",
 ])
 

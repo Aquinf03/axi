@@ -15,6 +15,8 @@ Format is inspired by [Keep a Changelog](https://keepachangelog.com/). Versions 
 - Merge Choose (Decision) into Mission: persist `mission.choose`, migrate legacy `decision.json`
 - Codemode: sticky Node scratchpad (`/codemode on|off|reset`, default on; `codemode_run` / `codemode_vars` tools)
 - Factory: subagent DAG runs (`/factory run|status|list|stop`), bundled `builder`/`review` machines, live TUI dock above the composer
+- Factory: guards (`when`), loops, foreach, MACHINE.md import, `/factory log|cancel|import` (dock chrome unchanged)
+
 
 ### Notes
 

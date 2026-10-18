@@ -402,6 +402,29 @@ export const DEFERRED_TOOLS: AgentToolDef[] = [
     parameters: { type: "object", properties: {} },
   },
   {
+    name: "factory_log",
+    description: "Tail the agent log for one factory node id (same as /factory log).",
+    parameters: {
+      type: "object",
+      properties: {
+        node: { type: "string", description: "factory node id" },
+        tail: { type: "number", description: "log lines (default 40)" },
+      },
+      required: ["node"],
+    },
+  },
+  {
+    name: "factory_cancel",
+    description: "Cancel one running factory node (marks it failed; run fail-fast). Same as /factory cancel.",
+    parameters: {
+      type: "object",
+      properties: {
+        node: { type: "string", description: "factory node id" },
+      },
+      required: ["node"],
+    },
+  },
+  {
     name: "mission_done",
     description:
       "Mark the active mission objective complete (same as /mission done). Only call when the user asked for a mission and the objective is actually finished — not for drive/pulse alone.",

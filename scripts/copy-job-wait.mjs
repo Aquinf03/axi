@@ -21,6 +21,6 @@ const factoryMachinesSrc = path.join(root, "src", "core", "factory", "machines")
 const factoryMachinesDest = path.join(root, "dist", "core", "factory", "machines")
 mkdirSync(factoryMachinesDest, { recursive: true })
 for (const name of readdirSync(factoryMachinesSrc)) {
-  if (!name.endsWith(".json")) continue
+  if (!name.endsWith(".json") && !name.endsWith(".md")) continue
   copyFileSync(path.join(factoryMachinesSrc, name), path.join(factoryMachinesDest, name))
 }
