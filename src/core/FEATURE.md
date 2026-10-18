@@ -39,30 +39,26 @@ Continual harness store for self-improving lessons (prompt notes, memories, skil
 
 ## Mission
 
-Keep working when the human goes quiet. Front door: `core/mission.ts`. Persist `~/.axi/chats/<id>/mission.json`.
+Keep working when the human goes quiet — **one product**, four engines. Front door: `core/mission.ts`. Persist `~/.axi/chats/<id>/mission.json` (includes `choose`).
 
 **Human slash (keep tiny):**
 - `/mission <goal>` — start (sets objective + light drive)
 - `/mission` — status
-- `/mission stop` — stop everything (objective, drive, pulse, decision loop)
+- `/mission stop` — stop everything (objective, drive, pulse, choose)
 - `/mission done` — mark goal finished
 - `/mission advanced` — drive / pulse / set --budget (power path)
 
-**Engines (host, not brochure UX):** Objective re-inject + no-progress backoff · Drive bounds/gates · Pulse schedules · Decision choose tools. Agent: deferred `mission_done`.
+**Engines (host, not brochure UX):**
+- **Objective** — re-inject + no-progress backoff · `mission_done`
+- **Drive** — bounded keep-going + optional shell gates
+- **Pulse** — wall-clock wakes · durable pulse-jobs index
+- **Choose** (Decision) — `decide()` / `decision_*` tools · host observe→decide→act loop · lives in `mission.choose` (legacy `decision.json` migrated). Auto-refine gate + edit triage. Active chat model; optional vision via `images` / `view`.
 
 ## Assets / vision
 
 - User attach: `/image <path> [caption]` → multimodal user turn (png/jpg/gif/webp).
 - Agent tool **`view`** (core, read-safe): loads images into the tool-result for the model; inlines light text assets (svg, md, json, …); meta-only for unsupported binaries. Prefer `view` over `read` for images (`read` will hint).
-- Decision `decide({ images })` accepts data URLs or paths (via `workspace`) and attaches them on the System 1 call.
-
-## Decision API
-
-Fast choose-from-options for research ticks and forks. Front door: `core/decision.ts`. **Humans:** `/mission <goal>` day-to-day. **Agents / power:** `decision_*` tools or `/decision …`. Active chat model (no separate System One required).
-
-- `decide()` / `decision_decide` → `{action, confidence}`; optional `images`
-- Host Loop via tools / `/decision loop …`; persist `decision.json`
-- Auto-refine gate + optional edit triage; Decision picks, `/refine` writes
+- Choose `decide({ images })` accepts data URLs or paths (via `workspace`) and attaches them on the System 1 call.
 
 ## Permissions
 

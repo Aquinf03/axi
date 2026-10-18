@@ -1,6 +1,7 @@
 /**
- * Front door for mission (Objective / Drive / Pulse).
+ * Front door for mission (Objective / Drive / Pulse / Choose).
  * Outside code imports this file only — not `mission/*.ts` internals.
+ * Choose engine implementation lives in `core/decision.ts` (persist → mission.choose).
  */
 
 export {
@@ -15,6 +16,7 @@ export {
   emptyMission,
   normalizeDriveGates,
   normalizeDriveLimits,
+  type ChooseFacet,
   type DriveFacet,
   type DriveGateConfig,
   type DriveLimits,

@@ -1,8 +1,12 @@
-/** Persist decision loop state under ~/.axi/chats/<id>/decision.json */
+/**
+ * Choose facet persist — nested under mission.json (`choose`).
+ * Migrates legacy ~/.axi/chats/<id>/decision.json once.
+ */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, readFileSync, unlinkSync } from "node:fs"
 import path from "node:path"
 import { axiHome } from "../home.js"
+import { loadMission, updateMission } from "../mission/store.js"
 import {
   DECISION_FILE,
   DECISION_SCHEMA,
@@ -11,6 +15,7 @@ import {
   type LoopOnError,
 } from "./types.js"
 
+/** @deprecated legacy path — migrated into mission.json choose */
 export function decisionPath(sessionId: string): string {
   return path.join(axiHome(), "chats", sessionId, DECISION_FILE)
 }
@@ -65,24 +70,61 @@ export function sanitizeLoop(raw: Partial<DecisionLoopState> | null | undefined)
   }
 }
 
+function isEmptyChoose(s: DecisionLoopState): boolean {
+  return (
+    (s.status === "idle" || s.status === "stopped") &&
+    !s.objective.trim() &&
+    !s.observeCmd.trim() &&
+    s.step === 0
+  )
+}
+
+/** One-time: decision.json → mission.choose, then remove legacy file. */
+function migrateLegacyDecisionFile(sessionId: string): void {
+  if (!sessionId) return
+  const legacy = decisionPath(sessionId)
+  if (!existsSync(legacy)) return
+  const cur = loadMission(sessionId)
+  if (cur.choose && !isEmptyChoose(sanitizeLoop(cur.choose))) {
+    try {
+      unlinkSync(legacy)
+    } catch {
+      /* keep legacy if delete fails */
+    }
+    return
+  }
+  try {
+    const raw = JSON.parse(readFileSync(legacy, "utf8")) as Partial<DecisionLoopState>
+    const loop = sanitizeLoop(raw)
+    if (!isEmptyChoose(loop)) {
+      updateMission(sessionId, (m) => ({ ...m, choose: loop }))
+    }
+    unlinkSync(legacy)
+  } catch {
+    /* leave file if corrupt */
+  }
+}
+
 export function loadDecisionLoop(sessionId: string): DecisionLoopState {
   if (!sessionId) return emptyLoop()
-  const p = decisionPath(sessionId)
-  if (!existsSync(p)) return emptyLoop()
-  try {
-    const raw = JSON.parse(readFileSync(p, "utf8")) as Partial<DecisionLoopState>
-    return sanitizeLoop(raw)
-  } catch {
-    return emptyLoop()
-  }
+  migrateLegacyDecisionFile(sessionId)
+  const choose = loadMission(sessionId).choose
+  return sanitizeLoop(choose)
 }
 
 export function saveDecisionLoop(sessionId: string, state: DecisionLoopState): void {
   if (!sessionId) return
-  const p = decisionPath(sessionId)
-  mkdirSync(path.dirname(p), { recursive: true })
-  const next = { ...state, schema: DECISION_SCHEMA, updatedAt: new Date().toISOString() }
-  writeFileSync(p, JSON.stringify(next, null, 2) + "\n", "utf8")
+  const next = sanitizeLoop({
+    ...state,
+    schema: DECISION_SCHEMA,
+    updatedAt: new Date().toISOString(),
+  })
+  updateMission(sessionId, (cur) => {
+    const out = { ...cur }
+    if (isEmptyChoose(next)) delete out.choose
+    else out.choose = next
+    return out
+  })
 }
 
 export function updateDecisionLoop(

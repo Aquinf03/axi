@@ -70,9 +70,9 @@ export function runDecisionSlash(
     const loop = sessionId ? loadDecisionLoop(sessionId) : undefined
     return {
       text: [
-        "decision — choose-from-options (power / agent)",
+        "choose — Mission facet (Decision engine); humans use /mission",
         "Day-to-day: /mission <goal> · /mission stop · /mission done",
-        "Agents: decision_decide · decision_loop_* tools",
+        "Agents: decision_decide · decision_loop_* (persist in mission.json → choose)",
         formatDecisionLoopStatus(loop),
         "",
         "  /decision decide --action name=desc … [--goal text] <observation>",

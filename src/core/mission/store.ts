@@ -7,6 +7,7 @@ import {
   emptyMission,
   normalizeDriveGates,
   normalizeDriveLimits,
+  type ChooseFacet,
   type DriveFacet,
   type MissionState,
   type ObjectiveFacet,
@@ -102,6 +103,13 @@ function sanitizePulse(raw: Partial<PulseFacet> | undefined): PulseFacet | undef
   }
 }
 
+function sanitizeChoose(raw: ChooseFacet | undefined): ChooseFacet | undefined {
+  if (!raw || typeof raw !== "object") return undefined
+  // Deep sanitize lives in decision/store.loadDecisionLoop; keep a shallow copy here
+  // so mission.json round-trips without importing decision/store (cycle).
+  return { ...raw }
+}
+
 export function sanitizeMission(raw: Partial<MissionState> | null | undefined): MissionState {
   if (!raw || typeof raw !== "object") return emptyMission()
   return {
@@ -109,6 +117,7 @@ export function sanitizeMission(raw: Partial<MissionState> | null | undefined): 
     objective: sanitizeObjective(raw.objective),
     drive: sanitizeDrive(raw.drive),
     pulse: sanitizePulse(raw.pulse),
+    choose: sanitizeChoose(raw.choose as ChooseFacet | undefined),
   }
 }
 

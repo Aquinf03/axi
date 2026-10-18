@@ -21,7 +21,8 @@ import { disableDrive, enableDrive } from "./drive.js"
 import { clearPulse, pausePulse, resumePulse, setPulse } from "./pulse.js"
 import { loadMission } from "./store.js"
 import { missionStatusText } from "./status.js"
-import { stopDecisionLoop } from "../decision.js"
+import { emptyLoop, saveDecisionLoop, stopDecisionLoop } from "../decision.js"
+import { updateMission } from "./store.js"
 import type { DriveLimits } from "./types.js"
 
 export type MissionSlashResult = {
@@ -49,7 +50,7 @@ const ADVANCED_USAGE = [
   "  /mission pause|resume|clear",
   "  /mission drive on [--max-cont N] … [--gate CMD]… | off",
   '  /mission pulse [--every|--in|--at|--cron …] <instruction> | pause|resume|clear',
-  "  choose-from-options: agent tools decision_* (or /decision) — not required for /mission",
+  "  choose (Decision engine): agent tools decision_* — part of mission, not a separate product",
 ].join("\n")
 
 const RESERVED = new Set([
@@ -124,12 +125,18 @@ function startObjective(
   }
 }
 
-/** Stop objective, drive, pulse, and any decision loop. */
+/** Stop objective, drive, pulse, and choose (Decision loop). */
 export function stopMissionAll(sessionId: string): MissionSlashResult {
   clearObjective(sessionId)
   disableDrive(sessionId)
   clearPulse(sessionId)
   stopDecisionLoop(sessionId)
+  saveDecisionLoop(sessionId, emptyLoop())
+  updateMission(sessionId, (m) => {
+    const next = { ...m }
+    delete next.choose
+    return next
+  })
   return {
     text: missionStatusText(sessionId),
     rearmPulse: true,

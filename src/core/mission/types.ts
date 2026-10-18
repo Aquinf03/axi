@@ -1,11 +1,16 @@
 /**
- * Mission — one product, three facets (Objective / Drive / Pulse).
+ * Mission — one product, four facets (Objective / Drive / Pulse / Choose).
  * Different stop rules and clocks; compose freely.
+ * Humans: /mission <goal>|stop|done. Engines stay under the hood.
  */
 
+import type { DecisionLoopState } from "../decision/types.js"
 import type { PulseScheduleKind } from "./schedule.js"
 export type { PulseScheduleKind }
 export { parseEvery, parsePulseSchedule, nextPulseRunAt } from "./schedule.js"
+
+/** Choose-from-options loop (Decision engine) nested in mission.json. */
+export type ChooseFacet = DecisionLoopState
 
 export type ObjectiveStatus =
   | "idle"
@@ -106,6 +111,8 @@ export type MissionState = {
   objective?: ObjectiveFacet
   drive?: DriveFacet
   pulse?: PulseFacet
+  /** Decision / choose-from-options loop (was decision.json). */
+  choose?: ChooseFacet
 }
 
 export const MISSION_SCHEMA = 1
@@ -114,6 +121,7 @@ export const MISSION_FILE = "mission.json"
 export const MISSION_OBJECTIVE_PREFIX = "[mission: objective]"
 export const MISSION_DRIVE_PREFIX = "[mission: drive]"
 export const MISSION_PULSE_PREFIX = "[mission: pulse]"
+export const MISSION_CHOOSE_PREFIX = "[mission: choose]"
 
 export function emptyMission(): MissionState {
   return { schema: MISSION_SCHEMA }

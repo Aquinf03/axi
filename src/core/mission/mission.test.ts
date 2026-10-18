@@ -1,8 +1,14 @@
 import { describe, it, beforeEach, afterEach } from "node:test"
 import assert from "node:assert/strict"
-import { mkdtempSync, rmSync } from "node:fs"
+import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
+import {
+  clearAllDecisionLoops,
+  loadDecisionLoop,
+  startDecisionLoop,
+} from "../decision.js"
+import { axiHome } from "../home.js"
 import {
   backoffDelayMs,
   clearAllObjectiveBackoffs,
@@ -49,11 +55,13 @@ describe("mission", () => {
     process.env.AXI_HOME = home
     clearAllPulseTimers()
     clearAllObjectiveBackoffs()
+    clearAllDecisionLoops()
   })
 
   afterEach(() => {
     clearAllPulseTimers()
     clearAllObjectiveBackoffs()
+    clearAllDecisionLoops()
     if (prevHome === undefined) delete process.env.AXI_HOME
     else process.env.AXI_HOME = prevHome
     rmSync(home, { recursive: true, force: true })
@@ -341,7 +349,60 @@ describe("mission", () => {
     const stopped = runMissionSlash(sid, "stop")
     assert.equal(loadMission(sid).objective, undefined)
     assert.equal(loadMission(sid).drive?.enabled, false)
+    assert.equal(loadMission(sid).choose, undefined)
     assert.match(stopped.text, /no goal/)
+  })
+
+  it("choose loop persists under mission.choose and migrates legacy decision.json", () => {
+    clearAllDecisionLoops()
+    const ws = path.join(home, "ws-choose")
+    mkdirSync(ws, { recursive: true })
+    writeFileSync(path.join(ws, "o"), "x")
+    startDecisionLoop({
+      sessionId: sid,
+      workspace: ws,
+      objective: "pick",
+      actions: { go: "go" },
+      observeCmd: "cat o",
+      actCmd: "echo {action}",
+      kick: false,
+    })
+    const m = loadMission(sid)
+    assert.ok(m.choose)
+    assert.equal(m.choose?.status, "running")
+    assert.equal(loadDecisionLoop(sid).objective, "pick")
+    // legacy migrate
+    const legacyDir = path.join(axiHome(), "chats", "sess-legacy")
+    mkdirSync(legacyDir, { recursive: true })
+    writeFileSync(
+      path.join(legacyDir, "decision.json"),
+      JSON.stringify({
+        schema: 1,
+        status: "paused",
+        objective: "old",
+        goal: "old",
+        actions: { a: "a" },
+        observeCmd: "true",
+        actCmd: "true",
+        workspace: ws,
+        instructions: "x",
+        tickMs: 0,
+        maxSteps: 10,
+        historySize: 5,
+        decideTimeoutMs: 30_000,
+        onError: "stop",
+        step: 1,
+        history: [],
+        goalUpdates: [],
+        errors: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }),
+    )
+    const migrated = loadDecisionLoop("sess-legacy")
+    assert.equal(migrated.status, "paused")
+    assert.equal(loadMission("sess-legacy").choose?.objective, "old")
+    assert.equal(existsSync(path.join(legacyDir, "decision.json")), false)
   })
 
   it("slash help stays simple", () => {
