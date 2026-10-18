@@ -1,0 +1,23 @@
+{
+  "name": "review",
+  "description": "Parallel skim + critique, then synthesize",
+  "max_parallel": 3,
+  "nodes": [
+    {
+      "id": "skim",
+      "name": "review-skim",
+      "prompt": "Skim this workspace for the riskiest open risks (bugs, missing tests, messy diffs). List at most 5 bullet points. Be concrete."
+    },
+    {
+      "id": "critique",
+      "name": "review-critique",
+      "prompt": "Independent pass: what would you refuse to ship from this workspace right now? At most 5 bullets. Do not soften."
+    },
+    {
+      "id": "synth",
+      "name": "review-synth",
+      "needs": ["skim", "critique"],
+      "prompt": "Synthesize a prioritized review (P0/P1/P2) from both passes. Deduplicate. End with one recommended next action.\n\nSKIM:\n{skim}\n\nCRITIQUE:\n{critique}"
+    }
+  ]
+}

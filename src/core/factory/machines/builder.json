@@ -1,0 +1,24 @@
+{
+  "name": "builder",
+  "description": "Outline → parallel notes → merge report",
+  "max_parallel": 4,
+  "nodes": [
+    {
+      "id": "scope",
+      "name": "builder-scope",
+      "prompt": "Inspect the current working tree (git status / recent files). Return a short outline as a JSON fenced block: {\"outline\":[\"line1\",\"line2\",...]} with at most 4 lines. Output only the JSON block."
+    },
+    {
+      "id": "notes",
+      "name": "builder-notes",
+      "needs": ["scope"],
+      "prompt": "Draft one short status paragraph for this workspace using the outline below. Section text only — no heading.\n\n{scope}"
+    },
+    {
+      "id": "collect",
+      "name": "builder-collect",
+      "needs": ["scope", "notes"],
+      "prompt": "Merge into a single markdown status report with a title and two sections (Scope, Notes). Use only:\n\nOUTLINE:\n{scope}\n\nNOTES:\n{notes}"
+    }
+  ]
+}

@@ -47,6 +47,18 @@ Sticky Node scratchpad for multi-step code cells (not a Prime REPL port). Front 
 - Deferred tools (via `tools_search`): `codemode_run`, `codemode_vars`. Sensitive — `authorizeTool` like `run`.
 - Sticky bindings: `var` / `globalThis.x` (cell-local `const`/`let` do not persist). Prefer `run` for one-shot shell.
 
+## Factory
+
+DAG of spawned subagents (axi-shaped — not a Prime factory port). Front door: `core/factory.ts`.
+
+- Slash: `/factory run <machine>` · `status` · `list` · `stop` · or `/factory <machine>`.
+- Seeds: bundled `builder`, `review` under `core/factory/machines/`; user machines in `~/.axi/factory/machines/*.json`.
+- Spec: `{ name, max_parallel, nodes: [{ id, prompt, name?, needs? }] }`. `{nodeId}` in prompts filled from predecessor handoff prose (capped).
+- Persist: `~/.axi/chats/<id>/factory.json` — one run per chat.
+- Executor: host ticks ~1.5s — settle jobs, spawn ready nodes via `startAgent` (children of the chat), fail-fast.
+- TUI: live dock above the composer (`⚙ factory …` + per-node glyphs) while a run is active / last run until `/factory stop`.
+- Deferred tools: `factory_run`, `factory_status`, `factory_stop`.
+
 ## Mission
 
 Keep working when the human goes quiet — **one product**, four engines. Front door: `core/mission.ts`. Persist `~/.axi/chats/<id>/mission.json` (includes `choose`).
@@ -123,6 +135,7 @@ Import fat subsystems only through their front doors:
 | Session | `core/session.ts` |
 | arl (auto RL) | `core/arl.ts` |
 | codemode | `core/codemode.ts` |
+| factory | `core/factory.ts` |
 | mission | `core/mission.ts` |
 | Output | `core/output.ts` |
 | Permissions | `core/permissions.ts` |

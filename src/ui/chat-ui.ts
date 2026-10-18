@@ -25,6 +25,13 @@ import {
   onDecisionLoopTick,
 } from "../core/decision.js"
 import {
+  factoryActive,
+  formatFactoryDock,
+  formatFactoryStatus,
+  startFactory,
+  tickFactory,
+} from "../core/factory.js"
+import {
   activeObjectiveText,
   armPulseTimer,
   clearObjectiveBackoff,
@@ -322,6 +329,37 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
   }
   armMissionPulse()
   armMissionObjectiveBackoff()
+  /** Live factory dock rows painted above the composer. */
+  let factoryDockRows = 0
+  let factoryTickTimer: ReturnType<typeof setInterval> | null = null
+  let factoryTickBusy = false
+  const clearFactoryTick = () => {
+    if (factoryTickTimer) {
+      clearInterval(factoryTickTimer)
+      factoryTickTimer = null
+    }
+  }
+  const armFactoryTick = () => {
+    clearFactoryTick()
+    // Always poll lightly so tool-started runs still advance + dock stays live.
+    factoryTickTimer = setInterval(() => {
+      if (factoryTickBusy) return
+      if (!factoryActive(spec.id)) {
+        // Refresh dock if a finished run is still showing.
+        if (factoryDockRows > 0) paintComposer()
+        return
+      }
+      factoryTickBusy = true
+      void tickFactory(spec.id, train)
+        .then(() => {
+          paintComposer()
+        })
+        .finally(() => {
+          factoryTickBusy = false
+        })
+    }, 1500)
+  }
+  armFactoryTick()
   const armMissionDecisionLoop = () => {
     onDecisionLoopTick(spec.id, (sid, notice) => {
       if (sid !== spec.id) return
@@ -400,6 +438,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
   const restore = () => {
     if (restored) return
     restored = true
+    clearFactoryTick()
     playCue("click")
     alt.leave()
     write(DISABLE)
@@ -465,6 +504,22 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
           : inside
             ? `${DIM}${title}${RESET} `
             : PREFIX
+    // Cursor is on the prompt line. Clear prompt+menu, then any prior factory dock above.
+    write("\r\x1b[J")
+    if (factoryDockRows > 0) {
+      write(`\x1b[${factoryDockRows}A\r\x1b[J`)
+      factoryDockRows = 0
+    }
+    // Live factory dock (above composer) while a run exists.
+    if (!inside && !keyFor && !renameFor) {
+      const dock = formatFactoryDock(spec.id)
+      if (dock) {
+        for (const line of dock.split("\n")) {
+          write(`${DIM}${line}${RESET}\n`)
+          factoryDockRows++
+        }
+      }
+    }
     const max = Math.max(1, cols - promptPlain.length)
     let shown = chars.slice()
     let cur = cursor
@@ -1230,6 +1285,23 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       }
       if (r.missionRearmPulse) armMissionPulse()
       if (r.decisionRearmLoop) armMissionDecisionLoop()
+      if (r.factoryStopTick) clearFactoryTick()
+      if (r.factoryRearm) armFactoryTick()
+      if (r.factoryStart) {
+        try {
+          const state = await startFactory({
+            sessionId: spec.id,
+            workspace: train,
+            machine: r.factoryStart,
+          })
+          note(formatFactoryStatus(state))
+          armFactoryTick()
+        } catch (err) {
+          note(`factory failed  ${err instanceof Error ? err.message : String(err)}`)
+        }
+        paintComposer()
+        return
+      }
       if (r.decisionDecide) {
         try {
           const ans = await decide(r.decisionDecide)

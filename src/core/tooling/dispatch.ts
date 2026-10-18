@@ -22,6 +22,12 @@ import {
   searchArlSkillStubs,
 } from "../arl.js"
 import { codemodeRun, codemodeVars } from "../codemode.js"
+import {
+  formatFactoryStatus,
+  loadFactory,
+  startFactory,
+  stopFactory,
+} from "../factory.js"
 import { queueViewImages } from "../agent/view-buffer.js"
 import { viewAssets } from "../agent/assets.js"
 import {
@@ -332,6 +338,28 @@ export async function runAgentTool(train: string, name: string, rawArgs: string)
   }
   if (name === "codemode_vars") {
     return codemodeVars({ cwd: train, sessionId: getArlSessionId() })
+  }
+  if (name === "factory_run") {
+    const sid = getArlSessionId()
+    if (!sid) return "factory_run needs an open chat session"
+    const machine = typeof args.machine === "string" ? args.machine.trim() : ""
+    if (!machine) return "factory_run needs machine"
+    try {
+      const state = await startFactory({ sessionId: sid, workspace: train, machine })
+      return formatFactoryStatus(state)
+    } catch (err) {
+      return err instanceof Error ? err.message : String(err)
+    }
+  }
+  if (name === "factory_status") {
+    const sid = getArlSessionId()
+    if (!sid) return "factory_status needs an open chat session"
+    return formatFactoryStatus(loadFactory(sid))
+  }
+  if (name === "factory_stop") {
+    const sid = getArlSessionId()
+    if (!sid) return "factory_stop needs an open chat session"
+    return formatFactoryStatus(stopFactory(sid, train))
   }
   if (name === "mission_done") {
     const sid = getArlSessionId()

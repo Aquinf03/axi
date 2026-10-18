@@ -34,6 +34,7 @@ import {
 } from "../core/arl.js"
 import { runCodemodeSlash } from "../core/codemode.js"
 import { runDecisionSlash } from "../core/decision.js"
+import { runFactorySlash } from "../core/factory.js"
 import { runMissionSlash } from "../core/mission.js"
 
 export type { ChatImage }
@@ -556,7 +557,7 @@ export function applyChoice(c: Choice): {
         "  sound      click + message cues",
         "  notify     desktop alert when a reply finishes (if terminal unfocused)",
         "",
-        "slash: /new /rename /open /delete [/delete all] /compact /undo /image /status /doctor /spawn /provider /model /temp /key /sound /notify /arl /refine /codemode /mission /decision /mode",
+        "slash: /new /rename /open /delete [/delete all] /compact /undo /image /status /doctor /spawn /provider /model /temp /key /sound /notify /arl /refine /codemode /factory /mission /decision /mode",
         "",
         "keys: axi provider openai",
         "now: " + activeLabel(),
@@ -629,6 +630,12 @@ export type SlashResult = {
   decisionDecide?: import("../core/decision.js").DecideOpts
   /** Decision loop timer should re-arm. */
   decisionRearmLoop?: boolean
+  /** Factory: start run (machine name/path/json) — chat-ui awaits startFactory. */
+  factoryStart?: string
+  /** Factory poll ticker should arm. */
+  factoryRearm?: boolean
+  /** Factory poll ticker should stop. */
+  factoryStopTick?: boolean
 }
 
 function resolveSlash(cmd: string): string {
@@ -914,6 +921,15 @@ export function runSlash(line: string, opts: SlashOpts = {}): SlashResult {
   }
   if (cmd === "/codemode") {
     return runCodemodeSlash(opts.sessionId, arg)
+  }
+  if (cmd === "/factory") {
+    const out = runFactorySlash(opts.sessionId, arg, { workspace })
+    return {
+      text: out.text,
+      factoryStart: out.factoryStart,
+      factoryRearm: out.rearmFactory,
+      factoryStopTick: out.stopFactoryTick,
+    }
   }
   if (cmd === "/mission") {
     const out = runMissionSlash(opts.sessionId, arg)

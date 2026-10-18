@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /** Cross-platform post-tsc step — copy non-TS assets beside dist. */
-import { copyFileSync, mkdirSync } from "node:fs"
+import { copyFileSync, mkdirSync, readdirSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -16,3 +16,11 @@ copyFileSync(
   path.join(root, "src", "core", "codemode", "worker.mjs"),
   path.join(codemodeDir, "worker.mjs"),
 )
+
+const factoryMachinesSrc = path.join(root, "src", "core", "factory", "machines")
+const factoryMachinesDest = path.join(root, "dist", "core", "factory", "machines")
+mkdirSync(factoryMachinesDest, { recursive: true })
+for (const name of readdirSync(factoryMachinesSrc)) {
+  if (!name.endsWith(".json")) continue
+  copyFileSync(path.join(factoryMachinesSrc, name), path.join(factoryMachinesDest, name))
+}

@@ -64,7 +64,7 @@ export const CORE_TOOLS: AgentToolDef[] = [
   {
     name: "tools_search",
     description:
-      "Search builtins, aq commands, tools/, and skills. Matching deferred tools (aq_*, spawn, plot, memory_*, arl_refine, codemode_*, mission_done, decision_*) are loaded into this session so you can call them next. Discovering a tool does not approve it — sensitive calls still need a permit.",
+      "Search builtins, aq commands, tools/, and skills. Matching deferred tools (aq_*, spawn, plot, memory_*, arl_refine, codemode_*, factory_*, mission_done, decision_*) are loaded into this session so you can call them next. Discovering a tool does not approve it — sensitive calls still need a permit.",
     parameters: {
       type: "object",
       properties: { query: { type: "string", description: "keywords" } },
@@ -375,6 +375,31 @@ export const DEFERRED_TOOLS: AgentToolDef[] = [
       type: "object",
       properties: {},
     },
+  },
+  {
+    name: "factory_run",
+    description:
+      "Start a factory DAG of spawned subagents (machine name like builder/review, a JSON path, or inline machine JSON). One run per chat; live dock updates in the TUI. Prefer for multi-agent fan-out/join workflows — not for single spawn.",
+    parameters: {
+      type: "object",
+      properties: {
+        machine: {
+          type: "string",
+          description: "machine name, path to .json, or inline machine JSON",
+        },
+      },
+      required: ["machine"],
+    },
+  },
+  {
+    name: "factory_status",
+    description: "Show the current factory run dock (node statuses).",
+    parameters: { type: "object", properties: {} },
+  },
+  {
+    name: "factory_stop",
+    description: "Stop the active factory run (cancel running nodes) or clear a finished dock.",
+    parameters: { type: "object", properties: {} },
   },
   {
     name: "mission_done",

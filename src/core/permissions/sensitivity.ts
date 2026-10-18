@@ -30,6 +30,8 @@ const READ_TOOLS = new Set([
   "skills_search",
   "spawn_list",
   "spawn_log",
+  "factory_status",
+  "codemode_vars",
 ])
 
 /** True when this call must pass through the permissions module. */
