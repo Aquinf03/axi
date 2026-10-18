@@ -28,14 +28,16 @@ Implementations stay in `src/tools/` + `core/tooling/dispatch.ts` — not schema
 
 ## arl (auto RL)
 
-Continual harness store for self-improving lessons (prompt notes, memories, skill stubs, subagent specs). Front door: `core/arl.ts`.
+Continual harness store for self-improving lessons (prompt notes, memories, **rejected** paths, skill stubs, subagent specs). Front door: `core/arl.ts`.
 
 - Mode: `/arl on|off|status` (default **off**). Env `AXI_ARL=on|off` overrides disk.
 - Global: `~/.axi/arl/harness_state.json` + `mode.json`; local: `~/.axi/chats/<id>/arl/`.
-- Digest: when on, a ranked `[arl-digest]` user row is injected at cold boundaries (chat start/resume, post-`/compact`, `axi ask`) — never merged into `BASE_PROMPT`.
-- Refine: `/refine [--global] [focus]` plans+applies harness edits; `/refine rollback <id>` undoes. Agent tool `arl_refine` only *schedules* — host applies when the turn ends, then refreshes the digest.
+- Kinds: `prompt` · `memory` · `rejected` (file-drawer negatives: tried + why) · `skill` · `subagent`.
+- Digest: when on, a ranked `[arl-digest]` user row is injected at cold boundaries (chat start/resume, post-`/compact`, `axi ask`) — never merged into `BASE_PROMPT`. Rejected entries warn against rediscovering dead ends.
+- Refine: `/refine [--global] [focus]` plans+applies harness edits; `/refine rollback <id>` undoes. Agent tool `arl_refine` only *schedules* — host applies when the turn ends, then refreshes the digest. Prefer `rejected` over `memory` when the lesson is “don’t retry X”.
 - Auto-refine follows `/arl on`. Options: `/arl interval <n>` · `/arl cooldown <m>` · `/arl compact on|off`. Reviewer gate every N turns and after compact (cooldown). Local-only unless the reviewer asks global.
 - Unify: `memory_write` dual-writes workspace + global arl memory; `memory_search`/`read` merge both. Skill stubs stay inventory (no auto `SKILL.md`). `spawn spec=<id>` loads harness subagents. Learned policy stays in digest/`prompt` entries — not `BASE_PROMPT`.
+- Helper: `formatRejectedContent({ tried, why, unless? })` for canonical rejected bodies.
 
 ## Codemode
 

@@ -53,6 +53,7 @@ export {
   createArlEntry,
   deleteArlEntry,
   emptyArlState,
+  formatRejectedContent,
   getArlEntry,
   listArlEntries,
   loadArlState,

@@ -101,6 +101,20 @@ describe("arl digest", () => {
     assert.notEqual(a, b)
   })
 
+  it("digest surfaces rejected file-drawer entries", () => {
+    setArlEnabled(true)
+    createArlEntry("global", {
+      kind: "rejected",
+      title: "Skip cookies auth",
+      content: "Tried: cookies\nWhy rejected: breaks bearer tokens",
+      path: "auth",
+    })
+    const body = formatArlStateForPrompt(loadMergedArlState())
+    assert.match(body, /rejected: 1/)
+    assert.match(body, /Skip cookies auth/)
+    assert.match(body, /file drawer|negative knowledge|do not repeat/i)
+  })
+
   it("scores title hits higher via term weights", () => {
     const terms = digestQueryTerms("ship release notes", [])
     assert.ok(Object.keys(terms).length > 0)

@@ -53,6 +53,36 @@ describe("arl refine", () => {
     assert.equal(p.edits[0]!.kind, "memory")
   })
 
+  it("applies rejected (file-drawer) creates", () => {
+    const state = emptyArlState()
+    const proposal = parseProposal(
+      JSON.stringify({
+        summary: "record dead end",
+        rationale: "cookies auth failed twice",
+        expectedOutcome: "avoid retry",
+        edits: [
+          {
+            action: "create",
+            kind: "rejected",
+            title: "Cookie auth",
+            content: "Tried: cookies\nWhy rejected: breaks bearer",
+            path: "auth",
+          },
+        ],
+      }),
+    )
+    assert.equal(proposal.edits[0]!.kind, "rejected")
+    const result = applyRefinementProposal(state, proposal, {
+      id: "r_rej",
+      scope: "local",
+      source: "auto",
+      baselineState: emptyArlState(),
+    })
+    assert.equal(result.appliedEdits[0]!.applied, true)
+    assert.equal(result.appliedEdits[0]!.kind, "rejected")
+    assert.equal(state.entries.rejected["cookie-auth"]?.title, "Cookie auth")
+  })
+
   it("applies create/update/delete with baseline concurrency", () => {
     const state = emptyArlState()
     const proposal = parseProposal(

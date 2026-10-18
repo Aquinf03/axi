@@ -1,6 +1,7 @@
 /** Auto RL (arl) continual harness contracts. */
 
-export const ARL_KINDS = ["prompt", "memory", "skill", "subagent"] as const
+/** `rejected` = file-drawer negatives (tried path + why — not only winners). */
+export const ARL_KINDS = ["prompt", "memory", "rejected", "skill", "subagent"] as const
 export type ArlKind = (typeof ARL_KINDS)[number]
 
 export type ArlScope = "local" | "global"

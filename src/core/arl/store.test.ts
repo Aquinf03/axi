@@ -8,6 +8,7 @@ import {
   appendArlRefinementEvent,
   createArlEntry,
   deleteArlEntry,
+  formatRejectedContent,
   getArlEntry,
   listArlEntries,
   loadArlState,
@@ -102,6 +103,28 @@ describe("arl store", () => {
       Object.keys(again.entries.memory).sort(),
       ["local:same", "same"],
     )
+  })
+
+  it("stores rejected (file-drawer) negatives", () => {
+    const body = formatRejectedContent({
+      tried: "rewrite auth with cookies",
+      why: "breaks existing bearer tokens",
+      unless: "migration plan lands",
+    })
+    assert.match(body, /Tried:/)
+    assert.match(body, /Why rejected:/)
+    assert.match(body, /Retry only if:/)
+
+    const created = createArlEntry("global", {
+      kind: "rejected",
+      title: "Cookie auth rewrite",
+      content: body,
+      path: "auth",
+      source: "refine",
+    })
+    assert.equal(created.kind, "rejected")
+    assert.equal(getArlEntry("global", "rejected", created.id)?.content, body)
+    assert.equal(Object.keys(loadArlState("global").entries.rejected).length, 1)
   })
 
   it("lists by kind and appends refinement history jsonl", () => {

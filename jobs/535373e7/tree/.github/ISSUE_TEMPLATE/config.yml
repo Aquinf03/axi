@@ -1,8 +1,0 @@
-blank_issues_enabled: false
-contact_links:
-  - name: Security vulnerability
-    url: https://github.com/Aquinf03/axi/blob/main/SECURITY.md
-    about: Do not open a public issue. Email aquin@aquin.app (see SECURITY.md).
-  - name: Framework (aq) issues
-    url: https://github.com/aquinf03/aq/issues
-    about: Train / eval / fleet / kernel bugs belong in the aq repo, not axi.

@@ -18,6 +18,7 @@ Format is inspired by [Keep a Changelog](https://keepachangelog.com/). Versions 
 - Factory: guards (`when`), loops, foreach, MACHINE.md import, `/factory log|cancel|import` (dock chrome unchanged)
 - Daemon: background supervisor (`axi daemon start|stop|status`), pulse/factory ticks, spawn-via-daemon, `axi agents` / `/agents` roster
 - Agents view: `/agents` opens a live multi-agent TUI (daemon status, this-chat + workspace sections, filter, log/cancel); `/agents list` keeps the text board
+- arl: `rejected` harness kind (file-drawer negatives — tried path + why) in digest and `/refine`
 
 
 ### Notes

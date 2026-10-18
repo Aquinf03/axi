@@ -77,12 +77,13 @@ const REFINEMENT_SYSTEM_PROMPT = `You are axi's /refine arl (auto RL) continual 
 
 Your job is to improve the editable continual harness from the current trajectory.
 Emit precise Create, Update, or Delete edits to reusable state — not a chat summary.
-The continual harness holds supplemental prompt notes, memories, skill stubs, and subagent specs.
+The continual harness holds supplemental prompt notes, memories, rejected paths, skill stubs, and subagent specs.
 Never rewrite the immutable base system prompt (id base_system_prompt).
 
 Kinds:
 - prompt: narrow behavioral policy addendums only
-- memory: durable facts, decisions, failures, preferences, outcomes
+- memory: durable facts, decisions, preferences, outcomes (positive or neutral knowledge)
+- rejected: file-drawer negatives — a path that was tried and should not be retried blindly. Content must include what was attempted and why it failed (optional: when retry is ok). Prefer rejected over memory when the lesson is "don't do X again".
 - skill: repeatable procedure *stubs* only (inventory) — reference must be {"type":"skill"|"tool","name":"..."} plus arguments object (use {} if none). Never invent a full SKILL.md package; packaging stays a reviewed skill-creator path. If reference.name already exists as a package, agents skill_load it.
 - subagent: reusable delegation role — purpose, instructions, when to invoke. Agents spawn with spec=<id>.
 
@@ -93,6 +94,7 @@ Scope:
 - During a local refine, global entries are read-only; create a local override instead of updating/deleting global.
 
 Prefer the smallest component. Prefer empty edits over speculation.
+After a clear failed approach with a reusable reason, create a rejected entry so later turns avoid rediscovering the same dead end.
 Never edit source files. Output JSON only:
 
 {
@@ -102,7 +104,7 @@ Never edit source files. Output JSON only:
   "edits": [
     {
       "action": "create|update|delete",
-      "kind": "prompt|memory|skill|subagent",
+      "kind": "prompt|memory|rejected|skill|subagent",
       "id": "stable id for update/delete, optional for create",
       "title": "required for create/update",
       "content": "required for create/update",

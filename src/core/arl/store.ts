@@ -205,6 +205,20 @@ export type UpsertArlInput = {
   source?: string
 }
 
+/** Canonical body for `rejected` (file-drawer) entries. */
+export function formatRejectedContent(opts: {
+  tried: string
+  why: string
+  unless?: string
+}): string {
+  const tried = opts.tried.replace(/\s+/g, " ").trim()
+  const why = opts.why.replace(/\s+/g, " ").trim()
+  const unless = opts.unless?.replace(/\s+/g, " ").trim()
+  const lines = [`Tried: ${tried}`, `Why rejected: ${why}`]
+  if (unless) lines.push(`Retry only if: ${unless}`)
+  return lines.join("\n")
+}
+
 export function assertEditableId(id: string): void {
   if (id === BASE_SYSTEM_PROMPT_ID) {
     throw new Error("base system prompt is not editable")
