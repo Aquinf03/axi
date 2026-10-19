@@ -50,6 +50,11 @@ import {
   usageToTurnTokens,
 } from "../core/mission.js"
 import { beginUndo, clearUndo, commitUndo, undoLast } from "../core/agent/undo.js"
+import {
+  beginTrajectoryTurn,
+  closeTrajectoryTurn,
+  signalTrajectory,
+} from "../core/trajectory.js"
 import { measureContext, contextFull } from "../core/agent/context.js"
 import { createUsageMeter, hasUsage } from "../core/usage.js"
 import {
@@ -1200,6 +1205,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
           history.length = out.historyLen
           saveChat(train, spec, history)
         }
+        signalTrajectory(spec.id, "undo", out.text)
         note(out.text)
         paintComposer()
         return
@@ -1482,6 +1488,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         write(`${DIM}  ${images.map((i) => i.path).join("  ")}${RESET}\n`)
       }
       beginUndo(history.length - 1)
+      beginTrajectoryTurn({ sessionId: spec.id, userText: t })
       busy = true
       write("\x1b[?25l")
       const spin = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
@@ -1699,6 +1706,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
           missionChain = 0
         }
         commitUndo()
+        closeTrajectoryTurn({ sessionId: spec.id, assistantText: reply })
         saveChat(train, spec, history)
         if (!named) {
           named = true
@@ -1723,6 +1731,11 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         }
         history.pop()
         commitUndo()
+        closeTrajectoryTurn({
+          sessionId: spec.id,
+          signal: "deny",
+          signalNote: err instanceof Error ? err.message : String(err),
+        })
         const msg = err instanceof Error ? err.message : String(err)
         write(`\r\x1b[K${DIM}${msg}${RESET}\n\n`)
         pendingMissionKick = null

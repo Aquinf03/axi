@@ -33,7 +33,24 @@ import { hardRouteChallenge, stancePromptBlock } from "../stance.js"
 import { investigatePromptBlock } from "../investigate.js"
 import { beliefPromptBlock } from "../belief.js"
 import { judgmentPromptBlock } from "../judgment.js"
+import { noteTrajectoryTool } from "../trajectory.js"
 import { addUsage, emptyUsage, type TokenUsage } from "../usage.js"
+
+function noteToolDone(
+  host: AgentHost,
+  info: { name: string; label: string; result: string; failed: boolean; denied?: boolean },
+): void {
+  host.onToolDone?.(info)
+  const sid = getArlSessionId()
+  if (!sid) return
+  noteTrajectoryTool({
+    sessionId: sid,
+    name: info.name,
+    label: info.label,
+    failed: info.failed,
+    denied: info.denied,
+  })
+}
 
 type ToolCall = { id: string; name: string; args: string }
 
@@ -231,7 +248,13 @@ async function runTurnInner(
               failed: true,
               denied: true,
             }
-            host.onToolDone?.({ name: call.name, label, result: o.result, failed: true })
+            noteToolDone(host, {
+              name: call.name,
+              label,
+              result: o.result,
+              failed: true,
+              denied: true,
+            })
             early.push(o)
             continue
           }
@@ -244,7 +267,12 @@ async function runTurnInner(
               failed: true,
               denied: false,
             }
-            host.onToolDone?.({ name: call.name, label, result: o.result, failed: true })
+            noteToolDone(host, {
+              name: call.name,
+              label,
+              result: o.result,
+              failed: true,
+            })
             early.push(o)
             continue
           }
@@ -259,7 +287,12 @@ async function runTurnInner(
             failed: true,
             denied: false,
           }
-          host.onToolDone?.({ name: call.name, label, result: o.result, failed: true })
+          noteToolDone(host, {
+            name: call.name,
+            label,
+            result: o.result,
+            failed: true,
+          })
           early.push(o)
         }
       }
@@ -291,11 +324,12 @@ async function runTurnInner(
           }
         }
         // Result is evidence for the model only — never fed back into authorizeTool.
-        host.onToolDone?.({
+        noteToolDone(host, {
           name: outcome.call.name,
           label: outcome.label,
           result: outcome.result,
           failed: outcome.failed,
+          denied: outcome.denied,
         })
         return outcome
       })

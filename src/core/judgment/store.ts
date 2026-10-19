@@ -155,7 +155,7 @@ export function judgmentStatusText(sessionId?: string): string {
     `  labels  ${JUDGMENT_LABELS.join(" · ")}`,
   ]
   if (!s.events.length) {
-    lines.push("  (none — /refine with edits, mission set/done, or /judgment tag <label>)")
+    lines.push("  (none — /refine with edits, mission set/done, or /pivot mark <label>)")
   } else {
     for (const e of s.events.slice(-12)) {
       lines.push(
@@ -171,11 +171,11 @@ export function judgmentPromptBlock(sessionId?: string): string {
   if (!sessionId) return ""
   const s = loadJudgment(sessionId)
   const lines = [
-    "Judgment labels (intervention taxonomy): when you refine, change mission direction, or surface a conflict, tag the move — hypothesis · tension · pivot · assumption · interpretation · design.",
-    "Use judgment_tag (or /judgment tag <label> [note]). /refine proposals with edits need a top-level \"judgment\" field when the gate is on.",
+    "Judgment labels (intervention taxonomy): when you refine, change mission direction, or surface a conflict, mark the move — hypothesis · tension · pivot · assumption · interpretation · design.",
+    "Use judgment_tag (or /pivot mark <label> [note]). /refine proposals with edits need a top-level \"judgment\" field when the gate is on.",
   ]
   if (!s.gate) {
-    lines.push("Gate is off (/judgment gate on to require labels on refine).")
+    lines.push("Gate is off (/pivot gate on to require labels on refine).")
     return lines.join("\n")
   }
   const recent = s.events.slice(-6)

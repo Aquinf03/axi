@@ -42,6 +42,7 @@ import { runStanceSlash } from "../core/stance.js"
 import { runInvestigateSlash } from "../core/investigate.js"
 import { runBeliefSlash } from "../core/belief.js"
 import { runJudgmentSlash } from "../core/judgment.js"
+import { runTrajectorySlash } from "../core/trajectory.js"
 import {
   formatAgentsRoster,
   formatDaemonStatusText,
@@ -636,7 +637,7 @@ export function applyChoice(c: Choice): {
         "  sound      click + message cues",
         "  notify     desktop alert when a reply finishes (if terminal unfocused)",
         "",
-        "slash: /new /rename /open /delete [/delete all] /compact /undo /image /status /doctor /spawn /agents /daemon /provider /model /temp /key /sound /notify /arl /refine /codemode /stance /investigate /belief /judgment /factory /mission /decision /mode",
+        "slash: /new /rename /open /delete [/delete all] /compact /undo /image /status /doctor /spawn /agents /daemon /provider /model /temp /key /sound /notify /arl /refine /codemode /stance /investigate /revise /pivot /turn /factory /mission /decision /mode",
         "",
         "keys: axi provider openai",
         "now: " + activeLabel(),
@@ -1007,14 +1008,14 @@ export function runSlash(line: string, opts: SlashOpts = {}): SlashResult {
       if (!id) return { text: "usage: /refine rollback <id>" }
       return { refine: { rollbackId: id } }
     }
-    if (head === "gate") {
+    if (head === "falsify" || head === "gate") {
       const sub = (tokens[1] ?? "status").toLowerCase()
       if (sub === "status" || !tokens[1]) return { text: falsifyGateStatusText() }
       if (sub === "on" || sub === "off") {
         setFalsifyGate(sub === "on")
         return { text: falsifyGateStatusText() }
       }
-      return { text: "usage: /refine gate on|off|status" }
+      return { text: "usage: /refine falsify on|off|status" }
     }
     if (head === "convergent" || head === "converge") {
       const sub = (tokens[1] ?? "status").toLowerCase()
@@ -1058,11 +1059,14 @@ export function runSlash(line: string, opts: SlashOpts = {}): SlashResult {
   if (cmd === "/investigate") {
     return runInvestigateSlash(opts.sessionId, arg)
   }
-  if (cmd === "/belief") {
+  if (cmd === "/revise") {
     return runBeliefSlash(opts.sessionId, arg)
   }
-  if (cmd === "/judgment" || cmd === "/judge") {
+  if (cmd === "/pivot") {
     return runJudgmentSlash(opts.sessionId, arg)
+  }
+  if (cmd === "/turn") {
+    return runTrajectorySlash(opts.sessionId, arg)
   }
   if (cmd === "/agents") {
     const head = arg.trim().toLowerCase()

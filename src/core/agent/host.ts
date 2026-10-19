@@ -14,6 +14,8 @@ export type ToolDoneInfo = {
   label: string
   result: string
   failed: boolean
+  /** True when permission gate blocked the tool (user deny / plan / rule). */
+  denied?: boolean
 }
 
 export type ToolDoneFn = (info: ToolDoneInfo) => void

@@ -98,7 +98,7 @@ export type ArlModeState = {
   autoRefine?: AutoRefineSettings
   /**
    * When true (default), /refine create|update of prompt/memory/rejected
-   * must include `falsify` (what would disprove the lesson). `/refine gate off` disables.
+   * must include `falsify` (what would disprove the lesson). `/refine falsify off` disables.
    */
   falsifyGate?: boolean
   /**

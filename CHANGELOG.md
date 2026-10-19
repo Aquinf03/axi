@@ -22,10 +22,11 @@ Format is inspired by [Keep a Changelog](https://keepachangelog.com/). Versions 
 - Stance modes: `/stance explore|execute|challenge` peer to `/mode` and `/codemode`; agent `stance_set`; hard-route to challenge on repeated failures
 - Investigate graph: session hypotheses ↔ evidence ↔ contradictions / abandoned branches (`/investigate`, tools); abandon → arl rejected
 - Prune-with-receipt: spawn/factory cancel require a why and mirror into arl rejected before the fork dies
-- Falsify gate: /refine lesson writes need what would disprove them (`falsify`); `/refine gate on|off`; undo via `/refine rollback <id>`
+- Falsify gate: /refine lesson writes need what would disprove them (`falsify`); `/refine falsify on|off`; undo via `/refine rollback <id>`
 - Belief-revision gate: investigate refutes/conflicts escalate to challenge + pending revise (`/belief`)
 - Convergent-evidence gate: global arl lessons need N independent corroborations (or `/refine --global --force`)
 - Judgment labels on pivots: hypothesis · tension · pivot · assumption · interpretation · design (`/judgment`, refine + mission)
+- Trajectory log: per-turn agent trace + user signal (accept/edit/undo/retry/deny) for `/refine` (`/trajectory`)
 
 
 ### Notes

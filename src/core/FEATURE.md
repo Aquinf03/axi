@@ -35,7 +35,7 @@ Continual harness store for self-improving lessons (prompt notes, memories, **re
 - Kinds: `prompt` · `memory` · `rejected` (file-drawer negatives: tried + why) · `skill` · `subagent`.
 - Digest: when on, a ranked `[arl-digest]` user row is injected at cold boundaries (chat start/resume, post-`/compact`, `axi ask`) — never merged into `BASE_PROMPT`. Rejected entries warn against rediscovering dead ends.
 - Refine: `/refine [--global] [--force] [focus]` plans+applies harness edits; `/refine rollback <id>` undoes an apply. Agent tool `arl_refine` only *schedules* — host applies when the turn ends, then refreshes the digest. Prefer `rejected` over `memory` when the lesson is “don’t retry X”.
-- **Falsify gate** (default **on**): create/update of `prompt` / `memory` / `rejected` must include `falsify` (what would disprove the lesson). `/refine gate on|off|status` toggles; `/refine rollback <id>` undoes a refine. Stored on the entry and shown in the digest.
+- **Falsify gate** (default **on**): create/update of `prompt` / `memory` / `rejected` must include `falsify` (what would disprove the lesson). `/refine falsify on|off|status` toggles; `/refine rollback <id>` undoes a refine. Stored on the entry and shown in the digest.
 - **Convergent-evidence gate** (default **on**): global create/update of `prompt` / `memory` / `rejected` needs ≥ N independent `corroborations` (default **2**), or human `/refine --global --force`. Local refine is unaffected. `/refine convergent on|off|status|n <1-8>`. Stored on entry metadata.
 - Auto-refine follows `/arl on`. Options: `/arl interval <n>` · `/arl cooldown <m>` · `/arl compact on|off`. Reviewer gate every N turns and after compact (cooldown). Local-only unless the reviewer asks global.
 - Unify: `memory_write` dual-writes workspace + global arl memory; `memory_search`/`read` merge both. Skill stubs stay inventory (no auto `SKILL.md`). `spawn spec=<id>` loads harness subagents. Learned policy stays in digest/`prompt` entries — not `BASE_PROMPT`.
@@ -76,21 +76,31 @@ Kill a developed fork only after recording the failure mode. Front door: `core/p
 
 When investigate evidence **refutes** or **conflicts** with an active claim, force revise or challenge (agents often ignore refutation). Front door: `core/belief.ts`.
 
-- Gate default **on** per chat (`~/.axi/chats/<id>/belief.json`). `/belief gate on|off|status`.
+- Gate default **on** per chat (`~/.axi/chats/<id>/belief.json`). `/revise gate on|off|status` (alias `/belief`).
 - Firing: `investigate_link` kind `refutes`/`conflicts` → pending revision + hard-route **challenge**.
 - Prompt injects open contradictions each turn until cleared.
-- Clear: `/belief resolve <claimId>` after revising, or `investigate_abandon` (auto-resolves), or `/belief clear`.
+- Clear: `/revise done <claimId>` after revising, or `investigate_abandon` (auto-resolves), or `/revise clear`.
 
 ## Judgment labels
 
-Tag refine/mission pivots with the intervention taxonomy (MCS/Columbus product tags — not neural steering). Front door: `core/judgment.ts`.
+Mark refine/mission pivots with the intervention taxonomy (MCS/Columbus product tags — not neural steering). Front door: `core/judgment.ts`.
 
 - Labels: **hypothesis** · **tension** · **pivot** · **assumption** · **interpretation** · **design**.
 - Persist: `~/.axi/chats/<id>/judgment.json` (recent events, capped).
-- Gate default **on**: `/refine` proposals with edits need top-level `judgment`. `/judgment gate on|off|status`.
-- Auto-tag: mission `setObjective` → design; `completeObjective` → pivot; successful refine → recorded from proposal.
-- Slash: `/judgment status|tag <label> [note]|gate|clear` (alias `/judge`).
+- Gate default **on**: `/refine` proposals with edits need top-level `judgment`. `/pivot gate on|off|status`.
+- Auto-mark: mission `setObjective` → design; `completeObjective` → pivot; successful refine → recorded from proposal.
+- Slash: `/pivot status|mark <label> [note]|gate|clear` (aliases `/judgment` · `/judge`).
 - Tool: `judgment_tag`. Prompt injects recent pivots each turn.
+
+## Trajectory log
+
+Bind each chat turn’s agent trace to user telemetry as one durable unit for `/refine` (Trajectory.ai *primitive* — not their cloud trainer). Front door: `core/trajectory.ts`.
+
+- Persist: `~/.axi/chats/<id>/trajectory.json` (capped units).
+- Unit: user text · tools (ok/fail/denied) · assistant · **mark** `accept` · `edit` · `undo` · `retry` · `deny`.
+- Auto: chat turn begin/close; tools via agent loop; `/undo` → undo; deny-only tools → deny; next turn after failed accept → retry.
+- Slash: `/turn status|mark <sig> [note]|clear` (aliases `/trajectory` · `/traj`).
+- `/refine` and auto-refine gate see `# Trajectory units` before raw conversation.
 
 ## Investigate
 
@@ -211,6 +221,7 @@ Import fat subsystems only through their front doors:
 | prune | `core/prune.ts` |
 | belief | `core/belief.ts` |
 | judgment | `core/judgment.ts` |
+| trajectory | `core/trajectory.ts` |
 | factory | `core/factory.ts` |
 | daemon | `core/daemon.ts` |
 | mission | `core/mission.ts` |

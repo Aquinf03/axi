@@ -144,7 +144,7 @@ export function recordContradiction(input: ContradictionInput): ContradictionRes
     pending.evidenceId ? `  evidence  ${pending.evidenceId}` : "",
     `  why  ${pending.reason}`,
     "  Required: revise/abandon the claim (investigate_abandon) or stay in challenge and address the contradiction.",
-    "  Do not continue as if the claim still holds. Clear with /belief resolve <claimId> after revising.",
+    "  Do not continue as if the claim still holds. Clear with /revise done <claimId> after revising.",
     stance.ok ? `  stance  → challenge` : `  stance  ${stance.text}`,
   ]
     .filter(Boolean)
@@ -199,7 +199,7 @@ export function beliefPromptBlock(sessionId?: string): string {
     "Belief-revision gate: when tool/investigate evidence contradicts an active claim, you must revise or stay in challenge — do not ignore refutation.",
   ]
   if (!s.gate) {
-    lines.push("Gate is off (/belief gate on to enforce).")
+    lines.push("Gate is off (/revise gate on to enforce).")
     return lines.join("\n")
   }
   if (!s.pending.length) {
@@ -213,7 +213,7 @@ export function beliefPromptBlock(sessionId?: string): string {
     )
   }
   lines.push(
-    "Revise with investigate_abandon / update, or work in challenge stance. Then /belief resolve <claimId>.",
+    "Revise with investigate_abandon / update, or work in challenge stance. Then /revise done <claimId>.",
   )
   return lines.join("\n")
 }

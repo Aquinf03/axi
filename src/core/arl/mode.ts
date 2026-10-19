@@ -112,7 +112,7 @@ export function arlModeStatusText(): string {
   return [
     `arl  ${effective ? "on" : "off"}  (${source}; disk ${disk.enabled ? "on" : "off"})`,
     `auto-refine  ${effective ? "on" : "off"}  (every ${auto.turnInterval} turns · compact ${auto.compact ? "on" : "off"} · cooldown ${Math.round(auto.cooldownMs / 60000)}m)`,
-    `falsify-gate  ${gate ? "on" : "off"}  (/refine gate on|off · lessons need what would disprove them)`,
+    `falsify-gate  ${gate ? "on" : "off"}  (/refine falsify on|off · lessons need what would disprove them)`,
     `convergent-gate  ${conv ? "on" : "off"}  (global lessons need ${n} corroborations · /refine convergent · --force)`,
   ].join("\n")
 }
@@ -144,9 +144,9 @@ export function falsifyGateStatusText(): string {
     `falsify-gate  ${on ? "on" : "off"}`,
     on
       ? "  /refine create|update of prompt/memory/rejected needs falsify=… (what would disprove the lesson)"
-      : "  gate off — /refine gate on to require falsification criteria again",
+      : "  gate off — /refine falsify on to require falsification criteria again",
     "  undo a refine: /refine rollback <id>",
-    "  undo the gate: /refine gate off",
+    "  undo the gate: /refine falsify off",
   ].join("\n")
 }
 

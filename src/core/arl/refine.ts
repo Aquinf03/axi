@@ -14,6 +14,7 @@ import {
   tagJudgment,
   type JudgmentLabel,
 } from "../judgment.js"
+import { formatTrajectoryForRefine } from "../trajectory.js"
 import {
   arlEnabled,
   convergentGateEnabled,
@@ -100,6 +101,7 @@ export type RefinementResult = {
 const REFINEMENT_SYSTEM_PROMPT = `You are axi's /refine arl (auto RL) continual harness subsystem.
 
 Your job is to improve the editable continual harness from the current trajectory.
+Trajectory units pair agent tools with user signals (accept/edit/undo/retry/deny) — prefer accept/edit evidence; treat undo/deny as negative; retry means friction then another attempt.
 Emit precise Create, Update, or Delete edits to reusable state — not a chat summary.
 The continual harness holds supplemental prompt notes, memories, rejected paths, skill stubs, and subagent specs.
 Never rewrite the immutable base system prompt (id base_system_prompt).
@@ -324,7 +326,7 @@ function validateEdit(
   ) {
     const f = edit.falsify?.trim()
     if (!f) {
-      return `${edit.action} ${edit.kind} needs falsify (what would disprove this lesson) — or /refine gate off`
+      return `${edit.action} ${edit.kind} needs falsify (what would disprove this lesson) — or /refine falsify off`
     }
   }
   // Convergent-evidence: global lessons need N independent corroborations (or human --force).
@@ -727,6 +729,7 @@ export async function runRefine(opts: RunRefineOpts): Promise<RefinementResult> 
     const focus = opts.instructions?.trim()
       ? `\n\nFocus instructions:\n${opts.instructions.trim()}`
       : ""
+    const traj = formatTrajectoryForRefine(opts.sessionId)
     const user = [
       `Target scope: ${scope}`,
       focus,
@@ -734,7 +737,9 @@ export async function runRefine(opts: RunRefineOpts): Promise<RefinementResult> 
       overview,
       "\n# Recent refinements\n",
       historyNote,
-      "\n# Trajectory\n",
+      "\n# Trajectory units (trace + user signal)\n",
+      traj || "(none)",
+      "\n# Conversation\n",
       conversationBlob(opts.history),
       "\nReply with JSON only.",
     ].join("\n")

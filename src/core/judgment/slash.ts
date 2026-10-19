@@ -1,4 +1,6 @@
-/** `/judgment` slash — status | tag <label> [note] | gate on|off | clear */
+/** `/pivot` slash — status | mark <label> [note] | gate on|off | clear
+ * Aliases: /judgment · /judge · legacy `tag`/`label` → mark
+ */
 
 import { getArlSessionId } from "../arl.js"
 import {
@@ -12,6 +14,8 @@ import { JUDGMENT_LABELS, isJudgmentLabel } from "./types.js"
 
 export type JudgmentSlashResult = { text: string }
 
+const USAGE = `usage: /pivot status|mark <${JUDGMENT_LABELS.join("|")}> [note]|gate on|off|clear`
+
 export function runJudgmentSlash(
   sessionId: string | undefined,
   arg: string,
@@ -24,28 +28,26 @@ export function runJudgmentSlash(
     return { text: judgmentStatusText(sid) }
   }
 
-  if (!sid) return { text: "judgment needs an open chat session" }
+  if (!sid) return { text: "pivot labels need an open chat session" }
 
   if (head === "gate") {
     const sub = (tokens[1] ?? "status").toLowerCase()
     if (sub === "status" || !tokens[1]) {
       return {
-        text: `judgment-labels gate  ${judgmentGateEnabled(sid) ? "on" : "off"}\n${judgmentStatusText(sid)}`,
+        text: `pivot-labels gate  ${judgmentGateEnabled(sid) ? "on" : "off"}\n${judgmentStatusText(sid)}`,
       }
     }
     if (sub === "on" || sub === "off") {
       setJudgmentGate(sid, sub === "on")
       return { text: judgmentStatusText(sid) }
     }
-    return { text: "usage: /judgment gate on|off|status" }
+    return { text: "usage: /pivot gate on|off|status" }
   }
 
-  if (head === "tag" || head === "label") {
+  if (head === "mark" || head === "tag" || head === "label") {
     const label = (tokens[1] ?? "").toLowerCase()
     if (!isJudgmentLabel(label)) {
-      return {
-        text: `usage: /judgment tag <${JUDGMENT_LABELS.join("|")}> [note]`,
-      }
+      return { text: USAGE }
     }
     const note = tokens.slice(2).join(" ").trim() || undefined
     const r = tagJudgment({ sessionId: sid, label, source: "user", note })
@@ -57,14 +59,12 @@ export function runJudgmentSlash(
     return { text: judgmentStatusText(sid) }
   }
 
-  // Bare `/judgment pivot note…` convenience
+  // Bare `/pivot tension [note]`
   if (isJudgmentLabel(head)) {
     const note = tokens.slice(1).join(" ").trim() || undefined
     const r = tagJudgment({ sessionId: sid, label: head, source: "user", note })
     return { text: `${r.message}\n${judgmentStatusText(sid)}` }
   }
 
-  return {
-    text: `usage: /judgment status|tag <${JUDGMENT_LABELS.join("|")}> [note]|gate on|off|clear`,
-  }
+  return { text: USAGE }
 }

@@ -7,6 +7,7 @@ import { formatArlStateForPrompt } from "../arl/digest.js"
 import { loadMergedArlState } from "../arl/store.js"
 import type { ChatMsg } from "../../gateway.js"
 import type { RefinementEdit } from "../arl/refine.js"
+import { formatTrajectoryForRefine } from "../trajectory.js"
 import { decide } from "./decide.js"
 import {
   AUTO_REFINE_ACTIONS,
@@ -72,6 +73,7 @@ export async function reviewAutoRefineViaDecide(
       trigger: opts.reason,
       turnsSinceLastReview: opts.turnsSinceLastReview,
       harness: overview,
+      trajectory: formatTrajectoryForRefine(opts.sessionId, 8),
       conversation: conversationBlob(opts.history),
     }
     const call = opts.callDecide ?? decide

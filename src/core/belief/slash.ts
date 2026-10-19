@@ -1,4 +1,6 @@
-/** `/belief` slash — status | gate on|off | resolve <id> [note] */
+/** `/revise` slash — status | done <id> [note] | gate on|off | clear
+ * Aliases: /belief · legacy `resolve` → done
+ */
 
 import { getArlSessionId } from "../arl.js"
 import {
@@ -12,6 +14,8 @@ import {
 
 export type BeliefSlashResult = { text: string }
 
+const USAGE = "usage: /revise status|done <claimId> [note]|gate on|off|clear"
+
 export function runBeliefSlash(sessionId: string | undefined, arg: string): BeliefSlashResult {
   const sid = sessionId ?? getArlSessionId()
   const tokens = arg.trim().split(/\s+/).filter(Boolean)
@@ -21,7 +25,7 @@ export function runBeliefSlash(sessionId: string | undefined, arg: string): Beli
     return { text: beliefStatusText(sid) }
   }
 
-  if (!sid) return { text: "belief needs an open chat session" }
+  if (!sid) return { text: "revise needs an open chat session" }
 
   if (head === "gate") {
     const sub = (tokens[1] ?? "status").toLowerCase()
@@ -34,12 +38,12 @@ export function runBeliefSlash(sessionId: string | undefined, arg: string): Beli
       setBeliefGate(sid, sub === "on")
       return { text: beliefStatusText(sid) }
     }
-    return { text: "usage: /belief gate on|off|status" }
+    return { text: "usage: /revise gate on|off|status" }
   }
 
-  if (head === "resolve") {
+  if (head === "done" || head === "resolve") {
     const id = tokens[1]
-    if (!id) return { text: "usage: /belief resolve <claimId|pendingId> [note]" }
+    if (!id) return { text: "usage: /revise done <claimId> [note]" }
     const note = tokens.slice(2).join(" ").trim() || undefined
     return { text: resolveBelief(sid, id, note).text }
   }
@@ -50,5 +54,5 @@ export function runBeliefSlash(sessionId: string | undefined, arg: string): Beli
     return { text: beliefStatusText(sid) }
   }
 
-  return { text: "usage: /belief status|gate on|off|resolve <id>|clear" }
+  return { text: USAGE }
 }
