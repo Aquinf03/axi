@@ -37,7 +37,7 @@ Continual harness store for self-improving lessons (prompt notes, memories, **re
 - Refine: `/refine [--global] [--force] [focus]` plans+applies harness edits; `/refine rollback <id>` undoes an apply. Agent tool `arl_refine` only *schedules* — host applies when the turn ends, then refreshes the digest. Prefer `rejected` over `memory` when the lesson is “don’t retry X”.
 - **Falsify gate** (default **on**): create/update of `prompt` / `memory` / `rejected` must include `falsify` (what would disprove the lesson). `/refine falsify on|off|status` toggles; `/refine rollback <id>` undoes a refine. Stored on the entry and shown in the digest.
 - **Convergent-evidence gate** (default **on**): global create/update of `prompt` / `memory` / `rejected` needs ≥ N independent `corroborations` (default **2**), or human `/refine --global --force`. Local refine is unaffected. `/refine convergent on|off|status|n <1-8>`. Stored on entry metadata.
-- Auto-refine follows `/arl on`. Options: `/arl interval <n>` · `/arl cooldown <m>` · `/arl compact on|off`. Reviewer gate every N turns and after compact (cooldown). Local-only unless the reviewer asks global.
+- Auto-refine follows `/arl on`. Options: `/arl interval <n>` · `/arl cooldown <m>` · `/arl compact on|off`. Reviewer gate every N turns and after compact (cooldown). **Usage→arl:** `edit` · `retry` · `deny` · `undo` (from `/turn` / trajectory) also arm auto-refine and **bypass cooldown**. Local-only unless the reviewer asks global.
 - Unify: `memory_write` dual-writes workspace + global arl memory; `memory_search`/`read` merge both. Skill stubs stay inventory (no auto `SKILL.md`). `spawn spec=<id>` loads harness subagents. Learned policy stays in digest/`prompt` entries — not `BASE_PROMPT`.
 - Helper: `formatRejectedContent({ tried, why, unless? })` for canonical rejected bodies.
 
@@ -101,6 +101,7 @@ Bind each chat turn’s agent trace to user telemetry as one durable unit for `/
 - Auto: chat turn begin/close; tools via agent loop; `/undo` → undo; deny-only tools → deny; next turn after failed accept → retry.
 - Slash: `/turn status|mark <sig> [note]|clear` (aliases `/trajectory` · `/traj`).
 - `/refine` and auto-refine gate see `# Trajectory units` before raw conversation.
+- **Usage→arl:** edit / retry / deny / undo arm auto-refine (bypass cooldown) with signal-specific refine instructions.
 
 ## Investigate
 

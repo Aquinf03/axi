@@ -5,7 +5,7 @@
 
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
 import path from "node:path"
-import { slugId } from "../arl.js"
+import { armAutoRefineFromUsage, slugId } from "../arl.js"
 import { trajectoryPath } from "./paths.js"
 import {
   TRAJECTORY_SCHEMA,
@@ -132,6 +132,7 @@ export function beginTrajectoryTurn(input: BeginTurnInput): TrajectoryUnit {
     // User started another turn instead of /undo → treat prior as retry.
     last.signal = "retry"
     last.signalNote = last.signalNote ?? "next turn without undo"
+    armAutoRefineFromUsage(input.sessionId, "retry", last.signalNote)
   }
   const turn = (last?.turn ?? 0) + 1
   const open: TrajectoryUnit = {
@@ -172,6 +173,7 @@ export function noteTrajectoryTool(input: NoteToolInput): void {
   if (input.denied) {
     state.open.signal = "deny"
     state.open.signalNote = clip(input.label, 200) ?? "tool denied"
+    armAutoRefineFromUsage(input.sessionId, "deny", state.open.signalNote)
   }
   saveTrajectory(input.sessionId, state)
 }
@@ -202,6 +204,14 @@ export function closeTrajectoryTurn(input: CloseTurnInput): TrajectoryUnit | nul
       unit.signalNote = unit.signalNote ?? "all sensitive tools denied"
     }
   }
+  // Explicit close signal (e.g. turn error → deny). Mid-turn denies already armed via noteTrajectoryTool.
+  if (
+    input.signal === "deny" ||
+    input.signal === "edit" ||
+    input.signal === "undo"
+  ) {
+    armAutoRefineFromUsage(input.sessionId, input.signal, unit.signalNote)
+  }
   state.units.push(unit)
   state.open = null
   if (state.units.length > MAX_UNITS) state.units = state.units.slice(-MAX_UNITS)
@@ -227,6 +237,7 @@ export function signalTrajectory(
   unit.signalNote = clip(note, 200) ?? unit.signalNote
   if (!state.open && !unit.closed_at) unit.closed_at = nowIso()
   saveTrajectory(sessionId, state)
+  armAutoRefineFromUsage(sessionId, signal, unit.signalNote)
   return {
     ok: true,
     unit,

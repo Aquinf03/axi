@@ -26,7 +26,8 @@ Format is inspired by [Keep a Changelog](https://keepachangelog.com/). Versions 
 - Belief-revision gate: investigate refutes/conflicts escalate to challenge + pending revise (`/belief`)
 - Convergent-evidence gate: global arl lessons need N independent corroborations (or `/refine --global --force`)
 - Judgment labels on pivots: hypothesis · tension · pivot · assumption · interpretation · design (`/judgment`, refine + mission)
-- Trajectory log: per-turn agent trace + user signal (accept/edit/undo/retry/deny) for `/refine` (`/trajectory`)
+- Trajectory log: per-turn agent trace + user signal (accept/edit/undo/retry/deny) for `/refine` (`/turn`)
+- Usage→arl: edit / retry / deny / undo arm auto-refine (bypass cooldown; not only chat text)
 
 
 ### Notes

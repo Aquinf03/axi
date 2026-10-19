@@ -42,10 +42,22 @@ export type AutoRefineReview = {
   instructions?: string
 }
 
+/** Usage signals that should arm auto-refine (Trajectory → arl). */
+export const USAGE_REFINE_SIGNALS = ["edit", "retry", "deny", "undo"] as const
+export type UsageRefineSignal = (typeof USAGE_REFINE_SIGNALS)[number]
+
+export type UsageArm = {
+  signal: UsageRefineSignal
+  note?: string
+  armedAtMs: number
+}
+
 type SessionAutoState = {
   turnsSinceReview: number
   lastReviewAtMs: number
   compactPending: boolean
+  /** Armed by edits / re-prompts / denies / undos — not only turn count. */
+  usagePending: UsageArm | null
 }
 
 const sessions = new Map<string, SessionAutoState>()
@@ -53,10 +65,19 @@ const sessions = new Map<string, SessionAutoState>()
 function sessionState(sessionId: string): SessionAutoState {
   let s = sessions.get(sessionId)
   if (!s) {
-    s = { turnsSinceReview: 0, lastReviewAtMs: 0, compactPending: false }
+    s = {
+      turnsSinceReview: 0,
+      lastReviewAtMs: 0,
+      compactPending: false,
+      usagePending: null,
+    }
     sessions.set(sessionId, s)
   }
   return s
+}
+
+function isUsageRefineSignal(v: string): v is UsageRefineSignal {
+  return (USAGE_REFINE_SIGNALS as readonly string[]).includes(v)
 }
 
 export function loadAutoRefineSettings(): AutoRefineSettings {
@@ -84,6 +105,7 @@ export function autoRefineStatusText(): string {
     `  interval  every ${s.turnInterval} turns`,
     `  compact   ${s.compact ? "on" : "off"}`,
     `  cooldown  ${Math.round(s.cooldownMs / 60000)}m`,
+    `  usage     edit · retry · deny · undo arm refine (bypass cooldown)`,
   ].join("\n")
 }
 
@@ -92,6 +114,30 @@ export function markCompactAutoRefinePending(sessionId: string): void {
   if (!autoRefineEnabled()) return
   if (!loadAutoRefineSettings().compact) return
   sessionState(sessionId).compactPending = true
+}
+
+/**
+ * Arm auto-refine from user telemetry (edit / re-prompt / deny / undo).
+ * Does nothing when arl is off or signal is not a usage trigger (e.g. accept).
+ */
+export function armAutoRefineFromUsage(
+  sessionId: string,
+  signal: string,
+  note?: string,
+): boolean {
+  if (!autoRefineEnabled()) return false
+  if (!isUsageRefineSignal(signal)) return false
+  const st = sessionState(sessionId)
+  st.usagePending = {
+    signal,
+    note: note?.replace(/\s+/g, " ").trim().slice(0, 200) || undefined,
+    armedAtMs: Date.now(),
+  }
+  return true
+}
+
+export function peekUsageAutoRefine(sessionId: string): UsageArm | null {
+  return sessionState(sessionId).usagePending
 }
 
 export function noteSettledTurn(sessionId: string): void {
@@ -121,12 +167,28 @@ function parseReview(text: string): AutoRefineReview {
   }
 }
 
-export function autoRefineInstructions(reason: string, review: AutoRefineReview): string {
+export function autoRefineInstructions(
+  reason: string,
+  review: AutoRefineReview,
+  usage?: UsageArm | null,
+): string {
   const detail = review.instructions
     ? `\n\nReviewer instructions: ${review.instructions}`
     : ""
+  const usageHint = usage
+    ? `\n\nUsage signal (${usage.signal}): weight this over raw chat text.` +
+      (usage.signal === "edit"
+        ? " User corrected the agent — capture the durable preference or fix."
+        : usage.signal === "deny"
+          ? " User denied a tool — prefer a rejected entry (tried + why) over rediscovering it."
+          : usage.signal === "undo"
+            ? " User undid the turn — treat the undone path as negative evidence."
+            : " User re-prompted after friction — learn what failed and what to try instead.") +
+      (usage.note ? ` Note: ${usage.note}` : "")
+    : ""
   return (
     `Automatic refine review triggered by ${reason}. Only create/update/delete local harness entries if there is clear evidence that should help this session continue. Prefer an empty edits array over speculative or one-off memories. Do not promote anything global unless explicitly requested. Reviewer rationale: ${review.rationale}` +
+    usageHint +
     detail
   )
 }
@@ -187,13 +249,20 @@ export async function maybeAutoRefine(
   const st = sessionState(opts.sessionId)
   noteSettledTurn(opts.sessionId)
 
+  const usage = st.usagePending
   let reason: string | null = null
   if (st.compactPending) reason = "compact"
+  else if (usage) reason = `usage:${usage.signal}`
   else if (st.turnsSinceReview >= gates.turnInterval) reason = "turn-interval"
   if (!reason) return null
 
   const now = opts.nowMs ?? Date.now()
-  if (st.lastReviewAtMs > 0 && now - st.lastReviewAtMs < gates.cooldownMs) {
+  const usageTrigger = reason.startsWith("usage:")
+  if (
+    !usageTrigger &&
+    st.lastReviewAtMs > 0 &&
+    now - st.lastReviewAtMs < gates.cooldownMs
+  ) {
     // Still cooling down — keep compact arm for a later settle, but don't spin reviews.
     if (reason === "turn-interval") {
       // Avoid re-firing every turn while cooling: reset interval counter softly.
@@ -204,7 +273,9 @@ export async function maybeAutoRefine(
 
   // Consume this trigger attempt.
   const turns = st.turnsSinceReview
+  const usageArm = st.usagePending
   st.compactPending = false
+  st.usagePending = null
   st.turnsSinceReview = 0
   st.lastReviewAtMs = now
 
@@ -226,7 +297,7 @@ export async function maybeAutoRefine(
   const result = await runRefine({
     history: opts.history,
     sessionId: opts.sessionId,
-    instructions: autoRefineInstructions(reason, review),
+    instructions: autoRefineInstructions(reason, review, usageArm),
     global: wantGlobal,
     source: "auto",
     planText: opts.planText,

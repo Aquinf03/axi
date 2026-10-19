@@ -131,6 +131,8 @@ export {
 } from "./arl/schedule.js"
 
 export {
+  USAGE_REFINE_SIGNALS,
+  armAutoRefineFromUsage,
   autoRefineEnabled,
   autoRefineInstructions,
   autoRefineStatusText,
@@ -139,10 +141,13 @@ export {
   markCompactAutoRefinePending,
   maybeAutoRefine,
   noteSettledTurn,
+  peekUsageAutoRefine,
   reviewAutoRefine,
   saveAutoRefineSettings,
   type AutoRefineReview,
   type MaybeAutoRefineOpts,
+  type UsageArm,
+  type UsageRefineSignal,
 } from "./arl/auto.js"
 
 export {

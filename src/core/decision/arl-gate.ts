@@ -76,13 +76,15 @@ export async function reviewAutoRefineViaDecide(
       trajectory: formatTrajectoryForRefine(opts.sessionId, 8),
       conversation: conversationBlob(opts.history),
     }
+    const usageTrigger = opts.reason.startsWith("usage:")
     const call = opts.callDecide ?? decide
     answer = await call({
       observation,
       actions: AUTO_REFINE_ACTIONS,
       goal: "Decide whether this checkpoint should run /refine on the continual harness.",
-      instructions:
-        "Prefer skip or defer unless there is clear reusable evidence. Prefer refine_local over refine_global.",
+      instructions: usageTrigger
+        ? "Trigger is a usage signal (edit/retry/deny/undo) — prefer refine_local when the trajectory unit shows a clear correction or rejected path. Prefer refine_local over refine_global."
+        : "Prefer skip or defer unless there is clear reusable evidence. Prefer refine_local over refine_global.",
       modelLabel: "decision/auto-refine",
     })
   }
