@@ -24,6 +24,7 @@ Format is inspired by [Keep a Changelog](https://keepachangelog.com/). Versions 
 - Prune-with-receipt: spawn/factory cancel require a why and mirror into arl rejected before the fork dies
 - Falsify gate: /refine lesson writes need what would disprove them (`falsify`); `/refine gate on|off`; undo via `/refine rollback <id>`
 - Belief-revision gate: investigate refutes/conflicts escalate to challenge + pending revise (`/belief`)
+- Convergent-evidence gate: global arl lessons need N independent corroborations (or `/refine --global --force`)
 
 
 ### Notes

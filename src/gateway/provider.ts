@@ -27,7 +27,10 @@ import {
   arlModeStatusText,
   countArlEntries,
   loadAutoRefineSettings,
+  convergentGateStatusText,
   falsifyGateStatusText,
+  setConvergentGate,
+  setConvergentMin,
   loadMergedArlState,
   parseArlModeArg,
   saveAutoRefineSettings,
@@ -674,7 +677,13 @@ export type SlashResult = {
   text?: string
   compact?: boolean
   /** Run arl /refine against current chat history. */
-  refine?: { instructions?: string; global?: boolean; rollbackId?: string }
+  refine?: {
+    instructions?: string
+    global?: boolean
+    /** Human override for convergent-evidence gate. */
+    force?: boolean
+    rollbackId?: string
+  }
   undo?: boolean
   newChat?: boolean
   rename?: true | string
@@ -1006,13 +1015,38 @@ export function runSlash(line: string, opts: SlashOpts = {}): SlashResult {
       }
       return { text: "usage: /refine gate on|off|status" }
     }
+    if (head === "convergent" || head === "converge") {
+      const sub = (tokens[1] ?? "status").toLowerCase()
+      if (sub === "status" || !tokens[1]) return { text: convergentGateStatusText() }
+      if (sub === "on" || sub === "off") {
+        setConvergentGate(sub === "on")
+        return { text: convergentGateStatusText() }
+      }
+      if (sub === "n" || sub === "min") {
+        const n = Number(tokens[2])
+        if (!Number.isFinite(n)) {
+          return { text: "usage: /refine convergent n <1-8>" }
+        }
+        setConvergentMin(n)
+        return { text: convergentGateStatusText() }
+      }
+      return { text: "usage: /refine convergent on|off|status|n <1-8>" }
+    }
     let global = false
+    let force = false
     const rest: string[] = []
     for (const t of tokens) {
       if (t === "--global" || t === "-g") global = true
+      else if (t === "--force" || t === "--override" || t === "-f") force = true
       else rest.push(t)
     }
-    return { refine: { instructions: rest.join(" ").trim() || undefined, global } }
+    return {
+      refine: {
+        instructions: rest.join(" ").trim() || undefined,
+        global,
+        force: force || undefined,
+      },
+    }
   }
   if (cmd === "/codemode") {
     return runCodemodeSlash(opts.sessionId, arg)

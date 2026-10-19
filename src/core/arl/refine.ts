@@ -8,7 +8,12 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs"
 import path from "node:path"
 import { streamTurn, type ChatMsg } from "../../gateway.js"
 import { formatArlStateForPrompt } from "./digest.js"
-import { arlEnabled, falsifyGateEnabled } from "./mode.js"
+import {
+  arlEnabled,
+  convergentGateEnabled,
+  convergentMin,
+  falsifyGateEnabled,
+} from "./mode.js"
 import {
   arlHistoryPath,
   arlStateDir,
@@ -39,6 +44,11 @@ export type RefinementEdit = {
   path?: string
   /** What evidence would disprove this lesson (falsification gate). */
   falsify?: string
+  /**
+   * Independent corroborations for global promotion (convergent-evidence gate).
+   * Distinct sources — different sessions, tools, investigate nodes, or observations.
+   */
+  corroborations?: string[]
   reference?: Record<string, unknown>
   arguments?: Record<string, unknown>
   metadata?: Record<string, unknown>
@@ -101,6 +111,7 @@ Scope:
 Prefer the smallest component. Prefer empty edits over speculation.
 After a clear failed approach with a reusable reason, create a rejected entry so later turns avoid rediscovering the same dead end.
 Falsification gate: for create/update of prompt, memory, or rejected, always include "falsify": a concrete check or observation that would disprove the lesson (cheap to try). Do not invent vague falsifiers.
+Convergent-evidence gate (global scope only): for create/update of prompt, memory, or rejected, include "corroborations": an array of at least N independent evidence pointers (different sessions, tools, investigate nodes, or observations — not restatements of one win). Prefer keeping the lesson local until you have them. Do not invent duplicate corroborations.
 Never edit source files. Output JSON only:
 
 {
@@ -115,6 +126,7 @@ Never edit source files. Output JSON only:
       "title": "required for create/update",
       "content": "required for create/update",
       "falsify": "required for prompt/memory/rejected create|update — what would disprove this",
+      "corroborations": ["global only — N independent sources for prompt/memory/rejected"],
       "path": "optional grouping path",
       "reference": {"type":"skill","name":"example"},
       "arguments": {},
@@ -138,6 +150,46 @@ function isKind(v: unknown): v is ArlKind {
 
 function isAction(v: unknown): v is RefinementAction {
   return v === "create" || v === "update" || v === "delete"
+}
+
+/** Normalize + dedupe corroboration strings (independence = distinct normalized sources). */
+export function normalizeCorroborations(raw: unknown): string[] {
+  const list: string[] = []
+  if (Array.isArray(raw)) {
+    for (const item of raw) {
+      if (typeof item === "string") list.push(item)
+      else if (item && typeof item === "object") {
+        const o = item as Record<string, unknown>
+        const s =
+          (typeof o.source === "string" && o.source) ||
+          (typeof o.note === "string" && o.note) ||
+          (typeof o.id === "string" && o.id) ||
+          ""
+        if (s) list.push(s)
+      }
+    }
+  } else if (typeof raw === "string" && raw.trim()) {
+    list.push(...raw.split(/\n|;|\|/))
+  }
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const s of list) {
+    const trimmed = s.replace(/\s+/g, " ").trim()
+    if (trimmed.length < 3) continue
+    const key = trimmed.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(trimmed.slice(0, 240))
+  }
+  return out
+}
+
+function corroborationsFromEdit(edit: RefinementEdit): string[] {
+  if (edit.corroborations?.length) return normalizeCorroborations(edit.corroborations)
+  if (edit.metadata?.corroborations != null) {
+    return normalizeCorroborations(edit.metadata.corroborations)
+  }
+  return []
 }
 
 export function extractJsonObject(text: string): unknown {
@@ -165,6 +217,9 @@ export function parseProposal(text: string): RefinementProposal {
           : typeof o.falsification === "string"
             ? o.falsification
             : undefined
+    const corroborations = normalizeCorroborations(
+      o.corroborations ?? o.corroboration ?? o.evidence,
+    )
     edits.push({
       action: isAction(o.action) ? o.action : undefined,
       kind: isKind(o.kind) ? o.kind : undefined,
@@ -173,6 +228,7 @@ export function parseProposal(text: string): RefinementProposal {
       content: typeof o.content === "string" ? o.content : undefined,
       path: typeof o.path === "string" ? o.path : undefined,
       falsify: falsify?.trim() || undefined,
+      corroborations: corroborations.length ? corroborations : undefined,
       reference:
         o.reference && typeof o.reference === "object" && !Array.isArray(o.reference)
           ? (o.reference as Record<string, unknown>)
@@ -204,7 +260,14 @@ export function parseProposal(text: string): RefinementProposal {
 function validateEdit(
   edit: RefinementEdit,
   computedId?: string,
-  opts?: { gate?: boolean; isRollback?: boolean },
+  opts?: {
+    gate?: boolean
+    convergent?: boolean
+    convergentNeed?: number
+    scope?: ArlScope
+    forcePromote?: boolean
+    isRollback?: boolean
+  },
 ): string | undefined {
   if (!edit.action) return "unsupported action"
   if (!edit.kind) return "unsupported kind"
@@ -241,6 +304,25 @@ function validateEdit(
       return `${edit.action} ${edit.kind} needs falsify (what would disprove this lesson) — or /refine gate off`
     }
   }
+  // Convergent-evidence: global lessons need N independent corroborations (or human --force).
+  if (
+    opts?.convergent &&
+    !opts.isRollback &&
+    !opts.forcePromote &&
+    opts.scope === "global" &&
+    (edit.action === "create" || edit.action === "update") &&
+    edit.kind &&
+    (FALSIFY_KINDS as readonly string[]).includes(edit.kind)
+  ) {
+    const need = opts.convergentNeed ?? 2
+    const corps = corroborationsFromEdit(edit)
+    if (corps.length < need) {
+      return (
+        `${edit.action} ${edit.kind} global needs ${need} independent corroborations` +
+        ` (got ${corps.length}) — keep local, add corroborations=[…], or /refine --global --force`
+      )
+    }
+  }
   return undefined
 }
 
@@ -254,6 +336,8 @@ export type ApplyOptions = {
   source: RefinementSource
   baselineState?: ArlState
   rollbackOf?: string
+  /** Human override for convergent-evidence gate (`/refine --global --force`). */
+  forcePromote?: boolean
 }
 
 /** Apply proposal to state (mutates). */
@@ -266,6 +350,8 @@ export function applyRefinementProposal(
   const touched = new Set<string>()
 
   const gate = falsifyGateEnabled()
+  const convergent = convergentGateEnabled()
+  const need = convergentMin()
   const isRollback = Boolean(options.rollbackOf)
 
   for (const edit of proposal.edits) {
@@ -275,7 +361,14 @@ export function applyRefinementProposal(
         ? slugId(edit.title ?? edit.kind ?? "entry", edit.kind ?? "memory")
         : undefined)
     const id = computedId ?? ""
-    const err = validateEdit(edit, computedId, { gate, isRollback })
+    const err = validateEdit(edit, computedId, {
+      gate,
+      convergent,
+      convergentNeed: need,
+      scope: options.scope,
+      forcePromote: options.forcePromote,
+      isRollback,
+    })
     if (!edit.action || !edit.kind || err) {
       applied.push({
         action: edit.action ?? "create",
@@ -341,6 +434,7 @@ export function applyRefinementProposal(
       edit.falsify?.trim() ||
       (typeof edit.metadata?.falsify === "string" ? edit.metadata.falsify.trim() : undefined) ||
       before?.falsify
+    const corps = corroborationsFromEdit(edit)
     const after: ArlEntry = {
       id,
       kind,
@@ -355,6 +449,8 @@ export function applyRefinementProposal(
         ...(edit.metadata ?? before?.metadata ?? {}),
         scope: options.scope,
         ...(falsify ? { falsify } : {}),
+        ...(corps.length ? { corroborations: corps } : {}),
+        ...(options.forcePromote && options.scope === "global" ? { forcePromote: true } : {}),
       },
       source: "refine",
       created_at: before?.created_at ?? now,
@@ -529,6 +625,8 @@ export type RunRefineOpts = {
   /** Focus instructions from user or reviewer. */
   instructions?: string
   global?: boolean
+  /** Human override for convergent-evidence on global lesson writes. */
+  force?: boolean
   source?: RefinementSource
   /** Injected for tests — skips the live model call. */
   planText?: string
@@ -593,6 +691,7 @@ export async function runRefine(opts: RunRefineOpts): Promise<RefinementResult> 
     scope,
     source,
     baselineState: baseline,
+    forcePromote: Boolean(opts.force && scope === "global"),
   })
   saveArlState(scope, working, opts.sessionId)
   appendRefinementResult(scope, result, opts.sessionId)

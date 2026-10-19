@@ -12,6 +12,7 @@ export {
   ARL_STATE_SCHEMA,
   BASE_SYSTEM_PROMPT_ID,
   DEFAULT_AUTO_REFINE,
+  DEFAULT_CONVERGENT_MIN,
   normalizeAutoRefine,
   type ArlEntry,
   type ArlKind,
@@ -36,6 +37,9 @@ export {
 export {
   arlEnabled,
   arlModeStatusText,
+  convergentGateEnabled,
+  convergentGateStatusText,
+  convergentMin,
   emptyArlMode,
   falsifyGateEnabled,
   falsifyGateStatusText,
@@ -43,6 +47,8 @@ export {
   parseArlModeArg,
   saveArlMode,
   setArlEnabled,
+  setConvergentGate,
+  setConvergentMin,
   setFalsifyGate,
 } from "./arl/mode.js"
 
@@ -97,6 +103,7 @@ export {
   findRefinementResult,
   formatRefinementNotice,
   loadRefinementResults,
+  normalizeCorroborations,
   parseProposal,
   rollbackProposal,
   runRefine,

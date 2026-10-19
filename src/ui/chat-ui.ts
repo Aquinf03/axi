@@ -1165,6 +1165,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
                 sessionId: spec.id,
                 instructions: r.refine.instructions,
                 global: r.refine.global,
+                force: r.refine.force,
                 source: "user",
               })
           replaceHistory(history)

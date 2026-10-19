@@ -6,7 +6,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { globalArlDir, globalArlModePath } from "./paths.js"
-import { normalizeAutoRefine, type ArlModeState } from "./types.js"
+import { DEFAULT_CONVERGENT_MIN, normalizeAutoRefine, type ArlModeState } from "./types.js"
 
 function parseEnabled(raw: string | undefined | null): boolean | null {
   if (raw == null) return null
@@ -17,8 +17,20 @@ function parseEnabled(raw: string | undefined | null): boolean | null {
   return null
 }
 
+function sanitizeConvergentMin(raw: unknown): number {
+  const n = Number(raw)
+  if (!Number.isFinite(n)) return DEFAULT_CONVERGENT_MIN
+  return Math.max(1, Math.min(8, Math.floor(n)))
+}
+
 export function emptyArlMode(): ArlModeState {
-  return { enabled: false, autoRefine: normalizeAutoRefine(null), falsifyGate: true }
+  return {
+    enabled: false,
+    autoRefine: normalizeAutoRefine(null),
+    falsifyGate: true,
+    convergentGate: true,
+    convergentMin: DEFAULT_CONVERGENT_MIN,
+  }
 }
 
 function sanitizeMode(raw: Partial<ArlModeState>): ArlModeState {
@@ -27,6 +39,8 @@ function sanitizeMode(raw: Partial<ArlModeState>): ArlModeState {
     autoRefine: normalizeAutoRefine(raw.autoRefine),
     // Default on when unset — falsification gate for /refine lessons.
     falsifyGate: raw.falsifyGate !== false,
+    convergentGate: raw.convergentGate !== false,
+    convergentMin: sanitizeConvergentMin(raw.convergentMin),
   }
 }
 
@@ -93,10 +107,13 @@ export function arlModeStatusText(): string {
   const source = env != null ? "env AXI_ARL" : "profile (~/.axi/arl/mode.json)"
   const auto = disk.autoRefine ?? normalizeAutoRefine(null)
   const gate = disk.falsifyGate !== false
+  const conv = disk.convergentGate !== false
+  const n = disk.convergentMin ?? DEFAULT_CONVERGENT_MIN
   return [
     `arl  ${effective ? "on" : "off"}  (${source}; disk ${disk.enabled ? "on" : "off"})`,
     `auto-refine  ${effective ? "on" : "off"}  (every ${auto.turnInterval} turns · compact ${auto.compact ? "on" : "off"} · cooldown ${Math.round(auto.cooldownMs / 60000)}m)`,
     `falsify-gate  ${gate ? "on" : "off"}  (/refine gate on|off · lessons need what would disprove them)`,
+    `convergent-gate  ${conv ? "on" : "off"}  (global lessons need ${n} corroborations · /refine convergent · --force)`,
   ].join("\n")
 }
 
@@ -130,5 +147,60 @@ export function falsifyGateStatusText(): string {
       : "  gate off — /refine gate on to require falsification criteria again",
     "  undo a refine: /refine rollback <id>",
     "  undo the gate: /refine gate off",
+  ].join("\n")
+}
+
+/** Convergent-evidence gate for global lesson promotion. Default on. */
+export function convergentGateEnabled(): boolean {
+  return loadArlMode().convergentGate !== false
+}
+
+export function convergentMin(): number {
+  return sanitizeConvergentMin(loadArlMode().convergentMin)
+}
+
+export function setConvergentGate(enabled: boolean): ArlModeState {
+  const p = globalArlModePath()
+  let disk = emptyArlMode()
+  if (existsSync(p)) {
+    try {
+      const raw = JSON.parse(readFileSync(p, "utf8")) as Partial<ArlModeState>
+      if (raw && typeof raw === "object") disk = sanitizeMode(raw)
+    } catch {
+      disk = emptyArlMode()
+    }
+  }
+  const next: ArlModeState = { ...disk, convergentGate: enabled }
+  saveArlMode(next)
+  return loadArlMode()
+}
+
+export function setConvergentMin(n: number): ArlModeState {
+  const p = globalArlModePath()
+  let disk = emptyArlMode()
+  if (existsSync(p)) {
+    try {
+      const raw = JSON.parse(readFileSync(p, "utf8")) as Partial<ArlModeState>
+      if (raw && typeof raw === "object") disk = sanitizeMode(raw)
+    } catch {
+      disk = emptyArlMode()
+    }
+  }
+  const next: ArlModeState = { ...disk, convergentMin: sanitizeConvergentMin(n) }
+  saveArlMode(next)
+  return loadArlMode()
+}
+
+export function convergentGateStatusText(): string {
+  const on = convergentGateEnabled()
+  const n = convergentMin()
+  return [
+    `convergent-gate  ${on ? "on" : "off"}  (need ${n} independent corroborations)`,
+    on
+      ? "  global /refine create|update of prompt/memory/rejected needs corroborations=[…] (≥ N distinct sources)"
+      : "  gate off — /refine convergent on to require corroboration again",
+    "  set N: /refine convergent n <1-8>",
+    "  human override: /refine --global --force [focus]",
+    "  local refine is unaffected",
   ].join("\n")
 }

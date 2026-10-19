@@ -101,7 +101,17 @@ export type ArlModeState = {
    * must include `falsify` (what would disprove the lesson). `/refine gate off` disables.
    */
   falsifyGate?: boolean
+  /**
+   * When true (default), global /refine create|update of prompt/memory/rejected
+   * needs N independent corroborations (or human `--force`). `/refine convergent off`.
+   */
+  convergentGate?: boolean
+  /** Minimum distinct corroborations for global lesson promotion. Default 2. */
+  convergentMin?: number
 }
+
+/** Default N independent corroborations before a lesson may go global. */
+export const DEFAULT_CONVERGENT_MIN = 2
 
 export const ARL_STATE_SCHEMA = 1
 export const ARL_DIR_NAME = "arl"

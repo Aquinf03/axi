@@ -17,6 +17,7 @@ import {
   runRefineRollback,
   scheduleArlRefine,
   setArlEnabled,
+  setConvergentGate,
   setFalsifyGate,
   takeArlRefinePending,
 } from "../arl.js"
@@ -118,6 +119,116 @@ describe("arl refine", () => {
     )
     assert.equal(allowed.appliedEdits[0]!.applied, true)
     setFalsifyGate(true)
+  })
+
+  it("blocks global lesson without enough corroborations; --force overrides", () => {
+    const lesson = {
+      action: "create" as const,
+      kind: "memory" as const,
+      title: "Prefer grep",
+      content: "use grep tool",
+      falsify: "find outperforms grep",
+    }
+    const blocked = applyRefinementProposal(
+      emptyArlState(),
+      parseProposal(
+        JSON.stringify({
+          summary: "s",
+          rationale: "r",
+          expectedOutcome: "o",
+          edits: [lesson],
+        }),
+      ),
+      { id: "r_conv_block", scope: "global", source: "user" },
+    )
+    assert.equal(blocked.appliedEdits[0]!.applied, false)
+    assert.match(blocked.appliedEdits[0]!.error ?? "", /corroborations/)
+
+    const one = applyRefinementProposal(
+      emptyArlState(),
+      parseProposal(
+        JSON.stringify({
+          summary: "s",
+          rationale: "r",
+          expectedOutcome: "o",
+          edits: [{ ...lesson, corroborations: ["session-a: grep worked"] }],
+        }),
+      ),
+      { id: "r_conv_one", scope: "global", source: "user" },
+    )
+    assert.equal(one.appliedEdits[0]!.applied, false)
+
+    const ok = applyRefinementProposal(
+      emptyArlState(),
+      parseProposal(
+        JSON.stringify({
+          summary: "s",
+          rationale: "r",
+          expectedOutcome: "o",
+          edits: [
+            {
+              ...lesson,
+              corroborations: [
+                "session-a: grep found the bug",
+                "session-b: find timed out; grep succeeded",
+              ],
+            },
+          ],
+        }),
+      ),
+      { id: "r_conv_ok", scope: "global", source: "user" },
+    )
+    assert.equal(ok.appliedEdits[0]!.applied, true)
+    assert.deepEqual(ok.appliedEdits[0]!.after?.metadata.corroborations, [
+      "session-a: grep found the bug",
+      "session-b: find timed out; grep succeeded",
+    ])
+
+    const forced = applyRefinementProposal(
+      emptyArlState(),
+      parseProposal(
+        JSON.stringify({
+          summary: "s",
+          rationale: "r",
+          expectedOutcome: "o",
+          edits: [lesson],
+        }),
+      ),
+      { id: "r_conv_force", scope: "global", source: "user", forcePromote: true },
+    )
+    assert.equal(forced.appliedEdits[0]!.applied, true)
+    assert.equal(forced.appliedEdits[0]!.after?.metadata.forcePromote, true)
+
+    // Local refine still skips convergent.
+    const local = applyRefinementProposal(
+      emptyArlState(),
+      parseProposal(
+        JSON.stringify({
+          summary: "s",
+          rationale: "r",
+          expectedOutcome: "o",
+          edits: [lesson],
+        }),
+      ),
+      { id: "r_conv_local", scope: "local", source: "user" },
+    )
+    assert.equal(local.appliedEdits[0]!.applied, true)
+
+    setConvergentGate(false)
+    const off = applyRefinementProposal(
+      emptyArlState(),
+      parseProposal(
+        JSON.stringify({
+          summary: "s",
+          rationale: "r",
+          expectedOutcome: "o",
+          edits: [lesson],
+        }),
+      ),
+      { id: "r_conv_off", scope: "global", source: "user" },
+    )
+    assert.equal(off.appliedEdits[0]!.applied, true)
+    setConvergentGate(true)
   })
 
   it("applies create/update/delete with baseline concurrency", () => {
@@ -267,6 +378,7 @@ describe("arl refine", () => {
               title: "X",
               content: "y",
               falsify: "counterexample Z",
+              corroborations: ["a: observed once", "b: observed again"],
             },
           ],
         }),
@@ -304,6 +416,10 @@ describe("arl refine", () => {
             title: "Fact",
             content: "new",
             falsify: "old value still correct",
+            corroborations: [
+              "chat-1: user corrected the fact",
+              "chat-2: code still matches new value",
+            ],
           },
         ],
       }),
