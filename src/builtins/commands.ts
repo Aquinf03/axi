@@ -169,6 +169,7 @@ export const SLASH_SPECS: SlashSpec[] = [
   { name: "/codemode", hint: "sticky Node scratchpad · on|off|status · reset · stop" },
   { name: "/stance", hint: "explore · execute · challenge · status · unpin (judgment mode)" },
   { name: "/investigate", hint: "hypothesis graph · status|add|link|abandon|clear" },
+  { name: "/belief", hint: "revision gate · status|gate on|off|resolve <id>|clear" },
   { name: "/arl", hint: "auto RL · on|off|status · interval · cooldown · compact" },
   { name: "/refine", hint: "arl learn · gate on|off · rollback <id> · [--global] [focus]" },
   { name: "/factory", hint: "subagent DAG · run|status|list|stop|import|log|cancel <node> <why>" },

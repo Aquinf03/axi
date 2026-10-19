@@ -71,6 +71,15 @@ Kill a developed fork only after recording the failure mode. Front door: `core/p
 - TUI cancel uses a fixed user-cancel why so a receipt always lands.
 - Investigate `abandon` already mirrored rejected; same discipline.
 
+## Belief-revision
+
+When investigate evidence **refutes** or **conflicts** with an active claim, force revise or challenge (agents often ignore refutation). Front door: `core/belief.ts`.
+
+- Gate default **on** per chat (`~/.axi/chats/<id>/belief.json`). `/belief gate on|off|status`.
+- Firing: `investigate_link` kind `refutes`/`conflicts` → pending revision + hard-route **challenge**.
+- Prompt injects open contradictions each turn until cleared.
+- Clear: `/belief resolve <claimId>` after revising, or `investigate_abandon` (auto-resolves), or `/belief clear`.
+
 ## Investigate
 
 Session investigation graph — hypotheses ↔ evidence ↔ contradictions / abandoned branches (richer than flat arl). Front door: `core/investigate.ts`.
@@ -188,6 +197,7 @@ Import fat subsystems only through their front doors:
 | stance | `core/stance.ts` |
 | investigate | `core/investigate.ts` |
 | prune | `core/prune.ts` |
+| belief | `core/belief.ts` |
 | factory | `core/factory.ts` |
 | daemon | `core/daemon.ts` |
 | mission | `core/mission.ts` |

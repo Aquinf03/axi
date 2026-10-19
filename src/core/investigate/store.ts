@@ -6,6 +6,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
 import path from "node:path"
 import { createArlEntry, formatRejectedContent, slugId } from "../arl.js"
+import { recordContradiction, resolveBelief } from "../belief.js"
 import { investigatePath } from "./paths.js"
 import {
   INVESTIGATE_EDGE_KINDS,
@@ -158,7 +159,13 @@ export type LinkInput = {
   note?: string
 }
 
-export function linkInvestigate(input: LinkInput): InvestigateEdge {
+export type LinkInvestigateResult = {
+  edge: InvestigateEdge
+  /** Belief-revision gate message when refutes/conflicts fired. */
+  belief?: string
+}
+
+export function linkInvestigate(input: LinkInput): LinkInvestigateResult {
   const g = loadInvestigate(input.sessionId)
   if (!g.nodes[input.from]) throw new Error(`investigate: unknown from ${input.from}`)
   if (!g.nodes[input.to]) throw new Error(`investigate: unknown to ${input.to}`)
@@ -170,7 +177,7 @@ export function linkInvestigate(input: LinkInput): InvestigateEdge {
     const existing = g.edges[id]!
     if (input.note) existing.note = input.note.slice(0, 400)
     saveInvestigate(input.sessionId, g)
-    return existing
+    return { edge: existing }
   }
   const edge: InvestigateEdge = {
     id,
@@ -194,7 +201,31 @@ export function linkInvestigate(input: LinkInput): InvestigateEdge {
     to.updated_at = nowIso()
   }
   saveInvestigate(input.sessionId, g)
-  return edge
+
+  let belief: string | undefined
+  if (input.kind === "refutes" || input.kind === "conflicts") {
+    // Claim = hypothesis (to for refutes; either side for conflicts).
+    const claim =
+      to.kind === "hypothesis"
+        ? to
+        : from.kind === "hypothesis"
+          ? from
+          : to.kind === "branch"
+            ? to
+            : from
+    const evidence = claim.id === from.id ? to : from
+    const r = recordContradiction({
+      sessionId: input.sessionId,
+      claimId: claim.id,
+      claimTitle: claim.title,
+      evidenceId: evidence.id !== claim.id ? evidence.id : undefined,
+      reason:
+        input.note?.trim() ||
+        `${input.kind}: ${from.kind}:${from.id} → ${to.kind}:${to.id}`,
+    })
+    if (r.fired) belief = r.message
+  }
+  return { edge, belief }
 }
 
 export type AbandonInput = {
@@ -248,6 +279,8 @@ export function abandonInvestigate(input: AbandonInput): {
   }
 
   saveInvestigate(input.sessionId, g)
+  // Abandon counts as revising the claim — clear belief pending.
+  resolveBelief(input.sessionId, input.id, why)
   return { node, rejectedId }
 }
 

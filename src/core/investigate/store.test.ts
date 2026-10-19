@@ -43,12 +43,13 @@ describe("investigate graph", () => {
       title: "Log line",
       content: "401 at refresh",
     })
-    linkInvestigate({
+    const linked = linkInvestigate({
       sessionId: "s1",
       from: e.id,
       to: h.id,
       kind: "supports",
     })
+    assert.ok(linked.edge)
     const g = loadInvestigate("s1")
     assert.equal(g.nodes[h.id]?.status, "supported")
     assert.equal(countInvestigate(g).edges, 1)
@@ -69,8 +70,15 @@ describe("investigate graph", () => {
       title: "Bearer required",
       content: "API clients send Authorization",
     })
-    linkInvestigate({ sessionId: "s2", from: c.id, to: h.id, kind: "refutes" })
+    const refuted = linkInvestigate({
+      sessionId: "s2",
+      from: c.id,
+      to: h.id,
+      kind: "refutes",
+    })
     assert.equal(loadInvestigate("s2").nodes[h.id]?.status, "refuted")
+    assert.ok(refuted.belief)
+    assert.match(refuted.belief!, /Belief-revision/)
 
     const r = abandonInvestigate({
       sessionId: "s2",

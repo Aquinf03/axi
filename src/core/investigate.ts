@@ -33,6 +33,7 @@ export {
   type AbandonInput,
   type AddNodeInput,
   type LinkInput,
+  type LinkInvestigateResult,
 } from "./investigate/store.js"
 
 export {

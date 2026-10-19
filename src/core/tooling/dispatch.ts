@@ -629,14 +629,15 @@ export async function runAgentTool(train: string, name: string, rawArgs: string)
     }
     const note = typeof args.note === "string" ? args.note.trim() : undefined
     try {
-      const e = linkInvestigate({
+      const { edge: e, belief } = linkInvestigate({
         sessionId: sid,
         from,
         to,
         kind: kindRaw as InvestigateEdgeKind,
         note,
       })
-      return `linked ${e.from} -${e.kind}-> ${e.to}\n${investigateStatusText(sid)}`
+      const extra = belief ? `\n${belief}` : ""
+      return `linked ${e.from} -${e.kind}-> ${e.to}\n${investigateStatusText(sid)}${extra}`
     } catch (err) {
       return err instanceof Error ? err.message : String(err)
     }

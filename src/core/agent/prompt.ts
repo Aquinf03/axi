@@ -15,6 +15,8 @@ export type PromptBits = {
   stance?: string
   /** Investigation graph overview (hypotheses ↔ evidence). */
   investigate?: string
+  /** Belief-revision gate (open contradictions). */
+  belief?: string
 }
 
 export function systemPrompt(train: string, extraOrBits: string | PromptBits = ""): string {
@@ -25,6 +27,7 @@ export function systemPrompt(train: string, extraOrBits: string | PromptBits = "
     ...specialty,
     bits.stance?.trim() ?? "",
     bits.investigate?.trim() ?? "",
+    bits.belief?.trim() ?? "",
     bits.objective ? `Current request:\n${bits.objective}` : "",
     bits.progress ? `This turn so far (do not forget; do not redo):\n${bits.progress}` : "",
     bits.extra?.trim() ?? "",

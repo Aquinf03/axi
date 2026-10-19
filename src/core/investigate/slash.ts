@@ -87,8 +87,11 @@ export function runInvestigateSlash(
       }
     }
     try {
-      const e = linkInvestigate({ sessionId: sid, from, to, kind, note })
-      return { text: `linked  ${e.from} -${e.kind}-> ${e.to}\n${investigateStatusText(sid)}` }
+      const { edge: e, belief } = linkInvestigate({ sessionId: sid, from, to, kind, note })
+      const extra = belief ? `\n${belief}` : ""
+      return {
+        text: `linked  ${e.from} -${e.kind}-> ${e.to}\n${investigateStatusText(sid)}${extra}`,
+      }
     } catch (err) {
       return { text: err instanceof Error ? err.message : String(err) }
     }
