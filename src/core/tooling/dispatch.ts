@@ -44,6 +44,16 @@ import {
 } from "../decision.js"
 import { completeObjective, loadMission } from "../mission.js"
 import { parseStance, setStance, stanceStatusText } from "../stance.js"
+import {
+  abandonInvestigate,
+  addInvestigateNode,
+  investigateStatusText,
+  linkInvestigate,
+  INVESTIGATE_EDGE_KINDS,
+  INVESTIGATE_NODE_KINDS,
+  type InvestigateEdgeKind,
+  type InvestigateNodeKind,
+} from "../investigate.js"
 import { formatCards, searchTools, toolsDigest } from "./registry.js"
 import { find as findPaths, glob as globPaths, grep as grepFiles, ls, readPath } from "../../tools/explore.js"
 import { cpAt, editFileAt, mkdirAt, mvAt, previewEditDiff, previewWriteDiff, rmAt, writeFileAt } from "../../tools/files.js"
@@ -135,6 +145,17 @@ export function permitLabel(train: string, name: string, rawArgs: string): strin
     const s = typeof args.stance === "string" ? args.stance : "?"
     const why = typeof args.reason === "string" && args.reason.trim() ? ` · ${args.reason.trim()}` : ""
     return `stance ${s}${why}`
+  }
+  if (name === "investigate_add") {
+    const k = typeof args.kind === "string" ? args.kind : "?"
+    const t = typeof args.title === "string" ? args.title : ""
+    return `investigate add ${k} ${t}`.trim()
+  }
+  if (name === "investigate_link") {
+    return `investigate link ${args.from ?? "?"} -${args.kind ?? "?"}-> ${args.to ?? "?"}`
+  }
+  if (name === "investigate_abandon") {
+    return `investigate abandon ${args.id ?? "?"}`
   }
   if (name === "write") {
     const p = typeof args.path === "string" ? args.path : "?"
@@ -570,6 +591,74 @@ export async function runAgentTool(train: string, name: string, rawArgs: string)
     const reason = typeof args.reason === "string" ? args.reason.trim() : undefined
     const r = setStance({ sessionId: sid, stance: mode, source: "agent", reason })
     return r.ok ? r.text : r.text || stanceStatusText(sid)
+  }
+  if (name === "investigate_add") {
+    const sid = getArlSessionId()
+    if (!sid) return "investigate_add needs an open chat session"
+    const kindRaw = typeof args.kind === "string" ? args.kind.trim().toLowerCase() : ""
+    if (!(INVESTIGATE_NODE_KINDS as readonly string[]).includes(kindRaw)) {
+      return "investigate_add kind=hypothesis|evidence|contradiction|branch"
+    }
+    const title = typeof args.title === "string" ? args.title.trim() : ""
+    const content = typeof args.content === "string" ? args.content : ""
+    if (!title || !content) return "investigate_add needs title and content"
+    const id = typeof args.id === "string" ? args.id.trim() : undefined
+    try {
+      const n = addInvestigateNode({
+        sessionId: sid,
+        kind: kindRaw as InvestigateNodeKind,
+        title,
+        content,
+        id,
+      })
+      return `added ${n.kind}:${n.id}\n${investigateStatusText(sid)}`
+    } catch (err) {
+      return err instanceof Error ? err.message : String(err)
+    }
+  }
+  if (name === "investigate_link") {
+    const sid = getArlSessionId()
+    if (!sid) return "investigate_link needs an open chat session"
+    const from = typeof args.from === "string" ? args.from.trim() : ""
+    const to = typeof args.to === "string" ? args.to.trim() : ""
+    const kindRaw = typeof args.kind === "string" ? args.kind.trim().toLowerCase() : ""
+    if (!from || !to || !(INVESTIGATE_EDGE_KINDS as readonly string[]).includes(kindRaw)) {
+      return "investigate_link from=… to=… kind=supports|refutes|conflicts|abandons|about"
+    }
+    const note = typeof args.note === "string" ? args.note.trim() : undefined
+    try {
+      const e = linkInvestigate({
+        sessionId: sid,
+        from,
+        to,
+        kind: kindRaw as InvestigateEdgeKind,
+        note,
+      })
+      return `linked ${e.from} -${e.kind}-> ${e.to}\n${investigateStatusText(sid)}`
+    } catch (err) {
+      return err instanceof Error ? err.message : String(err)
+    }
+  }
+  if (name === "investigate_abandon") {
+    const sid = getArlSessionId()
+    if (!sid) return "investigate_abandon needs an open chat session"
+    const id = typeof args.id === "string" ? args.id.trim() : ""
+    const why = typeof args.why === "string" ? args.why.trim() : ""
+    if (!id || !why) return "investigate_abandon needs id and why"
+    const mirror =
+      args.mirror_rejected === false || args.mirrorRejected === false ? false : true
+    try {
+      const r = abandonInvestigate({
+        sessionId: sid,
+        id,
+        why,
+        mirrorRejected: mirror,
+      })
+      const rej = r.rejectedId ? ` · rejected:${r.rejectedId}` : ""
+      return `abandoned ${r.node.id}${rej}\n${investigateStatusText(sid)}`
+    } catch (err) {
+      return err instanceof Error ? err.message : String(err)
+    }
   }
   if (name === "plot") {
     const kind = typeof args.kind === "string" && args.kind.trim() ? args.kind.trim() : "all"

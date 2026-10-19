@@ -13,6 +13,8 @@ export type PromptBits = {
   progress?: string
   /** Stance posture block (explore / execute / challenge). */
   stance?: string
+  /** Investigation graph overview (hypotheses ↔ evidence). */
+  investigate?: string
 }
 
 export function systemPrompt(train: string, extraOrBits: string | PromptBits = ""): string {
@@ -22,6 +24,7 @@ export function systemPrompt(train: string, extraOrBits: string | PromptBits = "
     ...BASE_PROMPT,
     ...specialty,
     bits.stance?.trim() ?? "",
+    bits.investigate?.trim() ?? "",
     bits.objective ? `Current request:\n${bits.objective}` : "",
     bits.progress ? `This turn so far (do not forget; do not redo):\n${bits.progress}` : "",
     bits.extra?.trim() ?? "",

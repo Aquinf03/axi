@@ -60,6 +60,18 @@ Judgment posture for the chat — peer to permission `/mode` and `/codemode`. Fr
 - Prompt: each turn injects a short stance block into the system prompt.
 - Hard-route: after repeated tool failures in a turn, host forces **challenge** (respects human pin).
 
+## Investigate
+
+Session investigation graph — hypotheses ↔ evidence ↔ contradictions / abandoned branches (richer than flat arl). Front door: `core/investigate.ts`.
+
+- Nodes: `hypothesis` · `evidence` · `contradiction` · `branch` (status open/supported/refuted/abandoned/resolved).
+- Edges: `supports` · `refutes` · `conflicts` · `abandons` · `about`.
+- Persist: `~/.axi/chats/<id>/investigate.json` (capped node/edge counts).
+- Slash: `/investigate status|add|link|abandon|clear`.
+- Core tools: `investigate_add` · `investigate_link` · `investigate_abandon`.
+- Abandon mirrors into arl `rejected` (file-drawer) by default.
+- Prompt: compact graph overview each turn; contradictions nudge challenge stance.
+
 ## Daemon
 
 Background supervisor so work continues when the TUI is closed. Front door: `core/daemon.ts`.
@@ -163,6 +175,7 @@ Import fat subsystems only through their front doors:
 | arl (auto RL) | `core/arl.ts` |
 | codemode | `core/codemode.ts` |
 | stance | `core/stance.ts` |
+| investigate | `core/investigate.ts` |
 | factory | `core/factory.ts` |
 | daemon | `core/daemon.ts` |
 | mission | `core/mission.ts` |

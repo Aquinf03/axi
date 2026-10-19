@@ -168,6 +168,7 @@ export const SLASH_SPECS: SlashSpec[] = [
   { name: "/mode", hint: "ask · auto · plan · full-access (permission mode)" },
   { name: "/codemode", hint: "sticky Node scratchpad · on|off|status · reset · stop" },
   { name: "/stance", hint: "explore · execute · challenge · status · unpin (judgment mode)" },
+  { name: "/investigate", hint: "hypothesis graph · status|add|link|abandon|clear" },
   { name: "/arl", hint: "auto RL · on|off|status · interval · cooldown · compact" },
   { name: "/refine", hint: "arl: learn from this chat · [--global] [focus] · rollback <id>" },
   { name: "/factory", hint: "subagent DAG · run|status|list|stop|import|log|cancel" },

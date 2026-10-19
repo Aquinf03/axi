@@ -20,6 +20,7 @@ Format is inspired by [Keep a Changelog](https://keepachangelog.com/). Versions 
 - Agents view: `/agents` opens a live multi-agent TUI (daemon status, this-chat + workspace sections, filter, log/cancel); `/agents list` keeps the text board
 - arl: `rejected` harness kind (file-drawer negatives — tried path + why) in digest and `/refine`
 - Stance modes: `/stance explore|execute|challenge` peer to `/mode` and `/codemode`; agent `stance_set`; hard-route to challenge on repeated failures
+- Investigate graph: session hypotheses ↔ evidence ↔ contradictions / abandoned branches (`/investigate`, tools); abandon → arl rejected
 
 
 ### Notes

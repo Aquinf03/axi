@@ -30,6 +30,7 @@ import { runBatch } from "./parallel.js"
 import { streamTurn, type ChatMsg } from "../../gateway.js"
 import { getArlSessionId } from "../arl.js"
 import { hardRouteChallenge, stancePromptBlock } from "../stance.js"
+import { investigatePromptBlock } from "../investigate.js"
 import { addUsage, emptyUsage, type TokenUsage } from "../usage.js"
 
 type ToolCall = { id: string; name: string; args: string }
@@ -161,6 +162,7 @@ async function runTurnInner(
       objective,
       progress: progress.length ? progress.map((l, i) => `${i + 1}. ${l}`).join("\n") : "",
       stance: stancePromptBlock(stanceSession()),
+      investigate: investigatePromptBlock(stanceSession()),
     })
 
   const takeUsage = (piece: typeof usage | undefined) => {

@@ -34,6 +34,7 @@ import {
 } from "../core/arl.js"
 import { runCodemodeSlash } from "../core/codemode.js"
 import { runStanceSlash } from "../core/stance.js"
+import { runInvestigateSlash } from "../core/investigate.js"
 import {
   formatAgentsRoster,
   formatDaemonStatusText,
@@ -628,7 +629,7 @@ export function applyChoice(c: Choice): {
         "  sound      click + message cues",
         "  notify     desktop alert when a reply finishes (if terminal unfocused)",
         "",
-        "slash: /new /rename /open /delete [/delete all] /compact /undo /image /status /doctor /spawn /agents /daemon /provider /model /temp /key /sound /notify /arl /refine /codemode /stance /factory /mission /decision /mode",
+        "slash: /new /rename /open /delete [/delete all] /compact /undo /image /status /doctor /spawn /agents /daemon /provider /model /temp /key /sound /notify /arl /refine /codemode /stance /investigate /factory /mission /decision /mode",
         "",
         "keys: axi provider openai",
         "now: " + activeLabel(),
@@ -997,6 +998,9 @@ export function runSlash(line: string, opts: SlashOpts = {}): SlashResult {
   }
   if (cmd === "/stance") {
     return runStanceSlash(opts.sessionId, arg)
+  }
+  if (cmd === "/investigate") {
+    return runInvestigateSlash(opts.sessionId, arg)
   }
   if (cmd === "/agents") {
     const head = arg.trim().toLowerCase()

@@ -312,6 +312,59 @@ export const CORE_TOOLS: AgentToolDef[] = [
       required: ["stance"],
     },
   },
+  {
+    name: "investigate_add",
+    description:
+      "Add a node to this chat's investigation graph: hypothesis, evidence, contradiction, or branch. Richer than flat arl entries — link them with investigate_link.",
+    parameters: {
+      type: "object",
+      properties: {
+        kind: {
+          type: "string",
+          description: "hypothesis | evidence | contradiction | branch",
+        },
+        title: { type: "string", description: "short label" },
+        content: { type: "string", description: "detail / claim / observation" },
+        id: { type: "string", description: "optional stable id" },
+      },
+      required: ["kind", "title", "content"],
+    },
+  },
+  {
+    name: "investigate_link",
+    description:
+      "Link two investigation nodes: supports, refutes, conflicts, abandons, or about.",
+    parameters: {
+      type: "object",
+      properties: {
+        from: { type: "string", description: "source node id" },
+        to: { type: "string", description: "target node id" },
+        kind: {
+          type: "string",
+          description: "supports | refutes | conflicts | abandons | about",
+        },
+        note: { type: "string", description: "optional edge note" },
+      },
+      required: ["from", "to", "kind"],
+    },
+  },
+  {
+    name: "investigate_abandon",
+    description:
+      "Mark a hypothesis/branch abandoned with why; mirrors into arl rejected (file-drawer) by default.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "node id" },
+        why: { type: "string", description: "failure mode / reason not to retry" },
+        mirror_rejected: {
+          type: "boolean",
+          description: "write arl rejected entry (default true)",
+        },
+      },
+      required: ["id", "why"],
+    },
+  },
 ]
 
 /**
