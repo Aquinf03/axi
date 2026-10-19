@@ -6,6 +6,8 @@
 
 import { randomBytes } from "node:crypto"
 import { agentHandoff, agentLog, cancelAgent, listAgents, startAgent } from "../agent/spawn.js"
+import { getArlSessionId } from "../arl.js"
+import { recordPruneReceipt, requirePruneWhy } from "../prune.js"
 import { depSatisfied, fillPrompt, outputsFromNodes, readyNodeIds, sanitizeMachine } from "./dag.js"
 import { evalGuard, extractList, joinGroupOutput } from "./guard.js"
 import { resolveMachine } from "./machines.js"
@@ -98,7 +100,10 @@ export function stopFactory(sessionId: string, workspace: string): FactoryState 
     }
     for (const n of run.nodes) {
       if (n.status === "running" && n.agentId) {
-        void cancelAgent(workspace, n.agentId).catch(() => {})
+        void cancelAgent(workspace, n.agentId, {
+          why: "factory stopped",
+          sessionId,
+        }).catch(() => {})
         n.status = "canceled"
         n.finishedAt = nowIso()
       } else if (n.status === "pending" || n.status === "ready" || n.status === "waiting") {
@@ -112,22 +117,36 @@ export function stopFactory(sessionId: string, workspace: string): FactoryState 
   })
 }
 
-/** Cancel one running node (slash/tool — no TUI change). */
+/** Cancel one running node (slash/tool — no TUI change). Requires why (prune-with-receipt). */
 export function cancelFactoryNode(
   sessionId: string,
   workspace: string,
   nodeId: string,
+  why: string,
 ): FactoryState {
+  const reason = requirePruneWhy(why)
   return updateFactory(sessionId, (cur) => {
     const run = cur.run
     if (!run || run.status !== "running") throw new Error("no active factory run")
     const n = run.nodes.find((x) => x.id === nodeId)
     if (!n) throw new Error(`no factory node ${nodeId}`)
+    recordPruneReceipt({
+      kind: "factory",
+      targetId: nodeId,
+      name: n.name || n.id,
+      why: reason,
+      tried: n.prompt?.slice(0, 400) || `factory node ${nodeId}`,
+      sessionId: sessionId || getArlSessionId(),
+    })
     if (n.status === "running" && n.agentId) {
-      void cancelAgent(workspace, n.agentId).catch(() => {})
+      void cancelAgent(workspace, n.agentId, {
+        why: reason,
+        sessionId,
+        skipReceipt: true,
+      }).catch(() => {})
     }
     n.status = "failed"
-    n.error = "canceled by user"
+    n.error = `canceled: ${reason}`
     n.finishedAt = nowIso()
     run.updatedAt = nowIso()
     return { schema: 1, run }
@@ -145,10 +164,14 @@ export function factoryNodeLog(sessionId: string, workspace: string, nodeId: str
 }
 
 function failRun(run: FactoryRun, workspace: string, err: string): void {
+  const sid = getArlSessionId()
   for (const n of run.nodes) {
     if (n.status === "pending" || n.status === "ready" || n.status === "waiting") n.status = "skipped"
     if (n.status === "running" && n.agentId) {
-      void cancelAgent(workspace, n.agentId).catch(() => {})
+      void cancelAgent(workspace, n.agentId, {
+        why: `factory fail-fast: ${err}`.slice(0, 500),
+        sessionId: sid,
+      }).catch(() => {})
       n.status = "canceled"
       n.finishedAt = nowIso()
     }

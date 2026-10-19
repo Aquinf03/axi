@@ -23,6 +23,8 @@ export type DaemonRequest = {
   parentId?: string
   agentId?: string
   sessionId?: string
+  /** Prune-with-receipt failure mode for cancel. */
+  why?: string
   kill?: boolean
 }
 

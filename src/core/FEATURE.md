@@ -60,6 +60,16 @@ Judgment posture for the chat — peer to permission `/mode` and `/codemode`. Fr
 - Prompt: each turn injects a short stance block into the system prompt.
 - Hard-route: after repeated tool failures in a turn, host forces **challenge** (respects human pin).
 
+## Prune-with-receipt
+
+Kill a developed fork only after recording the failure mode. Front door: `core/prune.ts`.
+
+- `recordPruneReceipt` → local arl `rejected` (file-drawer) with tried + why.
+- Spawn: `cancelAgent` / `spawn_cancel` / `/spawn cancel <id> <why>` / `axi spawn cancel <id> <why>` require why.
+- Factory: `/factory cancel <node> <why>` · `factory_cancel` require why; stop/fail-fast still write receipts.
+- TUI cancel uses a fixed user-cancel why so a receipt always lands.
+- Investigate `abandon` already mirrored rejected; same discipline.
+
 ## Investigate
 
 Session investigation graph — hypotheses ↔ evidence ↔ contradictions / abandoned branches (richer than flat arl). Front door: `core/investigate.ts`.
@@ -176,6 +186,7 @@ Import fat subsystems only through their front doors:
 | codemode | `core/codemode.ts` |
 | stance | `core/stance.ts` |
 | investigate | `core/investigate.ts` |
+| prune | `core/prune.ts` |
 | factory | `core/factory.ts` |
 | daemon | `core/daemon.ts` |
 | mission | `core/mission.ts` |

@@ -690,7 +690,9 @@ export type SlashResult = {
   spawnRun?: string
   spawnList?: boolean
   spawnLog?: string
+  /** Spawn cancel id, or `id` + why for prune-with-receipt. */
   spawnCancel?: string
+  spawnCancelWhy?: string
   promptKey?: ProviderId
   openKey?: boolean
   image?: { path: string; caption: string }
@@ -859,7 +861,13 @@ export function runSlash(line: string, opts: SlashOpts = {}): SlashResult {
     const [head, ...rest] = arg.split(/\s+/)
     if (head === "list") return { spawnList: true }
     if (head === "log") return { spawnLog: rest.join(" ").trim() }
-    if (head === "cancel") return { spawnCancel: rest.join(" ").trim() }
+    if (head === "cancel") {
+      const id = rest[0]?.trim() ?? ""
+      const why = rest.slice(1).join(" ").trim()
+      if (!id) return { text: "usage: /spawn cancel <id> <why>" }
+      if (!why) return { text: "usage: /spawn cancel <id> <why>  (prune-with-receipt)" }
+      return { spawnCancel: id, spawnCancelWhy: why }
+    }
     if (head === "agent" || head === "run") return { spawnRun: rest.join(" ").trim() }
     return { spawnRun: arg }
   }

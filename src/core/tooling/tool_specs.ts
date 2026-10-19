@@ -487,13 +487,18 @@ export const DEFERRED_TOOLS: AgentToolDef[] = [
   },
   {
     name: "factory_cancel",
-    description: "Cancel one running factory node (marks it failed; run fail-fast). Same as /factory cancel.",
+    description:
+      "Cancel one running factory node after a prune receipt (arl rejected). Requires why. Same as /factory cancel <node> <why>.",
     parameters: {
       type: "object",
       properties: {
         node: { type: "string", description: "factory node id" },
+        why: {
+          type: "string",
+          description: "failure mode / why this node is being killed (required)",
+        },
       },
-      required: ["node"],
+      required: ["node", "why"],
     },
   },
   {
@@ -632,11 +637,18 @@ export const DEFERRED_TOOLS: AgentToolDef[] = [
   },
   {
     name: "spawn_cancel",
-    description: "Stop a worker agent.",
+    description:
+      "Stop a worker agent after recording a prune receipt (arl rejected). Requires why — the failure mode.",
     parameters: {
       type: "object",
-      properties: { id: { type: "string", description: "agent id" } },
-      required: ["id"],
+      properties: {
+        id: { type: "string", description: "agent id" },
+        why: {
+          type: "string",
+          description: "failure mode / why this fork is being killed (required)",
+        },
+      },
+      required: ["id", "why"],
     },
   },
   {

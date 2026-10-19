@@ -20,8 +20,9 @@ import {
   type ChatSpec,
 } from "../session.js"
 import { formatHandoff, readHandoff, rollupChildUsage } from "./handoff.js"
-import { resolveArlSubagent } from "../arl.js"
+import { getArlSessionId, resolveArlSubagent } from "../arl.js"
 import { daemonIsUp, daemonSpawn } from "../daemon/client.js"
+import { recordPruneReceipt, requirePruneWhy, type PruneReceipt } from "../prune.js"
 
 const KILLER_PREAMBLE = [
   "Your job is the cheapest disproof, not agreement.",
@@ -188,17 +189,53 @@ export async function startAgent(
   return toAgent(session, train)
 }
 
-export async function cancelAgent(train: string, id: string): Promise<AgentSpec> {
+export type CancelAgentOpts = {
+  /** Failure mode — required (prune-with-receipt). */
+  why: string
+  /** Chat that owns the arl receipt; defaults to active session or agent owner. */
+  sessionId?: string
+  /** Parent (e.g. factory) already wrote the receipt — still requires why. */
+  skipReceipt?: boolean
+}
+
+export type CancelAgentResult = AgentSpec & { receipt: PruneReceipt }
+
+export async function cancelAgent(
+  train: string,
+  id: string,
+  opts: CancelAgentOpts,
+): Promise<CancelAgentResult> {
+  const why = requirePruneWhy(opts.why)
   let spec: ChatSpec
   try {
     spec = loadSession(id)
   } catch {
     throw new Error(`no agent ${id}`)
   }
+  const sessionId =
+    opts.sessionId ??
+    getArlSessionId() ??
+    (spec.owner && spec.owner !== "_workspace" ? spec.owner : undefined)
+  const receipt = opts.skipReceipt
+    ? {
+        why,
+        title: spec.name,
+        kind: "spawn" as const,
+        targetId: id,
+        text: `receipt  (parent)  ${why}`,
+      }
+    : recordPruneReceipt({
+        kind: "spawn",
+        targetId: id,
+        name: spec.name,
+        why,
+        tried: spec.prompt?.slice(0, 400),
+        sessionId,
+      })
   if (!spec.jobId) {
     spec.status = "canceled"
     saveSessionSpec(spec)
-    return toAgent(spec, train)
+    return { ...toAgent(spec, train), receipt }
   }
   try {
     await cancelJob(train, spec.jobId)
@@ -207,7 +244,7 @@ export async function cancelAgent(train: string, id: string): Promise<AgentSpec>
     saveSessionSpec(spec)
     throw err
   }
-  return refreshSession(train, spec)
+  return { ...refreshSession(train, spec), receipt }
 }
 
 export function agentHandoff(id: string) {
@@ -295,12 +332,20 @@ export async function spawnCmd(argv: string[]): Promise<void> {
   }
   if (sub === "cancel") {
     const rest = argv.slice(1)
-    const train = rest.length === 2 ? assertTrain(rest[0]) : assertTrain(".")
-    const id = rest.length === 2 ? rest[1] : rest[0]
-    if (!id) throw new Error("usage: axi spawn cancel [dir] <id>")
-    const spec = await cancelAgent(train, id)
+    let dir = "."
+    let i = 0
+    if (rest[0] && !rest[0].startsWith("-") && isTrain(path.resolve(rest[0]))) {
+      dir = rest[0]!
+      i = 1
+    }
+    const id = rest[i]
+    const why = rest.slice(i + 1).join(" ").trim()
+    if (!id || !why) throw new Error("usage: axi spawn cancel [dir] <id> <why>")
+    const train = assertTrain(dir)
+    const spec = await cancelAgent(train, id, { why })
     console.log("canceled")
     console.log("  " + spec.id)
+    console.log("  " + spec.receipt.text)
     return
   }
   if (sub === "agent") {

@@ -66,9 +66,10 @@ export function runFactorySlash(
 
   if (head === "cancel") {
     const nodeId = tokens[1] ?? ""
-    if (!nodeId) return { text: "usage: /factory cancel <nodeId>" }
+    const why = tokens.slice(2).join(" ").trim()
+    if (!nodeId || !why) return { text: "usage: /factory cancel <nodeId> <why>" }
     try {
-      const state = cancelFactoryNode(sessionId, opts.workspace, nodeId)
+      const state = cancelFactoryNode(sessionId, opts.workspace, nodeId, why)
       return { text: formatFactoryStatus(state), rearmFactory: true }
     } catch (err) {
       return { text: err instanceof Error ? err.message : String(err) }

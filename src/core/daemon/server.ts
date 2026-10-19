@@ -122,9 +122,20 @@ async function handle(req: DaemonRequest): Promise<DaemonReply> {
       case "cancel": {
         const ws = req.workspace?.trim()
         const id = req.agentId?.trim()
+        const why =
+          typeof req.why === "string" && req.why.trim()
+            ? req.why.trim()
+            : "canceled via daemon"
         if (!ws || !id) return { id: req.id, ok: false, error: "cancel needs workspace + agentId" }
-        const a = await cancelAgent(ws, id)
-        return { id: req.id, ok: true, result: { id: a.id, status: a.status } }
+        const a = await cancelAgent(ws, id, {
+          why,
+          sessionId: req.parentId?.trim() || undefined,
+        })
+        return {
+          id: req.id,
+          ok: true,
+          result: { id: a.id, status: a.status, receipt: a.receipt.text },
+        }
       }
       case "mission_tick":
       case "factory_tick": {

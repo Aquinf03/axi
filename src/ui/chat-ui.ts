@@ -826,9 +826,12 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         return true
       }
       if (r.spawnCancel) {
-        void cancelAgent(train, spawnFocus)
+        void cancelAgent(train, spawnFocus, {
+          why: "canceled by user from spawn menu",
+          sessionId: spec.id,
+        })
           .then((a) => {
-            note(`canceled  ${a.id}  ${a.status}`)
+            note(`canceled  ${a.id}  ${a.status}\n${a.receipt.text}`)
             enterScreen("spawn")
             paintComposer()
           })
@@ -872,9 +875,12 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         return true
       }
       if (r.agentCancel) {
-        void cancelAgent(train, agentFocus)
+        void cancelAgent(train, agentFocus, {
+          why: "canceled by user from agents view",
+          sessionId: spec.id,
+        })
           .then((a) => {
-            note(`canceled  ${a.id}  ${a.status}`)
+            note(`canceled  ${a.id}  ${a.status}\n${a.receipt.text}`)
             enterScreen("agents")
             paintComposer()
           })
@@ -1327,8 +1333,11 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       }
       if (r.spawnCancel) {
         try {
-          const a = await cancelAgent(train, r.spawnCancel)
-          note(`canceled  ${a.id}  ${a.status}`)
+          const a = await cancelAgent(train, r.spawnCancel, {
+            why: r.spawnCancelWhy || "canceled via /spawn cancel",
+            sessionId: spec.id,
+          })
+          note(`canceled  ${a.id}  ${a.status}\n${a.receipt.text}`)
         } catch (err) {
           note(err instanceof Error ? err.message : String(err))
         }

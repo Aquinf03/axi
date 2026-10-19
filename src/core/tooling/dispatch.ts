@@ -407,9 +407,11 @@ export async function runAgentTool(train: string, name: string, rawArgs: string)
     const sid = getArlSessionId()
     if (!sid) return "factory_cancel needs an open chat session"
     const node = typeof args.node === "string" ? args.node.trim() : ""
+    const why = typeof args.why === "string" ? args.why.trim() : ""
     if (!node) return "factory_cancel needs node"
+    if (!why) return "factory_cancel needs why (prune-with-receipt)"
     try {
-      return formatFactoryStatus(cancelFactoryNode(sid, train, node))
+      return formatFactoryStatus(cancelFactoryNode(sid, train, node, why))
     } catch (err) {
       return err instanceof Error ? err.message : String(err)
     }
@@ -686,8 +688,11 @@ export async function runAgentTool(train: string, name: string, rawArgs: string)
   if (name === "spawn_list") return formatAgents(train)
   if (name === "spawn_log") return agentLog(train, jsonArg(args, "id"))
   if (name === "spawn_cancel") {
-    const spec = await cancelAgent(train, jsonArg(args, "id"))
-    return `canceled ${spec.id}  ${spec.status}`
+    const id = jsonArg(args, "id")
+    const why = typeof args.why === "string" ? args.why.trim() : ""
+    if (!why) return "spawn_cancel needs why (prune-with-receipt)"
+    const spec = await cancelAgent(train, id, { why, sessionId: getArlSessionId() })
+    return `canceled ${spec.id}  ${spec.status}\n${spec.receipt.text}`
   }
   if (name === "aq" || name.startsWith("aq_")) {
     const raw = typeof args.args === "string" ? args.args.trim() : ""
