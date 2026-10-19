@@ -47,12 +47,15 @@ export {
   falsifyGateStatusText,
   loadArlMode,
   parseArlModeArg,
+  preShipGateEnabled,
+  preShipGateStatusText,
   saveArlMode,
   setArlEnabled,
   setConvergentGate,
   setConvergentMin,
   setDeployGate,
   setFalsifyGate,
+  setPreShipGate,
 } from "./arl/mode.js"
 
 export {
@@ -63,6 +66,17 @@ export {
   stagePendingDeploy,
   type PendingGlobalDeploy,
 } from "./arl/deploy.js"
+
+export {
+  arlPreShipFingerprint,
+  assertPreShipOrThrow,
+  formatPreShipReport,
+  projectPolicyAfter,
+  runPreShipCheck,
+  type PreShipCheckName,
+  type PreShipItem,
+  type PreShipReport,
+} from "./arl/preship.js"
 
 export {
   appendArlRefinementEvent,

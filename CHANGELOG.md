@@ -30,6 +30,7 @@ Format is inspired by [Keep a Changelog](https://keepachangelog.com/). Versions 
 - Usage→arl: edit / retry / deny / undo arm auto-refine (bypass cooldown; not only chat text)
 - Joint harness refine: one `/refine` pass can co-edit prompt/harness entries and saved tool policy (`kind=policy`)
 - Human deploy gate: global `/refine` stages a diff for approve before ship (`/refine deploy`)
+- Pre-ship check: global `/refine` runs harness fingerprint + tiny structural eval before apply (`/refine preship`)
 
 
 ### Notes

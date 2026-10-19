@@ -113,6 +113,11 @@ export type ArlModeState = {
    * (local stays auto). `/refine deploy off` disables.
    */
   deployGate?: boolean
+  /**
+   * When true (default), global /refine runs a zero-cost pre-ship check
+   * (harness fingerprint + structural eval) before apply. `/refine preship off`.
+   */
+  preShipGate?: boolean
 }
 
 /** Default N independent corroborations before a lesson may go global. */

@@ -187,7 +187,7 @@ export const SLASH_SPECS: SlashSpec[] = [
   { name: "/arl", hint: "auto RL · on|off|status · interval · cooldown · compact" },
   {
     name: "/refine",
-    hint: "arl learn · falsify · convergent · deploy approve|deny · rollback · [--global] [--force]",
+    hint: "arl learn · falsify · convergent · deploy · preship · rollback · [--global] [--force]",
   },
   { name: "/factory", hint: "subagent DAG · run|status|list|stop|import|log|cancel <node> <why>" },
   { name: "/mission", hint: "<goal> · status · stop · done" },

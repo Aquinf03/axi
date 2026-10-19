@@ -5,6 +5,7 @@
 
 import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs"
 import { globalArlDir, globalArlPendingDeployPath } from "./paths.js"
+import type { PreShipReport } from "./preship.js"
 import type {
   AppliedRefinementEdit,
   RefinementProposal,
@@ -16,6 +17,8 @@ export type PendingGlobalDeploy = {
   proposal: RefinementProposal
   /** Dry-run applied edits (preview — not yet on disk). */
   preview: AppliedRefinementEdit[]
+  /** Pre-ship report from dry-run (re-checked on approve). */
+  preship?: PreShipReport
   scope: "global"
   source: RefinementSource
   force?: boolean
@@ -97,6 +100,17 @@ export function formatDeployDiff(pending: PendingGlobalDeploy): string {
       lines.push(`  ! skip ${e.kind}:${e.id}  (${e.error})`)
     }
   }
+  if (pending.preship) {
+    lines.push("")
+    lines.push(
+      `pre-ship  ${pending.preship.ok ? "ok" : "FAIL"}  harness ${pending.preship.harnessFp}  arl ${pending.preship.beforeFp}→${pending.preship.afterFp}`,
+    )
+    for (const c of pending.preship.checks) {
+      if (c.name === "fingerprint" || !c.ok) {
+        lines.push(`  ${c.ok ? "✓" : "✗"} ${c.name}  ${clip(c.detail, 120)}`)
+      }
+    }
+  }
   lines.push("")
   lines.push("Ship?  /refine deploy approve  ·  /refine deploy deny")
   return lines.join("\n")
@@ -115,6 +129,7 @@ export type StageDeployInput = {
   source: RefinementSource
   force?: boolean
   sessionId?: string
+  preship?: PreShipReport
 }
 
 export function stagePendingDeploy(input: StageDeployInput): PendingGlobalDeploy {
@@ -127,6 +142,7 @@ export function stagePendingDeploy(input: StageDeployInput): PendingGlobalDeploy
     force: input.force,
     sessionId: input.sessionId,
     createdAt: nowIso(),
+    ...(input.preship ? { preship: input.preship } : {}),
   }
   savePendingDeploy(pending)
   return pending

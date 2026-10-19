@@ -32,9 +32,11 @@ import {
   deployGateStatusText,
   falsifyGateStatusText,
   pendingDeployStatusText,
+  preShipGateStatusText,
   setConvergentGate,
   setConvergentMin,
   setDeployGate,
+  setPreShipGate,
   loadMergedArlState,
   parseArlModeArg,
   saveAutoRefineSettings,
@@ -1056,6 +1058,15 @@ export function runSlash(line: string, opts: SlashOpts = {}): SlashResult {
         return { text: denyPendingDeploy().text }
       }
       return { text: "usage: /refine deploy status|on|off|approve|deny" }
+    }
+    if (head === "preship" || head === "pre-ship" || head === "fingerprint") {
+      const sub = (tokens[1] ?? "status").toLowerCase()
+      if (sub === "status" || !tokens[1]) return { text: preShipGateStatusText() }
+      if (sub === "on" || sub === "off") {
+        setPreShipGate(sub === "on")
+        return { text: preShipGateStatusText() }
+      }
+      return { text: "usage: /refine preship on|off|status" }
     }
     let global = false
     let force = false

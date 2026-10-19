@@ -37,6 +37,12 @@ import {
   falsifyGateEnabled,
 } from "./mode.js"
 import {
+  assertPreShipOrThrow,
+  formatPreShipReport,
+  runPreShipCheck,
+  type PreShipReport,
+} from "./preship.js"
+import {
   arlHistoryPath,
   arlStateDir,
   emptyArlState,
@@ -124,6 +130,8 @@ export type RefinementResult = {
   judgment?: JudgmentLabel
   rollbackOf?: string
   createdAt: string
+  /** Present when a global apply ran pre-ship (not persisted to history). */
+  preship?: PreShipReport
 }
 
 const REFINEMENT_SYSTEM_PROMPT = `You are axi's /refine arl (auto RL) continual harness subsystem.
@@ -895,6 +903,7 @@ export function formatRefinementNotice(result: RefinementResult): string {
     )
   }
   if (result.rollbackOf) lines.push(`rollback of  ${result.rollbackOf}`)
+  if (result.preship) lines.push(formatPreShipReport(result.preship))
   return lines.join("\n")
 }
 
@@ -979,20 +988,25 @@ export async function runRefine(opts: RunRefineOpts): Promise<RefineRunResult> {
   const mustStage = scope === "global" && deployGateEnabled() && !opts.approved
 
   const baseline = loadArlState(scope, opts.sessionId)
-  const working: ArlState = JSON.parse(JSON.stringify(baseline)) as ArlState
   const refineId = newRefineId()
-  const result = applyRefinementProposal(working, proposal, {
-    id: refineId,
-    scope,
-    source,
-    baselineState: baseline,
-    forcePromote: Boolean(opts.force && scope === "global"),
-    sessionId: opts.sessionId,
-    dryRun: mustStage,
-  })
+  const forcePromote = Boolean(opts.force && scope === "global")
 
   if (mustStage) {
-    // Dry-run mutates `working` in memory only; discard it. Stage proposal for approve.
+    const working: ArlState = JSON.parse(JSON.stringify(baseline)) as ArlState
+    const result = applyRefinementProposal(working, proposal, {
+      id: refineId,
+      scope,
+      source,
+      baselineState: baseline,
+      forcePromote,
+      sessionId: opts.sessionId,
+      dryRun: true,
+    })
+    const preship = runPreShipCheck({
+      before: baseline,
+      after: working,
+      edits: result.appliedEdits,
+    })
     const pending = stagePendingDeploy({
       id: refineId,
       proposal,
@@ -1000,13 +1014,78 @@ export async function runRefine(opts: RunRefineOpts): Promise<RefineRunResult> {
       source,
       force: opts.force,
       sessionId: opts.sessionId,
+      preship,
     })
     return { kind: "pending_deploy", pending, diff: formatDeployDiff(pending) }
   }
 
+  if (scope === "global") {
+    const applied = applyGlobalWithPreShip({
+      proposal,
+      id: refineId,
+      source,
+      forcePromote,
+      sessionId: opts.sessionId,
+    })
+    return {
+      kind: "applied",
+      result: { ...applied.result, preship: applied.preship },
+    }
+  }
+
+  const working: ArlState = JSON.parse(JSON.stringify(baseline)) as ArlState
+  const result = applyRefinementProposal(working, proposal, {
+    id: refineId,
+    scope,
+    source,
+    baselineState: baseline,
+    forcePromote,
+    sessionId: opts.sessionId,
+  })
   saveArlState(scope, working, opts.sessionId)
   appendRefinementResult(scope, result, opts.sessionId)
   return { kind: "applied", result }
+}
+
+function applyGlobalWithPreShip(opts: {
+  proposal: RefinementProposal
+  id: string
+  source: RefinementSource
+  forcePromote: boolean
+  sessionId?: string
+}): { result: RefinementResult; preship: PreShipReport } {
+  const baseline = loadArlState("global")
+  // Dry-run first — mutate memory only, project policy, fingerprint.
+  const previewState: ArlState = JSON.parse(JSON.stringify(baseline)) as ArlState
+  const preview = applyRefinementProposal(previewState, opts.proposal, {
+    id: opts.id,
+    scope: "global",
+    source: opts.source,
+    baselineState: baseline,
+    forcePromote: opts.forcePromote,
+    sessionId: opts.sessionId,
+    dryRun: true,
+  })
+  const preship = assertPreShipOrThrow(
+    runPreShipCheck({
+      before: baseline,
+      after: previewState,
+      edits: preview.appliedEdits,
+    }),
+  )
+  // Real apply (writes policy + judgment).
+  const working: ArlState = JSON.parse(JSON.stringify(baseline)) as ArlState
+  const result = applyRefinementProposal(working, opts.proposal, {
+    id: opts.id,
+    scope: "global",
+    source: opts.source,
+    baselineState: baseline,
+    forcePromote: opts.forcePromote,
+    sessionId: opts.sessionId,
+  })
+  saveArlState("global", working)
+  appendRefinementResult("global", result)
+  return { result, preship }
 }
 
 /** Apply a previously staged global deploy after human approve. */
@@ -1016,20 +1095,16 @@ export async function approvePendingDeploy(
   if (!arlEnabled()) throw new Error("arl is off — /arl on first")
   const pending = loadPendingDeploy()
   if (!pending) throw new Error("no pending global deploy — /refine --global first")
-  clearPendingDeploy()
-  const baseline = loadArlState("global")
-  const working: ArlState = JSON.parse(JSON.stringify(baseline)) as ArlState
-  const result = applyRefinementProposal(working, pending.proposal, {
+  // Keep pending on disk until pre-ship + apply succeed.
+  const { result, preship } = applyGlobalWithPreShip({
+    proposal: pending.proposal,
     id: pending.id,
-    scope: "global",
     source,
-    baselineState: baseline,
     forcePromote: Boolean(pending.force),
     sessionId: pending.sessionId,
   })
-  saveArlState("global", working)
-  appendRefinementResult("global", result)
-  return result
+  clearPendingDeploy()
+  return { ...result, preship }
 }
 
 /** Discard staged global deploy. */

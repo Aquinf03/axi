@@ -19,10 +19,14 @@ import {
   approvePendingDeploy,
   denyPendingDeploy,
   deployGateEnabled,
+  loadPendingDeploy,
+  preShipGateEnabled,
+  runPreShipCheck,
   setArlEnabled,
   setConvergentGate,
   setDeployGate,
   setFalsifyGate,
+  setPreShipGate,
   takeArlRefinePending,
 } from "../arl.js"
 import { loadProfileConfig, savedRules } from "../config.js"
@@ -498,6 +502,7 @@ describe("arl refine", () => {
 
   it("global refine stages deploy for approve; deny leaves global unchanged", async () => {
     assert.equal(deployGateEnabled(), true)
+    assert.equal(preShipGateEnabled(), true)
     createArlEntry("global", { kind: "memory", id: "ship", title: "Ship", content: "old" })
     const plan = JSON.stringify({
       summary: "update ship fact",
@@ -525,6 +530,8 @@ describe("arl refine", () => {
     assert.equal(staged.kind, "pending_deploy")
     if (staged.kind !== "pending_deploy") return
     assert.match(staged.diff, /global deploy pending/)
+    assert.match(staged.diff, /pre-ship\s+ok/)
+    assert.equal(staged.pending.preship?.ok, true)
     assert.equal(getArlEntry("global", "memory", "ship")?.content, "old")
 
     assert.match(denyPendingDeploy().text, /denied/)
@@ -540,9 +547,92 @@ describe("arl refine", () => {
     const applied = await approvePendingDeploy("user")
     assert.ok(applied.appliedEdits.some((e) => e.applied))
     assert.equal(getArlEntry("global", "memory", "ship")?.content, "new")
+    assert.equal(applied.preship?.ok, true)
+    assert.equal(loadPendingDeploy(), null)
 
     setDeployGate(false)
     assert.equal(deployGateEnabled(), false)
     setDeployGate(true)
+  })
+
+  it("pre-ship blocks global apply with empty lesson body; gate off bypasses", async () => {
+    setDeployGate(false)
+    const plan = JSON.stringify({
+      summary: "empty lesson",
+      rationale: "bad",
+      expectedOutcome: "should fail pre-ship",
+      judgment: "hypothesis",
+      edits: [
+        {
+          action: "create",
+          kind: "memory",
+          title: "Hollow",
+          content: "   ",
+          falsify: "non-empty content exists",
+          corroborations: ["a: once", "b: twice"],
+        },
+      ],
+    })
+    await assert.rejects(
+      () =>
+        runRefine({
+          history: [{ role: "user", content: "global empty" }],
+          global: true,
+          approved: true,
+          planText: plan,
+          source: "user",
+        }),
+      /pre-ship\s+FAIL|lesson_bodies/,
+    )
+    assert.equal(getArlEntry("global", "memory", "hollow"), null)
+
+    setPreShipGate(false)
+    const out = await runRefine({
+      history: [{ role: "user", content: "global empty" }],
+      global: true,
+      approved: true,
+      planText: plan,
+      source: "user",
+    })
+    assert.equal(out.kind, "applied")
+    assert.ok(getArlEntry("global", "memory", "hollow"))
+    setPreShipGate(true)
+    setDeployGate(true)
+  })
+
+  it("runPreShipCheck fingerprints content changes", () => {
+    const before = emptyArlState()
+    const after = emptyArlState()
+    after.entries.memory.x = {
+      id: "x",
+      kind: "memory",
+      title: "X",
+      content: "new",
+      path: "general",
+      source: "refine",
+      created_at: "t",
+      updated_at: "t",
+      version: 1,
+      reference: {},
+      arguments: {},
+      metadata: {},
+    }
+    const report = runPreShipCheck({
+      before,
+      after,
+      edits: [
+        {
+          action: "create",
+          kind: "memory",
+          id: "x",
+          after: after.entries.memory.x,
+          applied: true,
+        },
+      ],
+      policyBefore: [],
+    })
+    assert.equal(report.ok, true)
+    assert.notEqual(report.beforeFp, report.afterFp)
+    assert.match(report.harnessFp, /^[a-f0-9]{16}$/)
   })
 })

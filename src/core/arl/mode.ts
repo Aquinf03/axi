@@ -31,6 +31,7 @@ export function emptyArlMode(): ArlModeState {
     convergentGate: true,
     convergentMin: DEFAULT_CONVERGENT_MIN,
     deployGate: true,
+    preShipGate: true,
   }
 }
 
@@ -43,6 +44,7 @@ function sanitizeMode(raw: Partial<ArlModeState>): ArlModeState {
     convergentGate: raw.convergentGate !== false,
     convergentMin: sanitizeConvergentMin(raw.convergentMin),
     deployGate: raw.deployGate !== false,
+    preShipGate: raw.preShipGate !== false,
   }
 }
 
@@ -117,6 +119,7 @@ export function arlModeStatusText(): string {
     `falsify-gate  ${gate ? "on" : "off"}  (/refine falsify on|off · lessons need what would disprove them)`,
     `convergent-gate  ${conv ? "on" : "off"}  (global lessons need ${n} corroborations · /refine convergent · --force)`,
     `deploy-gate  ${disk.deployGate !== false ? "on" : "off"}  (global /refine needs human approve · /refine deploy)`,
+    `pre-ship  ${disk.preShipGate !== false ? "on" : "off"}  (fingerprint + tiny eval before global apply · /refine preship)`,
   ].join("\n")
 }
 
@@ -237,5 +240,37 @@ export function deployGateStatusText(): string {
       ? "  global /refine stages a pending ship — show diff, then /refine deploy approve|deny (local stays auto)"
       : "  gate off — global /refine applies immediately (/refine deploy on to require approve again)",
     "  status: /refine deploy status",
+  ].join("\n")
+}
+
+/** Pre-ship fingerprint / tiny eval before global apply. Default on. */
+export function preShipGateEnabled(): boolean {
+  return loadArlMode().preShipGate !== false
+}
+
+export function setPreShipGate(enabled: boolean): ArlModeState {
+  const p = globalArlModePath()
+  let disk = emptyArlMode()
+  if (existsSync(p)) {
+    try {
+      const raw = JSON.parse(readFileSync(p, "utf8")) as Partial<ArlModeState>
+      if (raw && typeof raw === "object") disk = sanitizeMode(raw)
+    } catch {
+      disk = emptyArlMode()
+    }
+  }
+  const next: ArlModeState = { ...disk, preShipGate: enabled }
+  saveArlMode(next)
+  return loadArlMode()
+}
+
+export function preShipGateStatusText(): string {
+  const on = preShipGateEnabled()
+  return [
+    `pre-ship  ${on ? "on" : "off"}`,
+    on
+      ? "  global /refine runs harness fingerprint + structural checks before apply (blocks ship on fail)"
+      : "  gate off — global /refine applies without pre-ship (/refine preship on to require again)",
+    "  status: /refine preship status",
   ].join("\n")
 }
