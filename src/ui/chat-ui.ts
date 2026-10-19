@@ -25,6 +25,9 @@ import {
   onDecisionLoopTick,
 } from "../core/decision.js"
 import { agentsMenuRows, daemonIsUp } from "../core/daemon.js"
+import { stanceStatusText } from "../core/stance.js"
+import { codemodeModeStatusText } from "../core/codemode.js"
+import { resolveConfig } from "../core/config.js"
 import {
   factoryActive,
   formatFactoryDock,
@@ -625,6 +628,9 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       ...snap.parts.map((p) => `  ${("ctx." + p.label).padEnd(12)}  ${p.tokens}`),
       row("sound", soundEnabled() ? "on" : "off"),
       row("notify", notifyEnabled() ? "on" : "off"),
+      row("mode", resolveConfig(train).permission_mode),
+      row("codemode", codemodeModeStatusText().replace(/^codemode\s+/, "")),
+      row("stance", stanceStatusText(spec.id).replace(/^stance\s+/, "")),
       row("chat", `${spec.name}  ${spec.id}`),
       row("created", spec.created),
       row("updated", spec.updated),

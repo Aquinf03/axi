@@ -293,6 +293,25 @@ export const CORE_TOOLS: AgentToolDef[] = [
       properties: { query: { type: "string", description: "keywords, or empty to list" } },
     },
   },
+  {
+    name: "stance_set",
+    description:
+      "Set judgment stance for this chat: explore (broaden), execute (ship), or challenge (adversarial). Peer to permission /mode and /codemode. Use when the trajectory warrants a posture change; switch to challenge when overconfident or stuck. Human-pinned stance cannot be overridden.",
+    parameters: {
+      type: "object",
+      properties: {
+        stance: {
+          type: "string",
+          description: "explore | execute | challenge",
+        },
+        reason: {
+          type: "string",
+          description: "short why (shown in /stance status)",
+        },
+      },
+      required: ["stance"],
+    },
+  },
 ]
 
 /**

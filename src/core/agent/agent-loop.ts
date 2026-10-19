@@ -28,6 +28,8 @@ import {
 import type { AgentHost, PermitAskFn, ToolDoneFn, ToolStartFn } from "./host.js"
 import { runBatch } from "./parallel.js"
 import { streamTurn, type ChatMsg } from "../../gateway.js"
+import { getArlSessionId } from "../arl.js"
+import { hardRouteChallenge, stancePromptBlock } from "../stance.js"
 import { addUsage, emptyUsage, type TokenUsage } from "../usage.js"
 
 type ToolCall = { id: string; name: string; args: string }
@@ -151,11 +153,14 @@ async function runTurnInner(
   const maxRounds = cfg.max_agent_steps
 
   const act = toolsAllowed(history)
+  const stanceSession = () => getArlSessionId()
+  let failStreak = 0
   const system = () =>
     systemPrompt(train, {
       extra: contextBlock(train),
       objective,
       progress: progress.length ? progress.map((l, i) => `${i + 1}. ${l}`).join("\n") : "",
+      stance: stancePromptBlock(stanceSession()),
     })
 
   const takeUsage = (piece: typeof usage | undefined) => {
@@ -332,6 +337,24 @@ async function runTurnInner(
         denied = false
         stall = emptyStall()
         continue
+      }
+
+      const failedN = batchOutcomes.filter((o) => o.failed && !o.denied).length
+      if (failedN > 0) failStreak += failedN
+      else failStreak = 0
+      // Hard-route to challenge after repeated tool failures (overconfident execute).
+      if (failStreak >= 2) {
+        const escalated = hardRouteChallenge(
+          stanceSession(),
+          `repeated tool failures (${failStreak})`,
+        )
+        if (escalated.ok) {
+          msgs.push({
+            role: "user",
+            content: `Stance hard-routed to challenge: ${escalated.state.reason ?? "repeated failures"}. Re-examine assumptions before retrying the same path.`,
+          })
+          failStreak = 0
+        }
       }
 
       const guard = noteToolBatch(stall, batchOutcomes)

@@ -49,6 +49,17 @@ Sticky Node scratchpad for multi-step code cells (not a Prime REPL port). Front 
 - Deferred tools (via `tools_search`): `codemode_run`, `codemode_vars`. Sensitive — `authorizeTool` like `run`.
 - Sticky bindings: `var` / `globalThis.x` (cell-local `const`/`let` do not persist). Prefer `run` for one-shot shell.
 
+## Stance
+
+Judgment posture for the chat — peer to permission `/mode` and `/codemode`. Front door: `core/stance.ts`.
+
+- Modes: **explore** (broaden) · **execute** (ship, default) · **challenge** (adversarial).
+- Slash: `/stance explore|execute|challenge|status|unpin`. Human sets pin the stance (agent cannot override until unpin / human change).
+- Persist: `~/.axi/chats/<id>/stance.json`. Env `AXI_STANCE=explore|execute|challenge` overrides for the process.
+- Core tool: `stance_set` — agent may switch when the trajectory warrants it.
+- Prompt: each turn injects a short stance block into the system prompt.
+- Hard-route: after repeated tool failures in a turn, host forces **challenge** (respects human pin).
+
 ## Daemon
 
 Background supervisor so work continues when the TUI is closed. Front door: `core/daemon.ts`.
@@ -151,6 +162,7 @@ Import fat subsystems only through their front doors:
 | Session | `core/session.ts` |
 | arl (auto RL) | `core/arl.ts` |
 | codemode | `core/codemode.ts` |
+| stance | `core/stance.ts` |
 | factory | `core/factory.ts` |
 | daemon | `core/daemon.ts` |
 | mission | `core/mission.ts` |

@@ -43,6 +43,7 @@ import {
   stopDecisionLoop,
 } from "../decision.js"
 import { completeObjective, loadMission } from "../mission.js"
+import { parseStance, setStance, stanceStatusText } from "../stance.js"
 import { formatCards, searchTools, toolsDigest } from "./registry.js"
 import { find as findPaths, glob as globPaths, grep as grepFiles, ls, readPath } from "../../tools/explore.js"
 import { cpAt, editFileAt, mkdirAt, mvAt, previewEditDiff, previewWriteDiff, rmAt, writeFileAt } from "../../tools/files.js"
@@ -129,6 +130,11 @@ export function permitLabel(train: string, name: string, rawArgs: string): strin
     const one = code.trim().split(/\n/)[0] ?? ""
     const preview = one.length > 80 ? `${one.slice(0, 80)}…` : one
     return preview ? `codemode ${preview}` : "codemode_run"
+  }
+  if (name === "stance_set") {
+    const s = typeof args.stance === "string" ? args.stance : "?"
+    const why = typeof args.reason === "string" && args.reason.trim() ? ` · ${args.reason.trim()}` : ""
+    return `stance ${s}${why}`
   }
   if (name === "write") {
     const p = typeof args.path === "string" ? args.path : "?"
@@ -555,6 +561,15 @@ export async function runAgentTool(train: string, name: string, rawArgs: string)
       ...stubs.map((h) => `${h.name}: ${h.blurb}`),
     ]
     return lines.length ? lines.join("\n") : "no skills"
+  }
+  if (name === "stance_set") {
+    const sid = getArlSessionId()
+    const raw = typeof args.stance === "string" ? args.stance : ""
+    const mode = parseStance(raw)
+    if (!mode) return "usage: stance_set stance=explore|execute|challenge"
+    const reason = typeof args.reason === "string" ? args.reason.trim() : undefined
+    const r = setStance({ sessionId: sid, stance: mode, source: "agent", reason })
+    return r.ok ? r.text : r.text || stanceStatusText(sid)
   }
   if (name === "plot") {
     const kind = typeof args.kind === "string" && args.kind.trim() ? args.kind.trim() : "all"
