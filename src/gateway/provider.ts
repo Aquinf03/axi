@@ -27,10 +27,12 @@ import {
   arlModeStatusText,
   countArlEntries,
   loadAutoRefineSettings,
+  falsifyGateStatusText,
   loadMergedArlState,
   parseArlModeArg,
   saveAutoRefineSettings,
   setArlEnabled,
+  setFalsifyGate,
 } from "../core/arl.js"
 import { runCodemodeSlash } from "../core/codemode.js"
 import { runStanceSlash } from "../core/stance.js"
@@ -988,10 +990,20 @@ export function runSlash(line: string, opts: SlashOpts = {}): SlashResult {
   }
   if (cmd === "/refine") {
     const tokens = arg.trim().split(/\s+/).filter(Boolean)
-    if (tokens[0]?.toLowerCase() === "rollback") {
+    const head = tokens[0]?.toLowerCase()
+    if (head === "rollback") {
       const id = tokens[1]
       if (!id) return { text: "usage: /refine rollback <id>" }
       return { refine: { rollbackId: id } }
+    }
+    if (head === "gate") {
+      const sub = (tokens[1] ?? "status").toLowerCase()
+      if (sub === "status" || !tokens[1]) return { text: falsifyGateStatusText() }
+      if (sub === "on" || sub === "off") {
+        setFalsifyGate(sub === "on")
+        return { text: falsifyGateStatusText() }
+      }
+      return { text: "usage: /refine gate on|off|status" }
     }
     let global = false
     const rest: string[] = []

@@ -22,6 +22,7 @@ Format is inspired by [Keep a Changelog](https://keepachangelog.com/). Versions 
 - Stance modes: `/stance explore|execute|challenge` peer to `/mode` and `/codemode`; agent `stance_set`; hard-route to challenge on repeated failures
 - Investigate graph: session hypotheses ↔ evidence ↔ contradictions / abandoned branches (`/investigate`, tools); abandon → arl rejected
 - Prune-with-receipt: spawn/factory cancel require a why and mirror into arl rejected before the fork dies
+- Falsify gate: /refine lesson writes need what would disprove them (`falsify`); `/refine gate on|off`; undo via `/refine rollback <id>`
 
 
 ### Notes

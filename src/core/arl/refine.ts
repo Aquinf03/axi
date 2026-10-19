@@ -8,7 +8,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs"
 import path from "node:path"
 import { streamTurn, type ChatMsg } from "../../gateway.js"
 import { formatArlStateForPrompt } from "./digest.js"
-import { arlEnabled } from "./mode.js"
+import { arlEnabled, falsifyGateEnabled } from "./mode.js"
 import {
   arlHistoryPath,
   arlStateDir,
@@ -37,11 +37,16 @@ export type RefinementEdit = {
   title?: string
   content?: string
   path?: string
+  /** What evidence would disprove this lesson (falsification gate). */
+  falsify?: string
   reference?: Record<string, unknown>
   arguments?: Record<string, unknown>
   metadata?: Record<string, unknown>
   reason?: string
 }
+
+/** Lesson kinds that must carry a falsify criterion when the gate is on. */
+const FALSIFY_KINDS: readonly ArlKind[] = ["prompt", "memory", "rejected"]
 
 export type RefinementProposal = {
   summary: string
@@ -95,6 +100,7 @@ Scope:
 
 Prefer the smallest component. Prefer empty edits over speculation.
 After a clear failed approach with a reusable reason, create a rejected entry so later turns avoid rediscovering the same dead end.
+Falsification gate: for create/update of prompt, memory, or rejected, always include "falsify": a concrete check or observation that would disprove the lesson (cheap to try). Do not invent vague falsifiers.
 Never edit source files. Output JSON only:
 
 {
@@ -108,6 +114,7 @@ Never edit source files. Output JSON only:
       "id": "stable id for update/delete, optional for create",
       "title": "required for create/update",
       "content": "required for create/update",
+      "falsify": "required for prompt/memory/rejected create|update — what would disprove this",
       "path": "optional grouping path",
       "reference": {"type":"skill","name":"example"},
       "arguments": {},
@@ -150,6 +157,14 @@ export function parseProposal(text: string): RefinementProposal {
   for (const e of editsRaw) {
     if (!e || typeof e !== "object") continue
     const o = e as Record<string, unknown>
+    const falsify =
+      typeof o.falsify === "string"
+        ? o.falsify
+        : typeof o.wouldDisprove === "string"
+          ? o.wouldDisprove
+          : typeof o.falsification === "string"
+            ? o.falsification
+            : undefined
     edits.push({
       action: isAction(o.action) ? o.action : undefined,
       kind: isKind(o.kind) ? o.kind : undefined,
@@ -157,6 +172,7 @@ export function parseProposal(text: string): RefinementProposal {
       title: typeof o.title === "string" ? o.title : undefined,
       content: typeof o.content === "string" ? o.content : undefined,
       path: typeof o.path === "string" ? o.path : undefined,
+      falsify: falsify?.trim() || undefined,
       reference:
         o.reference && typeof o.reference === "object" && !Array.isArray(o.reference)
           ? (o.reference as Record<string, unknown>)
@@ -185,7 +201,11 @@ export function parseProposal(text: string): RefinementProposal {
   }
 }
 
-function validateEdit(edit: RefinementEdit, computedId?: string): string | undefined {
+function validateEdit(
+  edit: RefinementEdit,
+  computedId?: string,
+  opts?: { gate?: boolean; isRollback?: boolean },
+): string | undefined {
   if (!edit.action) return "unsupported action"
   if (!edit.kind) return "unsupported kind"
   const id = edit.id ?? computedId
@@ -206,6 +226,19 @@ function validateEdit(edit: RefinementEdit, computedId?: string): string | undef
     }
     if (typeof ref.name !== "string" || !ref.name.trim()) {
       return `${edit.action} skill reference.name required`
+    }
+  }
+  // Falsification gate: lesson writes need what would disprove them (skip on rollback / gate off).
+  if (
+    opts?.gate &&
+    !opts.isRollback &&
+    (edit.action === "create" || edit.action === "update") &&
+    edit.kind &&
+    (FALSIFY_KINDS as readonly string[]).includes(edit.kind)
+  ) {
+    const f = edit.falsify?.trim()
+    if (!f) {
+      return `${edit.action} ${edit.kind} needs falsify (what would disprove this lesson) — or /refine gate off`
     }
   }
   return undefined
@@ -232,6 +265,9 @@ export function applyRefinementProposal(
   const applied: AppliedRefinementEdit[] = []
   const touched = new Set<string>()
 
+  const gate = falsifyGateEnabled()
+  const isRollback = Boolean(options.rollbackOf)
+
   for (const edit of proposal.edits) {
     const computedId =
       edit.id ??
@@ -239,7 +275,7 @@ export function applyRefinementProposal(
         ? slugId(edit.title ?? edit.kind ?? "entry", edit.kind ?? "memory")
         : undefined)
     const id = computedId ?? ""
-    const err = validateEdit(edit, computedId)
+    const err = validateEdit(edit, computedId, { gate, isRollback })
     if (!edit.action || !edit.kind || err) {
       applied.push({
         action: edit.action ?? "create",
@@ -301,6 +337,10 @@ export function applyRefinementProposal(
     }
 
     const now = nowIso()
+    const falsify =
+      edit.falsify?.trim() ||
+      (typeof edit.metadata?.falsify === "string" ? edit.metadata.falsify.trim() : undefined) ||
+      before?.falsify
     const after: ArlEntry = {
       id,
       kind,
@@ -308,11 +348,13 @@ export function applyRefinementProposal(
       content: edit.content ?? before?.content ?? "",
       path: edit.path?.trim() || before?.path || "general",
       scope: before?.scope ?? options.scope,
+      falsify: falsify || undefined,
       reference: edit.reference ?? before?.reference ?? {},
       arguments: edit.arguments ?? before?.arguments ?? {},
       metadata: {
         ...(edit.metadata ?? before?.metadata ?? {}),
         scope: options.scope,
+        ...(falsify ? { falsify } : {}),
       },
       source: "refine",
       created_at: before?.created_at ?? now,
@@ -362,6 +404,7 @@ export function rollbackProposal(target: RefinementResult): RefinementProposal {
         title: edit.before.title,
         content: edit.before.content,
         path: edit.before.path,
+        falsify: edit.before.falsify,
         reference: edit.before.reference,
         arguments: edit.before.arguments,
         metadata: edit.before.metadata,

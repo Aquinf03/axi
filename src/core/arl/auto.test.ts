@@ -11,6 +11,7 @@ import {
   maybeAutoRefine,
   saveAutoRefineSettings,
   setArlEnabled,
+  setFalsifyGate,
 } from "../arl.js"
 
 describe("arl auto-refine", () => {
@@ -25,6 +26,7 @@ describe("arl auto-refine", () => {
     process.env.AXI_HOME = home
     delete process.env.AXI_ARL
     setArlEnabled(false)
+    setFalsifyGate(false)
     clearAutoRefineSessionState()
   })
 

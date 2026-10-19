@@ -48,6 +48,7 @@ describe("arl mode", () => {
     assert.equal(arlEnabled(), true)
     assert.match(arlModeStatusText(), /arl  on/)
     assert.match(arlModeStatusText(), /env AXI_ARL/)
+    assert.match(arlModeStatusText(), /falsify-gate  on/)
   })
 
   it("parses mode args", () => {

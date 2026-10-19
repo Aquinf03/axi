@@ -18,13 +18,15 @@ function parseEnabled(raw: string | undefined | null): boolean | null {
 }
 
 export function emptyArlMode(): ArlModeState {
-  return { enabled: false, autoRefine: normalizeAutoRefine(null) }
+  return { enabled: false, autoRefine: normalizeAutoRefine(null), falsifyGate: true }
 }
 
 function sanitizeMode(raw: Partial<ArlModeState>): ArlModeState {
   return {
     enabled: Boolean(raw.enabled),
     autoRefine: normalizeAutoRefine(raw.autoRefine),
+    // Default on when unset — falsification gate for /refine lessons.
+    falsifyGate: raw.falsifyGate !== false,
   }
 }
 
@@ -90,8 +92,43 @@ export function arlModeStatusText(): string {
   const effective = env != null ? env : disk.enabled
   const source = env != null ? "env AXI_ARL" : "profile (~/.axi/arl/mode.json)"
   const auto = disk.autoRefine ?? normalizeAutoRefine(null)
+  const gate = disk.falsifyGate !== false
   return [
     `arl  ${effective ? "on" : "off"}  (${source}; disk ${disk.enabled ? "on" : "off"})`,
     `auto-refine  ${effective ? "on" : "off"}  (every ${auto.turnInterval} turns · compact ${auto.compact ? "on" : "off"} · cooldown ${Math.round(auto.cooldownMs / 60000)}m)`,
+    `falsify-gate  ${gate ? "on" : "off"}  (/refine gate on|off · lessons need what would disprove them)`,
+  ].join("\n")
+}
+
+/** Falsification gate for /refine lesson writes. Default on. */
+export function falsifyGateEnabled(): boolean {
+  return loadArlMode().falsifyGate !== false
+}
+
+export function setFalsifyGate(enabled: boolean): ArlModeState {
+  const p = globalArlModePath()
+  let disk = emptyArlMode()
+  if (existsSync(p)) {
+    try {
+      const raw = JSON.parse(readFileSync(p, "utf8")) as Partial<ArlModeState>
+      if (raw && typeof raw === "object") disk = sanitizeMode(raw)
+    } catch {
+      disk = emptyArlMode()
+    }
+  }
+  const next: ArlModeState = { ...disk, falsifyGate: enabled }
+  saveArlMode(next)
+  return loadArlMode()
+}
+
+export function falsifyGateStatusText(): string {
+  const on = falsifyGateEnabled()
+  return [
+    `falsify-gate  ${on ? "on" : "off"}`,
+    on
+      ? "  /refine create|update of prompt/memory/rejected needs falsify=… (what would disprove the lesson)"
+      : "  gate off — /refine gate on to require falsification criteria again",
+    "  undo a refine: /refine rollback <id>",
+    "  undo the gate: /refine gate off",
   ].join("\n")
 }

@@ -17,6 +17,7 @@ import {
   runRefineRollback,
   scheduleArlRefine,
   setArlEnabled,
+  setFalsifyGate,
   takeArlRefinePending,
 } from "../arl.js"
 
@@ -66,6 +67,7 @@ describe("arl refine", () => {
             kind: "rejected",
             title: "Cookie auth",
             content: "Tried: cookies\nWhy rejected: breaks bearer",
+            falsify: "bearer clients keep working without cookies",
             path: "auth",
           },
         ],
@@ -81,6 +83,41 @@ describe("arl refine", () => {
     assert.equal(result.appliedEdits[0]!.applied, true)
     assert.equal(result.appliedEdits[0]!.kind, "rejected")
     assert.equal(state.entries.rejected["cookie-auth"]?.title, "Cookie auth")
+    assert.match(state.entries.rejected["cookie-auth"]!.falsify ?? "", /bearer/)
+  })
+
+  it("falsify gate blocks lesson create without falsify; gate off / rollback undo", () => {
+    const state = emptyArlState()
+    const blocked = applyRefinementProposal(
+      state,
+      parseProposal(
+        JSON.stringify({
+          summary: "s",
+          rationale: "r",
+          expectedOutcome: "o",
+          edits: [{ action: "create", kind: "memory", title: "T", content: "C" }],
+        }),
+      ),
+      { id: "r_block", scope: "local", source: "user" },
+    )
+    assert.equal(blocked.appliedEdits[0]!.applied, false)
+    assert.match(blocked.appliedEdits[0]!.error ?? "", /falsify/)
+
+    setFalsifyGate(false)
+    const allowed = applyRefinementProposal(
+      emptyArlState(),
+      parseProposal(
+        JSON.stringify({
+          summary: "s",
+          rationale: "r",
+          expectedOutcome: "o",
+          edits: [{ action: "create", kind: "memory", title: "T", content: "C" }],
+        }),
+      ),
+      { id: "r_off", scope: "local", source: "user" },
+    )
+    assert.equal(allowed.appliedEdits[0]!.applied, true)
+    setFalsifyGate(true)
   })
 
   it("applies create/update/delete with baseline concurrency", () => {
@@ -96,6 +133,7 @@ describe("arl refine", () => {
             kind: "memory",
             title: "Prefer grep",
             content: "use grep tool",
+            falsify: "find outperforms grep on this repo",
           },
         ],
       }),
@@ -127,6 +165,7 @@ describe("arl refine", () => {
             id: "prefer-grep",
             title: "Prefer grep",
             content: "newer",
+            falsify: "find outperforms grep on this repo",
           },
         ],
       }),
@@ -186,6 +225,7 @@ describe("arl refine", () => {
           kind: "memory",
           title: "Prefer grep",
           content: "use grep before find",
+          falsify: "a find-only path is faster here",
         },
       ],
     })
@@ -220,7 +260,15 @@ describe("arl refine", () => {
           summary: "s",
           rationale: "r",
           expectedOutcome: "o",
-          edits: [{ action: "create", kind: "memory", title: "X", content: "y" }],
+          edits: [
+            {
+              action: "create",
+              kind: "memory",
+              title: "X",
+              content: "y",
+              falsify: "counterexample Z",
+            },
+          ],
         }),
       ),
       { id: "r1", scope: "global", source: "user" },
@@ -255,6 +303,7 @@ describe("arl refine", () => {
             id: "fact",
             title: "Fact",
             content: "new",
+            falsify: "old value still correct",
           },
         ],
       }),

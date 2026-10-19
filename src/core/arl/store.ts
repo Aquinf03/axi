@@ -46,6 +46,18 @@ function coerceEntry(raw: unknown, fallbackScope: ArlScope): ArlEntry | null {
   if (typeof o.title !== "string" || typeof o.content !== "string") return null
   const scope =
     o.scope === "local" || o.scope === "global" ? o.scope : fallbackScope
+  const meta =
+    o.metadata && typeof o.metadata === "object" && !Array.isArray(o.metadata)
+      ? (o.metadata as Record<string, unknown>)
+      : {}
+  const falsifyRaw =
+    typeof o.falsify === "string"
+      ? o.falsify
+      : typeof meta.falsify === "string"
+        ? meta.falsify
+        : typeof meta.wouldDisprove === "string"
+          ? meta.wouldDisprove
+          : undefined
   return {
     id: o.id,
     kind: o.kind,
@@ -53,6 +65,7 @@ function coerceEntry(raw: unknown, fallbackScope: ArlScope): ArlEntry | null {
     content: o.content,
     path: typeof o.path === "string" && o.path ? o.path : "general",
     scope,
+    falsify: falsifyRaw?.trim() || undefined,
     reference:
       o.reference && typeof o.reference === "object" && !Array.isArray(o.reference)
         ? (o.reference as Record<string, unknown>)
@@ -61,10 +74,7 @@ function coerceEntry(raw: unknown, fallbackScope: ArlScope): ArlEntry | null {
       o.arguments && typeof o.arguments === "object" && !Array.isArray(o.arguments)
         ? (o.arguments as Record<string, unknown>)
         : {},
-    metadata:
-      o.metadata && typeof o.metadata === "object" && !Array.isArray(o.metadata)
-        ? (o.metadata as Record<string, unknown>)
-        : {},
+    metadata: meta,
     source: typeof o.source === "string" ? o.source : "manual",
     created_at: typeof o.created_at === "string" ? o.created_at : nowIso(),
     updated_at: typeof o.updated_at === "string" ? o.updated_at : nowIso(),
@@ -199,6 +209,7 @@ export type UpsertArlInput = {
   content: string
   id?: string
   path?: string
+  falsify?: string
   reference?: Record<string, unknown>
   arguments?: Record<string, unknown>
   metadata?: Record<string, unknown>
@@ -244,6 +255,7 @@ export function createArlEntry(
     content: input.content,
     path: input.path?.trim() || "general",
     scope,
+    falsify: input.falsify?.trim() || undefined,
     reference: input.reference ?? {},
     arguments: input.arguments ?? {},
     metadata: { ...(input.metadata ?? {}), scope },
@@ -273,6 +285,10 @@ export function updateArlEntry(
     title: patch.title?.trim() ?? before.title,
     content: patch.content ?? before.content,
     path: patch.path?.trim() || before.path,
+    falsify:
+      patch.falsify !== undefined
+        ? patch.falsify.trim() || undefined
+        : before.falsify,
     reference: patch.reference ?? before.reference,
     arguments: patch.arguments ?? before.arguments,
     metadata: patch.metadata ?? before.metadata,

@@ -37,10 +37,13 @@ export {
   arlEnabled,
   arlModeStatusText,
   emptyArlMode,
+  falsifyGateEnabled,
+  falsifyGateStatusText,
   loadArlMode,
   parseArlModeArg,
   saveArlMode,
   setArlEnabled,
+  setFalsifyGate,
 } from "./arl/mode.js"
 
 export {

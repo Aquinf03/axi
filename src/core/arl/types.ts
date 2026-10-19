@@ -22,6 +22,11 @@ export type ArlEntry = {
   content: string
   path: string
   scope?: ArlScope
+  /**
+   * Falsification criterion — what evidence would disprove this lesson.
+   * Required on create/update when the falsify gate is on (prompt/memory/rejected).
+   */
+  falsify?: string
   /** Call contract for skill entries — axi skill/tool, not Python. */
   reference: Record<string, unknown>
   arguments: Record<string, unknown>
@@ -91,6 +96,11 @@ export type ArlModeState = {
   /** When false, arl store exists but is not injected / refined. Default off. */
   enabled: boolean
   autoRefine?: AutoRefineSettings
+  /**
+   * When true (default), /refine create|update of prompt/memory/rejected
+   * must include `falsify` (what would disprove the lesson). `/refine gate off` disables.
+   */
+  falsifyGate?: boolean
 }
 
 export const ARL_STATE_SCHEMA = 1
