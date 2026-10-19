@@ -108,6 +108,11 @@ export type ArlModeState = {
   convergentGate?: boolean
   /** Minimum distinct corroborations for global lesson promotion. Default 2. */
   convergentMin?: number
+  /**
+   * When true (default), global /refine stages a pending deploy for human approve
+   * (local stays auto). `/refine deploy off` disables.
+   */
+  deployGate?: boolean
 }
 
 /** Default N independent corroborations before a lesson may go global. */

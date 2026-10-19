@@ -28,9 +28,13 @@ import {
   countArlEntries,
   loadAutoRefineSettings,
   convergentGateStatusText,
+  denyPendingDeploy,
+  deployGateStatusText,
   falsifyGateStatusText,
+  pendingDeployStatusText,
   setConvergentGate,
   setConvergentMin,
+  setDeployGate,
   loadMergedArlState,
   parseArlModeArg,
   saveAutoRefineSettings,
@@ -684,6 +688,8 @@ export type SlashResult = {
     global?: boolean
     /** Human override for convergent-evidence gate. */
     force?: boolean
+    /** Apply staged global deploy (human deploy gate). */
+    deployApprove?: boolean
     rollbackId?: string
   }
   undo?: boolean
@@ -1033,6 +1039,23 @@ export function runSlash(line: string, opts: SlashOpts = {}): SlashResult {
         return { text: convergentGateStatusText() }
       }
       return { text: "usage: /refine convergent on|off|status|n <1-8>" }
+    }
+    if (head === "deploy" || head === "ship") {
+      const sub = (tokens[1] ?? "status").toLowerCase()
+      if (sub === "status" || !tokens[1]) {
+        return { text: `${deployGateStatusText()}\n${pendingDeployStatusText()}` }
+      }
+      if (sub === "on" || sub === "off") {
+        setDeployGate(sub === "on")
+        return { text: deployGateStatusText() }
+      }
+      if (sub === "approve" || sub === "yes" || sub === "ship") {
+        return { refine: { deployApprove: true } }
+      }
+      if (sub === "deny" || sub === "no" || sub === "reject") {
+        return { text: denyPendingDeploy().text }
+      }
+      return { text: "usage: /refine deploy status|on|off|approve|deny" }
     }
     let global = false
     let force = false

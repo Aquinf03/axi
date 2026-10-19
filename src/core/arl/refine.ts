@@ -23,9 +23,17 @@ import {
 import { newRuleId, type SavedRule } from "../permissions.js"
 import { formatTrajectoryForRefine } from "../trajectory.js"
 import {
+  clearPendingDeploy,
+  formatDeployDiff,
+  loadPendingDeploy,
+  stagePendingDeploy,
+  type PendingGlobalDeploy,
+} from "./deploy.js"
+import {
   arlEnabled,
   convergentGateEnabled,
   convergentMin,
+  deployGateEnabled,
   falsifyGateEnabled,
 } from "./mode.js"
 import {
@@ -432,6 +440,8 @@ export type ApplyOptions = {
   forcePromote?: boolean
   /** Chat session — judgment gate + tagging. */
   sessionId?: string
+  /** Preview only — mutate working state + record policyAfter, but do not write saved rules. */
+  dryRun?: boolean
 }
 
 /** Apply proposal to state (mutates). */
@@ -536,7 +546,7 @@ export function applyRefinementProposal(
           })
           continue
         }
-        removeSavedRule(id)
+        if (!options.dryRun) removeSavedRule(id)
         touched.add(key)
         applied.push({
           action,
@@ -574,7 +584,7 @@ export function applyRefinementProposal(
         })
         continue
       }
-      if (existing) removeSavedRule(existing.id)
+      if (existing && !options.dryRun) removeSavedRule(existing.id)
       const rule: SavedRule = {
         id: action === "create" ? id || newRuleId() : existing!.id,
         kind: "pattern",
@@ -587,7 +597,7 @@ export function applyRefinementProposal(
       if (action === "create" && !edit.id) {
         rule.id = id || newRuleId()
       }
-      addSavedRule(rule)
+      if (!options.dryRun) addSavedRule(rule)
       touched.add(`policy:${rule.id}`)
       applied.push({
         action,
@@ -694,7 +704,13 @@ export function applyRefinementProposal(
   })
 
   const anyApplied = applied.some((e) => e.applied)
-  if (anyApplied && proposal.judgment && options.sessionId && !isRollback) {
+  if (
+    anyApplied &&
+    proposal.judgment &&
+    options.sessionId &&
+    !isRollback &&
+    !options.dryRun
+  ) {
     tagJudgment({
       sessionId: options.sessionId,
       label: proposal.judgment,
@@ -890,6 +906,11 @@ export type RunRefineOpts = {
   global?: boolean
   /** Human override for convergent-evidence on global lesson writes. */
   force?: boolean
+  /**
+   * Skip human deploy gate and apply global immediately
+   * (after `/refine deploy approve`, or when gate is off).
+   */
+  approved?: boolean
   source?: RefinementSource
   /** Injected for tests — skips the live model call. */
   planText?: string
@@ -899,7 +920,11 @@ export type RunRefineOpts = {
   triageAnswers?: import("../decision.js").DecisionAnswer[]
 }
 
-export async function runRefine(opts: RunRefineOpts): Promise<RefinementResult> {
+export type RefineRunResult =
+  | { kind: "applied"; result: RefinementResult }
+  | { kind: "pending_deploy"; pending: PendingGlobalDeploy; diff: string }
+
+export async function runRefine(opts: RunRefineOpts): Promise<RefineRunResult> {
   if (!arlEnabled()) {
     throw new Error("arl is off — /arl on first")
   }
@@ -949,20 +974,70 @@ export async function runRefine(opts: RunRefineOpts): Promise<RefinementResult> 
     })
     proposal = { ...proposal, edits: kept }
   }
+
+  // Deploy gate: stage global for human approve (force only bypasses convergent, not deploy).
+  const mustStage = scope === "global" && deployGateEnabled() && !opts.approved
+
   const baseline = loadArlState(scope, opts.sessionId)
-  // Work on a clone
   const working: ArlState = JSON.parse(JSON.stringify(baseline)) as ArlState
+  const refineId = newRefineId()
   const result = applyRefinementProposal(working, proposal, {
-    id: newRefineId(),
+    id: refineId,
     scope,
     source,
     baselineState: baseline,
     forcePromote: Boolean(opts.force && scope === "global"),
     sessionId: opts.sessionId,
+    dryRun: mustStage,
   })
+
+  if (mustStage) {
+    // Dry-run mutates `working` in memory only; discard it. Stage proposal for approve.
+    const pending = stagePendingDeploy({
+      id: refineId,
+      proposal,
+      preview: result.appliedEdits,
+      source,
+      force: opts.force,
+      sessionId: opts.sessionId,
+    })
+    return { kind: "pending_deploy", pending, diff: formatDeployDiff(pending) }
+  }
+
   saveArlState(scope, working, opts.sessionId)
   appendRefinementResult(scope, result, opts.sessionId)
+  return { kind: "applied", result }
+}
+
+/** Apply a previously staged global deploy after human approve. */
+export async function approvePendingDeploy(
+  source: RefinementSource = "user",
+): Promise<RefinementResult> {
+  if (!arlEnabled()) throw new Error("arl is off — /arl on first")
+  const pending = loadPendingDeploy()
+  if (!pending) throw new Error("no pending global deploy — /refine --global first")
+  clearPendingDeploy()
+  const baseline = loadArlState("global")
+  const working: ArlState = JSON.parse(JSON.stringify(baseline)) as ArlState
+  const result = applyRefinementProposal(working, pending.proposal, {
+    id: pending.id,
+    scope: "global",
+    source,
+    baselineState: baseline,
+    forcePromote: Boolean(pending.force),
+    sessionId: pending.sessionId,
+  })
+  saveArlState("global", working)
+  appendRefinementResult("global", result)
   return result
+}
+
+/** Discard staged global deploy. */
+export function denyPendingDeploy(): { ok: boolean; text: string } {
+  const pending = loadPendingDeploy()
+  if (!pending) return { ok: false, text: "no pending global deploy" }
+  clearPendingDeploy()
+  return { ok: true, text: `deploy denied  ${pending.id}  — global arl unchanged` }
 }
 
 export async function runRefineRollback(

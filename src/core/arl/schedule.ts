@@ -68,14 +68,29 @@ export async function flushArlRefine(
 ): Promise<{ result: RefinementResult; notice: string } | null> {
   const req = takeArlRefinePending()
   if (!req) return null
-  const result = await runRefine({
+  const out = await runRefine({
     history,
     sessionId: req.sessionId,
     instructions: req.instructions,
     global: req.global,
     source: "self",
   })
-  return { result, notice: formatRefinementNotice(result) }
+  if (out.kind === "pending_deploy") {
+    return {
+      result: {
+        id: out.pending.id,
+        summary: out.pending.proposal.summary,
+        rationale: out.pending.proposal.rationale,
+        expectedOutcome: out.pending.proposal.expectedOutcome,
+        appliedEdits: [],
+        scope: "global",
+        source: "self",
+        createdAt: out.pending.createdAt,
+      },
+      notice: out.diff,
+    }
+  }
+  return { result: out.result, notice: formatRefinementNotice(out.result) }
 }
 
 /**

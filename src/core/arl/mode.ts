@@ -30,6 +30,7 @@ export function emptyArlMode(): ArlModeState {
     falsifyGate: true,
     convergentGate: true,
     convergentMin: DEFAULT_CONVERGENT_MIN,
+    deployGate: true,
   }
 }
 
@@ -41,6 +42,7 @@ function sanitizeMode(raw: Partial<ArlModeState>): ArlModeState {
     falsifyGate: raw.falsifyGate !== false,
     convergentGate: raw.convergentGate !== false,
     convergentMin: sanitizeConvergentMin(raw.convergentMin),
+    deployGate: raw.deployGate !== false,
   }
 }
 
@@ -114,6 +116,7 @@ export function arlModeStatusText(): string {
     `auto-refine  ${effective ? "on" : "off"}  (every ${auto.turnInterval} turns · compact ${auto.compact ? "on" : "off"} · cooldown ${Math.round(auto.cooldownMs / 60000)}m)`,
     `falsify-gate  ${gate ? "on" : "off"}  (/refine falsify on|off · lessons need what would disprove them)`,
     `convergent-gate  ${conv ? "on" : "off"}  (global lessons need ${n} corroborations · /refine convergent · --force)`,
+    `deploy-gate  ${disk.deployGate !== false ? "on" : "off"}  (global /refine needs human approve · /refine deploy)`,
   ].join("\n")
 }
 
@@ -202,5 +205,37 @@ export function convergentGateStatusText(): string {
     "  set N: /refine convergent n <1-8>",
     "  human override: /refine --global --force [focus]",
     "  local refine is unaffected",
+  ].join("\n")
+}
+
+/** Human deploy gate for global arl writes. Default on. */
+export function deployGateEnabled(): boolean {
+  return loadArlMode().deployGate !== false
+}
+
+export function setDeployGate(enabled: boolean): ArlModeState {
+  const p = globalArlModePath()
+  let disk = emptyArlMode()
+  if (existsSync(p)) {
+    try {
+      const raw = JSON.parse(readFileSync(p, "utf8")) as Partial<ArlModeState>
+      if (raw && typeof raw === "object") disk = sanitizeMode(raw)
+    } catch {
+      disk = emptyArlMode()
+    }
+  }
+  const next: ArlModeState = { ...disk, deployGate: enabled }
+  saveArlMode(next)
+  return loadArlMode()
+}
+
+export function deployGateStatusText(): string {
+  const on = deployGateEnabled()
+  return [
+    `deploy-gate  ${on ? "on" : "off"}`,
+    on
+      ? "  global /refine stages a pending ship — show diff, then /refine deploy approve|deny (local stays auto)"
+      : "  gate off — global /refine applies immediately (/refine deploy on to require approve again)",
+    "  status: /refine deploy status",
   ].join("\n")
 }

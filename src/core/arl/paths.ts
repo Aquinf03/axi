@@ -20,6 +20,11 @@ export function globalArlModePath(): string {
   return path.join(globalArlDir(), ARL_MODE_FILE)
 }
 
+/** Staged global refine awaiting human approve. */
+export function globalArlPendingDeployPath(): string {
+  return path.join(globalArlDir(), "pending_deploy.json")
+}
+
 /** Local harness for one chat session: ~/.axi/chats/<id>/arl/ */
 export function localArlDir(sessionId: string): string {
   return path.join(axiHome(), "chats", sessionId, ARL_DIR_NAME)

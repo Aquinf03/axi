@@ -294,7 +294,7 @@ export async function maybeAutoRefine(
   }
 
   const wantGlobal = /\bglobal\b/i.test(review.instructions ?? "")
-  const result = await runRefine({
+  const out = await runRefine({
     history: opts.history,
     sessionId: opts.sessionId,
     instructions: autoRefineInstructions(reason, review, usageArm),
@@ -302,9 +302,26 @@ export async function maybeAutoRefine(
     source: "auto",
     planText: opts.planText,
   })
+  if (out.kind === "pending_deploy") {
+    return {
+      result: {
+        id: out.pending.id,
+        summary: out.pending.proposal.summary,
+        rationale: out.pending.proposal.rationale,
+        expectedOutcome: out.pending.proposal.expectedOutcome,
+        appliedEdits: [],
+        scope: "global",
+        source: "auto",
+        createdAt: out.pending.createdAt,
+      },
+      notice: out.diff,
+      review,
+      reason,
+    }
+  }
   return {
-    result,
-    notice: formatRefinementNotice(result),
+    result: out.result,
+    notice: formatRefinementNotice(out.result),
     review,
     reason,
   }

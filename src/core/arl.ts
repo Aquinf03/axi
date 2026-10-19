@@ -41,6 +41,8 @@ export {
   convergentGateStatusText,
   convergentMin,
   emptyArlMode,
+  deployGateEnabled,
+  deployGateStatusText,
   falsifyGateEnabled,
   falsifyGateStatusText,
   loadArlMode,
@@ -49,8 +51,18 @@ export {
   setArlEnabled,
   setConvergentGate,
   setConvergentMin,
+  setDeployGate,
   setFalsifyGate,
 } from "./arl/mode.js"
+
+export {
+  clearPendingDeploy,
+  formatDeployDiff,
+  loadPendingDeploy,
+  pendingDeployStatusText,
+  stagePendingDeploy,
+  type PendingGlobalDeploy,
+} from "./arl/deploy.js"
 
 export {
   appendArlRefinementEvent,
@@ -99,6 +111,8 @@ export {
 export {
   applyRefinementProposal,
   appendRefinementResult,
+  approvePendingDeploy,
+  denyPendingDeploy,
   extractJsonObject,
   findRefinementResult,
   formatRefinementNotice,
@@ -110,6 +124,7 @@ export {
   runRefineRollback,
   type AppliedRefinementEdit,
   type ApplyOptions,
+  type RefineRunResult,
   type RefinementAction,
   type RefinementEdit,
   type RefinementKind,

@@ -9,8 +9,10 @@ import { renderMarkdown } from "./markdown.js"
 import { runWelcomeSplash } from "./splash.js"
 import { compactHistory } from "../core/compact.js"
 import {
-  formatRefinementNotice,
+  approvePendingDeploy,
+  denyPendingDeploy,
   flushArlAfterTurn,
+  formatRefinementNotice,
   markCompactAutoRefinePending,
   runRefine,
   runRefineRollback,
@@ -1163,19 +1165,58 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         write("\x1b[?25l")
         write(`\r\x1b[K${DIM}refining${RESET}\x1b[J`)
         try {
-          const result = r.refine.rollbackId
-            ? await runRefineRollback(r.refine.rollbackId, spec.id, "user")
-            : await runRefine({
-                history,
-                sessionId: spec.id,
-                instructions: r.refine.instructions,
-                global: r.refine.global,
-                force: r.refine.force,
-                source: "user",
+          if (r.refine.deployApprove) {
+            const result = await approvePendingDeploy("user")
+            replaceHistory(history)
+            saveChat(train, spec, history)
+            note(formatRefinementNotice(result))
+          } else if (r.refine.rollbackId) {
+            const result = await runRefineRollback(r.refine.rollbackId, spec.id, "user")
+            replaceHistory(history)
+            saveChat(train, spec, history)
+            note(formatRefinementNotice(result))
+          } else {
+            const out = await runRefine({
+              history,
+              sessionId: spec.id,
+              instructions: r.refine.instructions,
+              global: r.refine.global,
+              force: r.refine.force,
+              source: "user",
+            })
+            if (out.kind === "pending_deploy") {
+              write("\x1b[?25h")
+              note(out.diff)
+              const ship = await new Promise<boolean>((resolve) => {
+                compactAsk = {
+                  pick: 0,
+                  yes: "ship",
+                  no: "deny",
+                  title: "global deploy",
+                  body: "apply staged global arl changes?",
+                  resolve: (ok) => {
+                    compactAsk = null
+                    alt.leave()
+                    resolve(ok)
+                  },
+                }
+                drawCompactChoices()
               })
-          replaceHistory(history)
-          saveChat(train, spec, history)
-          note(formatRefinementNotice(result))
+              write("\x1b[?25l")
+              if (ship) {
+                const result = await approvePendingDeploy("user")
+                replaceHistory(history)
+                saveChat(train, spec, history)
+                note(formatRefinementNotice(result))
+              } else {
+                note(denyPendingDeploy().text)
+              }
+            } else {
+              replaceHistory(history)
+              saveChat(train, spec, history)
+              note(formatRefinementNotice(out.result))
+            }
+          }
         } catch (err) {
           note(err instanceof Error ? err.message : String(err))
         }

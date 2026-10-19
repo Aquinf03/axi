@@ -16,8 +16,12 @@ import {
   runRefine,
   runRefineRollback,
   scheduleArlRefine,
+  approvePendingDeploy,
+  denyPendingDeploy,
+  deployGateEnabled,
   setArlEnabled,
   setConvergentGate,
+  setDeployGate,
   setFalsifyGate,
   takeArlRefinePending,
 } from "../arl.js"
@@ -398,7 +402,7 @@ describe("arl refine", () => {
         },
       ],
     })
-    const result = await runRefine({
+    const out = await runRefine({
       history: [
         { role: "user", content: "find the files" },
         { role: "assistant", content: "I used find; you said use grep" },
@@ -407,6 +411,9 @@ describe("arl refine", () => {
       planText: plan,
       source: "user",
     })
+    assert.equal(out.kind, "applied")
+    if (out.kind !== "applied") return
+    const result = out.result
     assert.ok(result.appliedEdits.some((e) => e.applied))
     assert.ok(getArlEntry("local", "memory", "prefer-grep", "chat1"))
     assert.match(formatRefinementNotice(result), /applied/)
@@ -459,13 +466,15 @@ describe("arl refine", () => {
 
   it("seed create then refine update via planText", async () => {
     createArlEntry("global", { kind: "memory", id: "fact", title: "Fact", content: "old" })
-    await runRefine({
+    const out = await runRefine({
       history: [{ role: "user", content: "update the fact" }],
       global: true,
+      approved: true,
       planText: JSON.stringify({
         summary: "update fact",
         rationale: "corrected",
         expectedOutcome: "new value",
+        judgment: "pivot",
         edits: [
           {
             action: "update",
@@ -482,7 +491,58 @@ describe("arl refine", () => {
         ],
       }),
     })
+    assert.equal(out.kind, "applied")
     assert.equal(getArlEntry("global", "memory", "fact")?.content, "new")
     assert.equal(getArlEntry("global", "memory", "fact")?.version, 2)
+  })
+
+  it("global refine stages deploy for approve; deny leaves global unchanged", async () => {
+    assert.equal(deployGateEnabled(), true)
+    createArlEntry("global", { kind: "memory", id: "ship", title: "Ship", content: "old" })
+    const plan = JSON.stringify({
+      summary: "update ship fact",
+      rationale: "stable preference",
+      expectedOutcome: "new value",
+      judgment: "design",
+      edits: [
+        {
+          action: "update",
+          kind: "memory",
+          id: "ship",
+          title: "Ship",
+          content: "new",
+          falsify: "old still correct",
+          corroborations: ["a: once", "b: twice"],
+        },
+      ],
+    })
+    const staged = await runRefine({
+      history: [{ role: "user", content: "remember this globally" }],
+      global: true,
+      planText: plan,
+      source: "user",
+    })
+    assert.equal(staged.kind, "pending_deploy")
+    if (staged.kind !== "pending_deploy") return
+    assert.match(staged.diff, /global deploy pending/)
+    assert.equal(getArlEntry("global", "memory", "ship")?.content, "old")
+
+    assert.match(denyPendingDeploy().text, /denied/)
+    assert.equal(getArlEntry("global", "memory", "ship")?.content, "old")
+
+    const staged2 = await runRefine({
+      history: [{ role: "user", content: "remember this globally" }],
+      global: true,
+      planText: plan,
+      source: "user",
+    })
+    assert.equal(staged2.kind, "pending_deploy")
+    const applied = await approvePendingDeploy("user")
+    assert.ok(applied.appliedEdits.some((e) => e.applied))
+    assert.equal(getArlEntry("global", "memory", "ship")?.content, "new")
+
+    setDeployGate(false)
+    assert.equal(deployGateEnabled(), false)
+    setDeployGate(true)
   })
 })
