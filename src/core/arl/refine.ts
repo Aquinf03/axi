@@ -14,6 +14,13 @@ import {
   tagJudgment,
   type JudgmentLabel,
 } from "../judgment.js"
+import {
+  addSavedRule,
+  loadProfileConfig,
+  removeSavedRule,
+  savedRules,
+} from "../config.js"
+import { newRuleId, type SavedRule } from "../permissions.js"
 import { formatTrajectoryForRefine } from "../trajectory.js"
 import {
   arlEnabled,
@@ -42,9 +49,12 @@ import {
 export type RefinementAction = "create" | "update" | "delete"
 export type RefinementSource = "user" | "self" | "auto"
 
+/** Edit target: arl entry kinds, or `policy` for saved tool permission rules. */
+export type RefinementKind = ArlKind | "policy"
+
 export type RefinementEdit = {
   action?: RefinementAction
-  kind?: ArlKind
+  kind?: RefinementKind
   id?: string
   title?: string
   content?: string
@@ -56,6 +66,12 @@ export type RefinementEdit = {
    * Distinct sources — different sessions, tools, investigate nodes, or observations.
    */
   corroborations?: string[]
+  /** Tool policy: allow | deny (kind=policy). */
+  policyAction?: "allow" | "deny"
+  /** Tool name for kind=policy (e.g. run, write, *). */
+  tool?: string
+  /** Glob over permit label for kind=policy (* allowed). */
+  pattern?: string
   reference?: Record<string, unknown>
   arguments?: Record<string, unknown>
   metadata?: Record<string, unknown>
@@ -76,11 +92,15 @@ export type RefinementProposal = {
 
 export type AppliedRefinementEdit = {
   action: RefinementAction
-  kind: ArlKind
+  kind: RefinementKind
   id: string
   reason?: string
   before?: ArlEntry
   after?: ArlEntry
+  /** Saved permission rule before apply (kind=policy). */
+  policyBefore?: SavedRule
+  /** Saved permission rule after apply (kind=policy). */
+  policyAfter?: SavedRule
   applied: boolean
   error?: string
 }
@@ -103,8 +123,9 @@ const REFINEMENT_SYSTEM_PROMPT = `You are axi's /refine arl (auto RL) continual 
 Your job is to improve the editable continual harness from the current trajectory.
 Trajectory units pair agent tools with user signals (accept/edit/undo/retry/deny) — prefer accept/edit evidence; treat undo/deny as negative; retry means friction then another attempt.
 Emit precise Create, Update, or Delete edits to reusable state — not a chat summary.
-The continual harness holds supplemental prompt notes, memories, rejected paths, skill stubs, and subagent specs.
+The continual harness holds supplemental prompt notes, memories, rejected paths, skill stubs, subagent specs, and tool policy (saved permission rules).
 Never rewrite the immutable base system prompt (id base_system_prompt).
+Never change the live permission *mode* (ask/auto/plan/full-access) — only saved allow/deny rules.
 
 Kinds:
 - prompt: narrow behavioral policy addendums only
@@ -112,6 +133,9 @@ Kinds:
 - rejected: file-drawer negatives — a path that was tried and should not be retried blindly. Content must include what was attempted and why it failed (optional: when retry is ok). Prefer rejected over memory when the lesson is "don't do X again".
 - skill: repeatable procedure *stubs* only (inventory) — reference must be {"type":"skill"|"tool","name":"..."} plus arguments object (use {} if none). Never invent a full SKILL.md package; packaging stays a reviewed skill-creator path. If reference.name already exists as a package, agents skill_load it.
 - subagent: reusable delegation role — purpose, instructions, when to invoke. Agents spawn with spec=<id>.
+- policy: saved tool permission rule (allow|deny) — pairs with prompt/rejected when the lesson is about what tools may run. Fields: policyAction, tool, pattern (glob over permit label). Prefer deny patterns after repeated user denies; prefer narrow patterns over *.
+
+Joint refine: when evidence warrants it, emit prompt/memory/rejected *and* policy in the same edits array so behavior notes and tool gates stay aligned. Model stays external — you only edit harness + policy, never weights.
 
 Scope:
 - Default store is local to this chat session. Use it for session progress, blockers, coordination.
@@ -134,12 +158,15 @@ Never edit source files. Output JSON only:
   "edits": [
     {
       "action": "create|update|delete",
-      "kind": "prompt|memory|rejected|skill|subagent",
+      "kind": "prompt|memory|rejected|skill|subagent|policy",
       "id": "stable id for update/delete, optional for create",
-      "title": "required for create/update",
-      "content": "required for create/update",
+      "title": "required for create/update (policy: short label)",
+      "content": "required for create/update (policy: optional note; pattern preferred in pattern)",
       "falsify": "required for prompt/memory/rejected create|update — what would disprove this",
       "corroborations": ["global only — N independent sources for prompt/memory/rejected"],
+      "policyAction": "allow|deny — required for kind=policy",
+      "tool": "tool name or * — required for kind=policy",
+      "pattern": "glob over permit label — required for kind=policy",
       "path": "optional grouping path",
       "reference": {"type":"skill","name":"example"},
       "arguments": {},
@@ -159,6 +186,19 @@ function newRefineId(): string {
 
 function isKind(v: unknown): v is ArlKind {
   return typeof v === "string" && (ARL_KINDS as readonly string[]).includes(v)
+}
+
+function isEditKind(v: unknown): v is RefinementKind {
+  return isKind(v) || v === "policy"
+}
+
+function findSavedRule(id: string): SavedRule | undefined {
+  return savedRules(loadProfileConfig()).find((r) => r.id === id)
+}
+
+function policyPatternFromEdit(edit: RefinementEdit): string {
+  const p = edit.pattern?.trim() || edit.content?.trim() || ""
+  return p.slice(0, 200)
 }
 
 function isAction(v: unknown): v is RefinementAction {
@@ -233,15 +273,30 @@ export function parseProposal(text: string): RefinementProposal {
     const corroborations = normalizeCorroborations(
       o.corroborations ?? o.corroboration ?? o.evidence,
     )
+    const policyActionRaw =
+      typeof o.policyAction === "string"
+        ? o.policyAction
+        : typeof o.policy_action === "string"
+          ? o.policy_action
+          : typeof o.action_policy === "string"
+            ? o.action_policy
+            : undefined
+    const policyAction =
+      policyActionRaw === "allow" || policyActionRaw === "deny"
+        ? policyActionRaw
+        : undefined
     edits.push({
       action: isAction(o.action) ? o.action : undefined,
-      kind: isKind(o.kind) ? o.kind : undefined,
+      kind: isEditKind(o.kind) ? o.kind : undefined,
       id: typeof o.id === "string" ? o.id.replace(/^(local|global):/, "") : undefined,
       title: typeof o.title === "string" ? o.title : undefined,
       content: typeof o.content === "string" ? o.content : undefined,
       path: typeof o.path === "string" ? o.path : undefined,
       falsify: falsify?.trim() || undefined,
       corroborations: corroborations.length ? corroborations : undefined,
+      policyAction,
+      tool: typeof o.tool === "string" ? o.tool.trim() : undefined,
+      pattern: typeof o.pattern === "string" ? o.pattern.trim() : undefined,
       reference:
         o.reference && typeof o.reference === "object" && !Array.isArray(o.reference)
           ? (o.reference as Record<string, unknown>)
@@ -301,6 +356,18 @@ function validateEdit(
     return "base system prompt is not editable"
   }
   if (edit.action !== "create" && !edit.id) return `${edit.action} requires id`
+
+  if (edit.kind === "policy") {
+    if (edit.action === "delete") return undefined
+    if (!edit.policyAction) return "policy needs policyAction=allow|deny"
+    if (!edit.tool?.trim()) return "policy needs tool (name or *)"
+    if (!policyPatternFromEdit(edit)) {
+      return "policy needs pattern (glob over permit label)"
+    }
+    if (!edit.title?.trim()) return "policy needs title (short label)"
+    return undefined
+  }
+
   if (edit.action !== "delete" && (!edit.title || edit.content == null)) {
     return `${edit.action} requires title and content`
   }
@@ -441,6 +508,99 @@ export function applyRefinementProposal(
     }
     const kind = edit.kind
     const action = edit.action
+
+    // Tool policy — saved permission rules (joint with harness entries).
+    if (kind === "policy") {
+      const key = `policy:${id}`
+      if (touched.has(key)) {
+        applied.push({
+          action,
+          kind,
+          id,
+          reason: edit.reason,
+          applied: false,
+          error: "policy id already touched this refine",
+        })
+        continue
+      }
+      if (action === "delete") {
+        const existing = findSavedRule(id)
+        if (!existing) {
+          applied.push({
+            action,
+            kind,
+            id,
+            reason: edit.reason,
+            applied: false,
+            error: "policy rule not found",
+          })
+          continue
+        }
+        removeSavedRule(id)
+        touched.add(key)
+        applied.push({
+          action,
+          kind,
+          id,
+          reason: edit.reason,
+          policyBefore: existing,
+          applied: true,
+        })
+        continue
+      }
+      const policyAction = edit.policyAction!
+      const tool = edit.tool!.trim()
+      const pattern = policyPatternFromEdit(edit)
+      const existing = action === "update" ? findSavedRule(id) : undefined
+      if (action === "update" && !existing) {
+        applied.push({
+          action,
+          kind,
+          id,
+          reason: edit.reason,
+          applied: false,
+          error: "policy rule not found",
+        })
+        continue
+      }
+      if (action === "create" && findSavedRule(id)) {
+        applied.push({
+          action,
+          kind,
+          id,
+          reason: edit.reason,
+          applied: false,
+          error: "policy rule already exists",
+        })
+        continue
+      }
+      if (existing) removeSavedRule(existing.id)
+      const rule: SavedRule = {
+        id: action === "create" ? id || newRuleId() : existing!.id,
+        kind: "pattern",
+        tool,
+        pattern,
+        action: policyAction,
+        created: existing?.created ?? nowIso(),
+      }
+      // Prefer stable id from slug when create omitted id.
+      if (action === "create" && !edit.id) {
+        rule.id = id || newRuleId()
+      }
+      addSavedRule(rule)
+      touched.add(`policy:${rule.id}`)
+      applied.push({
+        action,
+        kind,
+        id: rule.id,
+        reason: edit.reason,
+        policyBefore: existing,
+        policyAfter: rule,
+        applied: true,
+      })
+      continue
+    }
+
     const before = state.entries[kind][id]
     const key = `${kind}:${id}`
     const baseline = options.baselineState?.entries[kind]?.[id]
@@ -563,6 +723,30 @@ export function rollbackProposal(target: RefinementResult): RefinementProposal {
   const edits: RefinementEdit[] = []
   for (const edit of [...target.appliedEdits].reverse()) {
     if (!edit.applied) continue
+    if (edit.kind === "policy") {
+      if (edit.policyBefore) {
+        const r = edit.policyBefore
+        edits.push({
+          action: edit.policyAfter ? "update" : "create",
+          kind: "policy",
+          id: r.id,
+          title: `${r.action} ${r.tool}`,
+          content: r.kind === "pattern" ? r.pattern : r.command,
+          policyAction: r.action,
+          tool: r.tool,
+          pattern: r.kind === "pattern" ? r.pattern : r.command,
+          reason: `rollback ${target.id}`,
+        })
+      } else if (edit.policyAfter) {
+        edits.push({
+          action: "delete",
+          kind: "policy",
+          id: edit.policyAfter.id,
+          reason: `rollback ${target.id}`,
+        })
+      }
+      continue
+    }
     if (edit.before) {
       edits.push({
         action: edit.after ? "update" : "create",
@@ -677,7 +861,14 @@ export function formatRefinementNotice(result: RefinementResult): string {
   if (result.judgment) lines.push(`judgment  ${result.judgment}`)
   if (applied.length) {
     lines.push(
-      `applied  ${applied.map((e) => `${e.action} ${e.kind}:${e.id}`).join(", ")}`,
+      `applied  ${applied
+        .map((e) => {
+          if (e.kind === "policy" && e.policyAfter) {
+            return `${e.action} policy:${e.policyAfter.action} ${e.policyAfter.tool} ${e.policyAfter.kind === "pattern" ? e.policyAfter.pattern : e.policyAfter.command}`
+          }
+          return `${e.action} ${e.kind}:${e.id}`
+        })
+        .join(", ")}`,
     )
   } else {
     lines.push("applied  (none)")

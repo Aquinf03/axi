@@ -112,6 +112,7 @@ export {
   type ApplyOptions,
   type RefinementAction,
   type RefinementEdit,
+  type RefinementKind,
   type RefinementProposal,
   type RefinementResult,
   type RefinementSource,

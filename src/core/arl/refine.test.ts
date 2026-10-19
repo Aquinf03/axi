@@ -21,6 +21,7 @@ import {
   setFalsifyGate,
   takeArlRefinePending,
 } from "../arl.js"
+import { loadProfileConfig, savedRules } from "../config.js"
 
 describe("arl refine", () => {
   let home: string
@@ -118,6 +119,62 @@ describe("arl refine", () => {
       { id: "r_off", scope: "local", source: "user" },
     )
     assert.equal(allowed.appliedEdits[0]!.applied, true)
+    setFalsifyGate(true)
+  })
+
+  it("joint refine applies rejected + tool policy together and rolls back", () => {
+    setFalsifyGate(false)
+    const state = emptyArlState()
+    const proposal = parseProposal(
+      JSON.stringify({
+        summary: "stop forced writes",
+        rationale: "user denied write twice",
+        expectedOutcome: "ask before write src/**",
+        judgment: "tension",
+        edits: [
+          {
+            action: "create",
+            kind: "rejected",
+            title: "Don't force write",
+            content: "tried: write without ask · why: user denied",
+            falsify: "user always-allows write",
+          },
+          {
+            action: "create",
+            kind: "policy",
+            title: "Deny blind writes",
+            content: "write *",
+            policyAction: "deny",
+            tool: "write",
+            pattern: "write *",
+          },
+        ],
+      }),
+    )
+    const result = applyRefinementProposal(state, proposal, {
+      id: "r_joint",
+      scope: "local",
+      source: "user",
+    })
+    assert.equal(result.appliedEdits.filter((e) => e.applied).length, 2)
+    assert.ok(Object.keys(state.entries.rejected).length >= 1)
+    const rules = savedRules(loadProfileConfig())
+    assert.ok(rules.some((r) => r.action === "deny" && r.tool === "write"))
+    assert.match(formatRefinementNotice(result), /policy:deny/)
+
+    const inv = rollbackProposal(result)
+    assert.ok(inv.edits.some((e) => e.kind === "policy" && e.action === "delete"))
+    const rolled = applyRefinementProposal(state, inv, {
+      id: "r_joint_rb",
+      scope: "local",
+      source: "user",
+      rollbackOf: result.id,
+    })
+    assert.ok(rolled.appliedEdits.some((e) => e.kind === "policy" && e.applied))
+    assert.equal(
+      savedRules(loadProfileConfig()).some((r) => r.action === "deny" && r.tool === "write"),
+      false,
+    )
     setFalsifyGate(true)
   })
 
