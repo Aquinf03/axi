@@ -330,6 +330,7 @@ describe("arl refine", () => {
       summary: "capture grep habit",
       rationale: "user corrected twice",
       expectedOutcome: "agent greps first",
+      judgment: "pivot",
       edits: [
         {
           action: "create",

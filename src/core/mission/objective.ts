@@ -1,5 +1,6 @@
 /** Objective facet — durable “what we’re finishing”. */
 
+import { tagJudgment } from "../judgment.js"
 import { loadMission, saveMission, updateMission } from "./store.js"
 import { clearObjectiveBackoff } from "./progress.js"
 import {
@@ -28,7 +29,7 @@ export function setObjective(
   if (!text) throw new Error("mission needs an objective")
   clearObjectiveBackoff(sessionId)
   const t = nowIso()
-  return updateMission(sessionId, (cur) => ({
+  const next = updateMission(sessionId, (cur) => ({
     ...cur,
     objective: {
       status: "active",
@@ -41,6 +42,14 @@ export function setObjective(
       updatedAt: t,
     },
   }))
+  tagJudgment({
+    sessionId,
+    label: "design",
+    source: "mission",
+    ref: "objective",
+    note: text.slice(0, 200),
+  })
+  return next
 }
 
 export function pauseObjective(sessionId: string): MissionState {
@@ -87,12 +96,23 @@ export function clearObjective(sessionId: string): MissionState {
 
 export function completeObjective(sessionId: string): MissionState {
   clearObjectiveBackoff(sessionId)
-  return updateMission(sessionId, (cur) => {
+  const before = loadMission(sessionId)
+  const next = updateMission(sessionId, (cur) => {
     if (!cur.objective) return cur
-    const next = { ...cur.objective, status: "complete" as const, updatedAt: nowIso() }
-    delete next.backoffUntil
-    return { ...cur, objective: next }
+    const o = { ...cur.objective, status: "complete" as const, updatedAt: nowIso() }
+    delete o.backoffUntil
+    return { ...cur, objective: o }
   })
+  if (before.objective && before.objective.status !== "complete") {
+    tagJudgment({
+      sessionId,
+      label: "pivot",
+      source: "mission",
+      ref: "objective-done",
+      note: before.objective.objective.slice(0, 200),
+    })
+  }
+  return next
 }
 
 export function recordObjectiveUsage(sessionId: string, tokens: number): MissionState {

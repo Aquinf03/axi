@@ -42,6 +42,7 @@ import {
   startDecisionLoop,
   stopDecisionLoop,
 } from "../decision.js"
+import { isJudgmentLabel, tagJudgment } from "../judgment.js"
 import { completeObjective, loadMission } from "../mission.js"
 import { parseStance, setStance, stanceStatusText } from "../stance.js"
 import {
@@ -156,6 +157,11 @@ export function permitLabel(train: string, name: string, rawArgs: string): strin
   }
   if (name === "investigate_abandon") {
     return `investigate abandon ${args.id ?? "?"}`
+  }
+  if (name === "judgment_tag") {
+    const l = typeof args.label === "string" ? args.label : "?"
+    const n = typeof args.note === "string" && args.note.trim() ? ` · ${args.note.trim()}` : ""
+    return `judgment ${l}${n}`
   }
   if (name === "write") {
     const p = typeof args.path === "string" ? args.path : "?"
@@ -662,6 +668,16 @@ export async function runAgentTool(train: string, name: string, rawArgs: string)
     } catch (err) {
       return err instanceof Error ? err.message : String(err)
     }
+  }
+  if (name === "judgment_tag") {
+    const sid = getArlSessionId()
+    if (!sid) return "judgment_tag needs an open chat session"
+    const labelRaw = typeof args.label === "string" ? args.label.trim().toLowerCase() : ""
+    if (!isJudgmentLabel(labelRaw)) {
+      return "judgment_tag label=hypothesis|tension|pivot|assumption|interpretation|design"
+    }
+    const note = typeof args.note === "string" ? args.note.trim() : undefined
+    return tagJudgment({ sessionId: sid, label: labelRaw, source: "agent", note }).message
   }
   if (name === "plot") {
     const kind = typeof args.kind === "string" && args.kind.trim() ? args.kind.trim() : "all"

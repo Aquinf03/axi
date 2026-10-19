@@ -17,6 +17,8 @@ export type PromptBits = {
   investigate?: string
   /** Belief-revision gate (open contradictions). */
   belief?: string
+  /** Judgment labels on recent pivots (intervention taxonomy). */
+  judgment?: string
 }
 
 export function systemPrompt(train: string, extraOrBits: string | PromptBits = ""): string {
@@ -28,6 +30,7 @@ export function systemPrompt(train: string, extraOrBits: string | PromptBits = "
     bits.stance?.trim() ?? "",
     bits.investigate?.trim() ?? "",
     bits.belief?.trim() ?? "",
+    bits.judgment?.trim() ?? "",
     bits.objective ? `Current request:\n${bits.objective}` : "",
     bits.progress ? `This turn so far (do not forget; do not redo):\n${bits.progress}` : "",
     bits.extra?.trim() ?? "",

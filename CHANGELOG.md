@@ -25,6 +25,7 @@ Format is inspired by [Keep a Changelog](https://keepachangelog.com/). Versions 
 - Falsify gate: /refine lesson writes need what would disprove them (`falsify`); `/refine gate on|off`; undo via `/refine rollback <id>`
 - Belief-revision gate: investigate refutes/conflicts escalate to challenge + pending revise (`/belief`)
 - Convergent-evidence gate: global arl lessons need N independent corroborations (or `/refine --global --force`)
+- Judgment labels on pivots: hypothesis · tension · pivot · assumption · interpretation · design (`/judgment`, refine + mission)
 
 
 ### Notes

@@ -81,6 +81,17 @@ When investigate evidence **refutes** or **conflicts** with an active claim, for
 - Prompt injects open contradictions each turn until cleared.
 - Clear: `/belief resolve <claimId>` after revising, or `investigate_abandon` (auto-resolves), or `/belief clear`.
 
+## Judgment labels
+
+Tag refine/mission pivots with the intervention taxonomy (MCS/Columbus product tags — not neural steering). Front door: `core/judgment.ts`.
+
+- Labels: **hypothesis** · **tension** · **pivot** · **assumption** · **interpretation** · **design**.
+- Persist: `~/.axi/chats/<id>/judgment.json` (recent events, capped).
+- Gate default **on**: `/refine` proposals with edits need top-level `judgment`. `/judgment gate on|off|status`.
+- Auto-tag: mission `setObjective` → design; `completeObjective` → pivot; successful refine → recorded from proposal.
+- Slash: `/judgment status|tag <label> [note]|gate|clear` (alias `/judge`).
+- Tool: `judgment_tag`. Prompt injects recent pivots each turn.
+
 ## Investigate
 
 Session investigation graph — hypotheses ↔ evidence ↔ contradictions / abandoned branches (richer than flat arl). Front door: `core/investigate.ts`.
@@ -199,6 +210,7 @@ Import fat subsystems only through their front doors:
 | investigate | `core/investigate.ts` |
 | prune | `core/prune.ts` |
 | belief | `core/belief.ts` |
+| judgment | `core/judgment.ts` |
 | factory | `core/factory.ts` |
 | daemon | `core/daemon.ts` |
 | mission | `core/mission.ts` |

@@ -365,6 +365,23 @@ export const CORE_TOOLS: AgentToolDef[] = [
       required: ["id", "why"],
     },
   },
+  {
+    name: "judgment_tag",
+    description:
+      "Tag a pivot turn with the intervention taxonomy: hypothesis, tension, pivot, assumption, interpretation, or design. Use on refine/mission direction changes, conflicts, or unstated premises.",
+    parameters: {
+      type: "object",
+      properties: {
+        label: {
+          type: "string",
+          description:
+            "hypothesis | tension | pivot | assumption | interpretation | design",
+        },
+        note: { type: "string", description: "short why / what changed" },
+      },
+      required: ["label"],
+    },
+  },
 ]
 
 /**

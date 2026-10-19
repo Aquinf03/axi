@@ -9,6 +9,12 @@ import path from "node:path"
 import { streamTurn, type ChatMsg } from "../../gateway.js"
 import { formatArlStateForPrompt } from "./digest.js"
 import {
+  isJudgmentLabel,
+  judgmentGateEnabled,
+  tagJudgment,
+  type JudgmentLabel,
+} from "../judgment.js"
+import {
   arlEnabled,
   convergentGateEnabled,
   convergentMin,
@@ -63,6 +69,8 @@ export type RefinementProposal = {
   rationale: string
   expectedOutcome: string
   edits: RefinementEdit[]
+  /** Intervention taxonomy label for this refine pivot (judgment gate). */
+  judgment?: JudgmentLabel
 }
 
 export type AppliedRefinementEdit = {
@@ -84,6 +92,7 @@ export type RefinementResult = {
   appliedEdits: AppliedRefinementEdit[]
   scope: ArlScope
   source: RefinementSource
+  judgment?: JudgmentLabel
   rollbackOf?: string
   createdAt: string
 }
@@ -112,12 +121,14 @@ Prefer the smallest component. Prefer empty edits over speculation.
 After a clear failed approach with a reusable reason, create a rejected entry so later turns avoid rediscovering the same dead end.
 Falsification gate: for create/update of prompt, memory, or rejected, always include "falsify": a concrete check or observation that would disprove the lesson (cheap to try). Do not invent vague falsifiers.
 Convergent-evidence gate (global scope only): for create/update of prompt, memory, or rejected, include "corroborations": an array of at least N independent evidence pointers (different sessions, tools, investigate nodes, or observations — not restatements of one win). Prefer keeping the lesson local until you have them. Do not invent duplicate corroborations.
+Judgment labels: when edits is non-empty, include top-level "judgment": one of hypothesis|tension|pivot|assumption|interpretation|design — what kind of move this refine is (intervention taxonomy).
 Never edit source files. Output JSON only:
 
 {
   "summary": "one sentence",
   "rationale": "why justified by trajectory evidence",
   "expectedOutcome": "what should improve and how to validate",
+  "judgment": "hypothesis|tension|pivot|assumption|interpretation|design — required when edits is non-empty",
   "edits": [
     {
       "action": "create|update|delete",
@@ -244,6 +255,17 @@ export function parseProposal(text: string): RefinementProposal {
       reason: typeof o.reason === "string" ? o.reason : undefined,
     })
   }
+  const judgmentRaw =
+    typeof raw.judgment === "string"
+      ? raw.judgment
+      : typeof raw.label === "string"
+        ? raw.label
+        : typeof raw.intervention === "string"
+          ? raw.intervention
+          : undefined
+  const judgment = isJudgmentLabel(judgmentRaw?.trim().toLowerCase())
+    ? (judgmentRaw!.trim().toLowerCase() as JudgmentLabel)
+    : undefined
   return {
     summary: typeof raw.summary === "string" ? raw.summary : "refinement",
     rationale: typeof raw.rationale === "string" ? raw.rationale : "",
@@ -254,6 +276,7 @@ export function parseProposal(text: string): RefinementProposal {
           ? raw.expected_outcome
           : "",
     edits,
+    judgment,
   }
 }
 
@@ -338,6 +361,8 @@ export type ApplyOptions = {
   rollbackOf?: string
   /** Human override for convergent-evidence gate (`/refine --global --force`). */
   forcePromote?: boolean
+  /** Chat session — judgment gate + tagging. */
+  sessionId?: string
 }
 
 /** Apply proposal to state (mutates). */
@@ -353,6 +378,38 @@ export function applyRefinementProposal(
   const convergent = convergentGateEnabled()
   const need = convergentMin()
   const isRollback = Boolean(options.rollbackOf)
+  const judgmentOn =
+    Boolean(options.sessionId) && judgmentGateEnabled(options.sessionId)
+  // Judgment gate: non-empty edit proposals need a taxonomy label (skip rollback / gate off).
+  if (
+    judgmentOn &&
+    !isRollback &&
+    proposal.edits.length > 0 &&
+    !proposal.judgment
+  ) {
+    for (const edit of proposal.edits) {
+      applied.push({
+        action: edit.action ?? "create",
+        kind: edit.kind ?? "memory",
+        id: edit.id ?? "",
+        reason: edit.reason,
+        applied: false,
+        error:
+          "refine needs judgment=hypothesis|tension|pivot|assumption|interpretation|design — or /judgment gate off",
+      })
+    }
+    return {
+      id: options.id,
+      summary: proposal.summary,
+      rationale: proposal.rationale,
+      expectedOutcome: proposal.expectedOutcome,
+      appliedEdits: applied,
+      scope: options.scope,
+      source: options.source,
+      rollbackOf: options.rollbackOf,
+      createdAt: nowIso(),
+    }
+  }
 
   for (const edit of proposal.edits) {
     const computedId =
@@ -474,6 +531,17 @@ export function applyRefinementProposal(
     created_at: nowIso(),
   })
 
+  const anyApplied = applied.some((e) => e.applied)
+  if (anyApplied && proposal.judgment && options.sessionId && !isRollback) {
+    tagJudgment({
+      sessionId: options.sessionId,
+      label: proposal.judgment,
+      source: "refine",
+      ref: options.id,
+      note: proposal.summary.slice(0, 200),
+    })
+  }
+
   return {
     id: options.id,
     summary: proposal.summary,
@@ -482,6 +550,7 @@ export function applyRefinementProposal(
     appliedEdits: applied,
     scope: options.scope,
     source: options.source,
+    judgment: anyApplied ? proposal.judgment : undefined,
     rollbackOf: options.rollbackOf,
     createdAt: nowIso(),
   }
@@ -603,6 +672,7 @@ export function formatRefinementNotice(result: RefinementResult): string {
     `arl refine (${result.source}, ${result.scope})  ${result.id}`,
     result.summary,
   ]
+  if (result.judgment) lines.push(`judgment  ${result.judgment}`)
   if (applied.length) {
     lines.push(
       `applied  ${applied.map((e) => `${e.action} ${e.kind}:${e.id}`).join(", ")}`,
@@ -692,6 +762,7 @@ export async function runRefine(opts: RunRefineOpts): Promise<RefinementResult> 
     source,
     baselineState: baseline,
     forcePromote: Boolean(opts.force && scope === "global"),
+    sessionId: opts.sessionId,
   })
   saveArlState(scope, working, opts.sessionId)
   appendRefinementResult(scope, result, opts.sessionId)
@@ -717,6 +788,7 @@ export async function runRefineRollback(
     source,
     baselineState: baseline,
     rollbackOf: target.id,
+    sessionId,
   })
   saveArlState(scope, working, sessionId)
   appendRefinementResult(scope, result, sessionId)

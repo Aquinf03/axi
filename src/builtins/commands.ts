@@ -170,6 +170,11 @@ export const SLASH_SPECS: SlashSpec[] = [
   { name: "/stance", hint: "explore · execute · challenge · status · unpin (judgment mode)" },
   { name: "/investigate", hint: "hypothesis graph · status|add|link|abandon|clear" },
   { name: "/belief", hint: "revision gate · status|gate on|off|resolve <id>|clear" },
+  {
+    name: "/judgment",
+    hint: "pivot labels · hypothesis·tension·pivot·assumption·interpretation·design · tag|gate|clear",
+    aliases: ["/judge"],
+  },
   { name: "/arl", hint: "auto RL · on|off|status · interval · cooldown · compact" },
   { name: "/refine", hint: "arl learn · gate · convergent · rollback · [--global] [--force] [focus]" },
   { name: "/factory", hint: "subagent DAG · run|status|list|stop|import|log|cancel <node> <why>" },
