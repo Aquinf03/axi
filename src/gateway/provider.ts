@@ -1,6 +1,6 @@
 /** Providers: openai, anthropic, grok, ollama. Keys live in ~/.axi/config.json. */
 
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync } from "node:fs"
 import { axiHome } from "../core/home.js"
 import path from "node:path"
 import { stdin, stderr } from "node:process"
@@ -22,7 +22,16 @@ import {
   permissionsStatusText,
   sessionGrants,
 } from "../core/permissions.js"
-import { resolveConfig, setPermissionModeWorkspace } from "../core/config.js"
+import {
+  approvePendingConfig,
+  configGateStatusText,
+  denyPendingConfig,
+  pendingConfigStatusText,
+  proposeConfigWrite,
+  resolveConfig,
+  setConfigGate,
+  setPermissionModeWorkspace,
+} from "../core/config.js"
 import {
   arlModeStatusText,
   countArlEntries,
@@ -121,12 +130,24 @@ function load(): Config {
   }
 }
 
-function save(cfg: Config): void {
-  const dir = configDir()
-  mkdirSync(dir, { recursive: true, mode: 0o700 })
-  const p = configPath()
-  writeFileSync(p, JSON.stringify(cfg, null, 2) + "\n", { mode: 0o600 })
-  chmodSync(p, 0o600)
+function save(cfg: Config): { staged?: string } {
+  mkdirSync(configDir(), { recursive: true, mode: 0o700 })
+  const body = JSON.stringify(cfg, null, 2) + "\n"
+  const result = proposeConfigWrite({
+    path: configPath(),
+    body,
+    label: "config.json",
+    mode: 0o600,
+    summary: "provider keys / active model / sound / notify",
+  })
+  if (result.kind === "staged") return { staged: result.diff }
+  return {}
+}
+
+function withSave(cfg: Config, okText: string): string {
+  const r = save(cfg)
+  if (r.staged) return `${okText}\n\n${r.staged}`
+  return okText
 }
 
 function keyFor(e: Entry, saved?: Saved): string | undefined {
@@ -177,15 +198,15 @@ export function soundEnabled(): boolean {
 export function toggleSound(): boolean {
   const cfg = load()
   cfg.sound = cfg.sound === false
-  save(cfg)
+  withSave(cfg, cfg.sound !== false ? "sound on" : "sound off")
+  // When staged, disk still has old value — report intended state.
   return cfg.sound !== false
 }
 
 export function setSound(on: boolean): string {
   const cfg = load()
   cfg.sound = on
-  save(cfg)
-  return on ? "sound on" : "sound off"
+  return withSave(cfg, on ? "sound on" : "sound off")
 }
 
 export function notifyEnabled(): boolean {
@@ -196,15 +217,14 @@ export function notifyEnabled(): boolean {
 export function toggleNotify(): boolean {
   const cfg = load()
   cfg.notify = cfg.notify === false
-  save(cfg)
+  withSave(cfg, cfg.notify !== false ? "notify on" : "notify off")
   return cfg.notify !== false
 }
 
 export function setNotify(on: boolean): string {
   const cfg = load()
   cfg.notify = on
-  save(cfg)
-  return on ? "notify on" : "notify off"
+  return withSave(cfg, on ? "notify on" : "notify off")
 }
 
 const TEMP_MIN = 0
@@ -236,16 +256,14 @@ export function setTemperature(raw: string): string {
   if (s === "reset" || s === "clear" || s === "default" || s === "off") {
     const cfg = load()
     delete cfg.temperature
-    save(cfg)
-    return "temperature  default (provider)"
+    return withSave(cfg, "temperature  default (provider)")
   }
   const n = Number(s)
   if (!Number.isFinite(n)) return "usage: /temp <0–2> | /temp | /temp reset"
   if (n < TEMP_MIN || n > TEMP_MAX) return `temperature must be ${TEMP_MIN}–${TEMP_MAX}`
   const cfg = load()
   cfg.temperature = Math.round(n * 1000) / 1000
-  save(cfg)
-  return `temperature  ${cfg.temperature}`
+  return withSave(cfg, `temperature  ${cfg.temperature}`)
 }
 
 export function setActive(id: ProviderId): string {
@@ -254,8 +272,7 @@ export function setActive(id: ProviderId): string {
   const cfg = load()
   cfg.active = id
   if (!e.needsKey && cfg.providers[id] == null) cfg.providers[id] = {}
-  save(cfg)
-  return "active  " + activeLabel()
+  return withSave(cfg, "active  " + activeLabel())
 }
 
 export function setModel(model: string): string {
@@ -263,8 +280,7 @@ export function setModel(model: string): string {
   if (!id) return "no provider. axi provider openai"
   const cfg = load()
   cfg.providers[id] = { ...cfg.providers[id], model }
-  save(cfg)
-  return "active  " + activeLabel()
+  return withSave(cfg, "active  " + activeLabel())
 }
 
 export function setKey(id: ProviderId, key: string): string {
@@ -273,8 +289,7 @@ export function setKey(id: ProviderId, key: string): string {
   const cfg = load()
   cfg.providers[id] = { ...cfg.providers[id], key: k }
   cfg.active = id
-  save(cfg)
-  return "saved  " + activeLabel()
+  return withSave(cfg, "saved  " + activeLabel())
 }
 
 export type MenuId =
@@ -647,7 +662,7 @@ export function applyChoice(c: Choice): {
         "  sound      click + message cues",
         "  notify     desktop alert when a reply finishes (if terminal unfocused)",
         "",
-        "slash: /new /rename /open /delete [/delete all] /compact /undo /image /status /doctor /spawn /agents /daemon /provider /model /temp /key /sound /notify /arl /refine /codemode /stance /investigate /revise /pivot /evidence /reconcile /ledger /audit /turn /factory /mission /decision /mode",
+        "slash: /new /rename /open /delete [/delete all] /compact /undo /image /status /doctor /spawn /agents /daemon /provider /model /temp /key /sound /notify /arl /refine /codemode /stance /investigate /revise /pivot /evidence /reconcile /ledger /audit /config /turn /factory /mission /decision /mode",
         "",
         "keys: axi provider openai",
         "now: " + activeLabel(),
@@ -808,8 +823,7 @@ export async function providerCmd(argv: string[]): Promise<void> {
     const cfg = load()
     cfg.active = id
     if (!e.needsKey && cfg.providers[id] == null) cfg.providers[id] = {}
-    save(cfg)
-    console.log("active  " + activeLabel())
+    console.log(withSave(cfg, "active  " + activeLabel()))
     return
   }
   const id = parseProvider(a)
@@ -830,9 +844,7 @@ export async function providerCmd(argv: string[]): Promise<void> {
   }
   cfg.providers[id] = cur
   cfg.active = id
-  save(cfg)
-  console.log("set")
-  console.log("  " + activeLabel())
+  console.log(withSave(cfg, "set\n  " + activeLabel()))
 }
 
 export type SlashOpts = {
@@ -936,8 +948,7 @@ export function runSlash(line: string, opts: SlashOpts = {}): SlashResult {
     if (!arg) return { text: "usage: /model <id>" }
     const cfg = load()
     cfg.providers[id] = { ...cfg.providers[id], model: arg }
-    save(cfg)
-    return { text: "active  " + activeLabel() }
+    return { text: withSave(cfg, "active  " + activeLabel()) }
   }
   if (cmd === "/temp") {
     return { text: setTemperature(arg) }
@@ -963,8 +974,34 @@ export function runSlash(line: string, opts: SlashOpts = {}): SlashResult {
     }
     const mode = parsePermissionMode(arg)
     if (!mode) return { text: "usage: /mode ask|auto|plan|full-access" }
-    setPermissionModeWorkspace(workspace, mode)
+    const wrote = setPermissionModeWorkspace(workspace, mode)
+    if (wrote.kind === "staged") {
+      return { text: `mode  ${mode}  (pending)\n\n${wrote.diff}` }
+    }
     return { text: `mode  ${mode}  (profile workspace)` }
+  }
+  if (cmd === "/config") {
+    const tokens = arg.trim().split(/\s+/).filter(Boolean)
+    const head = (tokens[0] ?? "status").toLowerCase()
+    if (head === "status" || !tokens[0]) {
+      return { text: `${configGateStatusText()}\n${pendingConfigStatusText()}` }
+    }
+    if (head === "gate") {
+      const sub = (tokens[1] ?? "status").toLowerCase()
+      if (sub === "status" || !tokens[1]) return { text: configGateStatusText() }
+      if (sub === "on" || sub === "off") {
+        setConfigGate(sub === "on")
+        return { text: configGateStatusText() }
+      }
+      return { text: "usage: /config gate on|off|status" }
+    }
+    if (head === "approve" || head === "yes" || head === "apply") {
+      return { text: approvePendingConfig().text }
+    }
+    if (head === "deny" || head === "no" || head === "reject") {
+      return { text: denyPendingConfig().text }
+    }
+    return { text: "usage: /config status|gate on|off|approve|deny" }
   }
   if (cmd === "/arl") {
     const tokens = arg.trim().split(/\s+/).filter(Boolean)

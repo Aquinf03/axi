@@ -78,6 +78,20 @@ export async function runDoctor(cwd: string): Promise<{ checks: Check[]; ok: boo
 
   const cfg = path.join(axiHome(), "config.json")
   add(existsSync(cfg) ? "ok" : "warn", "config", existsSync(cfg) ? cfg : "no ~/.axi/config.json yet")
+  const settings = path.join(axiHome(), "settings.json")
+  add(
+    existsSync(settings) ? "ok" : "warn",
+    "settings",
+    existsSync(settings) ? settings : "no ~/.axi/settings.json yet",
+  )
+  const pending = path.join(axiHome(), "pending_config.json")
+  add(
+    existsSync(pending) ? "warn" : "ok",
+    "config.pending",
+    existsSync(pending)
+      ? `${pending} — /config approve|deny`
+      : "no pending config write",
+  )
 
   const id = activeId()
   if (!id) add("fail", "provider", "none. axi provider openai")

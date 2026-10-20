@@ -35,6 +35,7 @@ Format is inspired by [Keep a Changelog](https://keepachangelog.com/). Versions 
 - Claim↔run reconcile: match · mismatch · unknown after run/spawn/codemode (`/reconcile`, `claim_reconcile`)
 - Obligation ledger: required port/parity checks; `/mission done` only when each has a unique owner + passing reconcile (`/ledger`)
 - Residual-unknown audit: resolve · accept · drop open unknowns before `/mission done` or global `/refine` (`/audit`)
+- Config dry-run + approve: setup/config writes show paths + backups first (`/config approve`)
 
 
 ### Notes

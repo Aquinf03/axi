@@ -1,10 +1,11 @@
 /** Profile settings under ~/.axi/settings.json (not provider keys). */
 
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import path from "node:path"
 import { axiHome } from "../home.js"
 import type { SavedRule } from "../permissions/types.js"
 import { parsePermissionMode } from "../permissions/mode.js"
+import { proposeConfigWrite, type ProposeWriteResult } from "./pending.js"
 import type { ProfileConfig, ProfileWorkspaceConfig } from "./types.js"
 
 export function settingsPath(): string {
@@ -71,16 +72,29 @@ function isSavedRule(r: unknown): r is SavedRule {
   return false
 }
 
-export function saveProfileConfig(cfg: ProfileConfig): void {
-  const dir = axiHome()
-  mkdirSync(dir, { recursive: true })
-  const p = settingsPath()
-  writeFileSync(p, JSON.stringify(cfg, null, 2) + "\n", "utf8")
-  try {
-    chmodSync(p, 0o600)
-  } catch {
-    /* best-effort */
-  }
+export type SaveProfileOpts = {
+  /** Bypass config gate (refine rule writes, tests). */
+  immediate?: boolean
+  summary?: string
+}
+
+/**
+ * Persist profile settings. When the config gate is on, stages for
+ * `/config approve` instead of writing (unless `immediate`).
+ */
+export function saveProfileConfig(
+  cfg: ProfileConfig,
+  opts: SaveProfileOpts = {},
+): ProposeWriteResult {
+  const body = JSON.stringify(cfg, null, 2) + "\n"
+  return proposeConfigWrite({
+    path: settingsPath(),
+    body,
+    label: "settings.json",
+    mode: 0o600,
+    immediate: opts.immediate,
+    summary: opts.summary ?? "profile settings (permission mode / rules / caps)",
+  })
 }
 
 export function workspaceOverride(cfg: ProfileConfig, workspace: string): ProfileWorkspaceConfig {
@@ -92,16 +106,18 @@ export function savedRules(cfg: ProfileConfig): SavedRule[] {
   return cfg.permission?.rules ?? []
 }
 
-export function setPermissionModeGlobal(mode: import("../permissions/types.js").PermissionMode): void {
+export function setPermissionModeGlobal(
+  mode: import("../permissions/types.js").PermissionMode,
+): ProposeWriteResult {
   const cfg = loadProfileConfig()
   cfg.permission_mode = mode
-  saveProfileConfig(cfg)
+  return saveProfileConfig(cfg, { summary: `permission_mode → ${mode} (global)` })
 }
 
 export function setPermissionModeWorkspace(
   workspace: string,
   mode: import("../permissions/types.js").PermissionMode | null,
-): void {
+): ProposeWriteResult {
   const cfg = loadProfileConfig()
   const key = path.resolve(workspace)
   cfg.workspaces = cfg.workspaces ?? {}
@@ -113,14 +129,22 @@ export function setPermissionModeWorkspace(
   } else {
     cfg.workspaces[key] = { ...cfg.workspaces[key], permission_mode: mode }
   }
-  saveProfileConfig(cfg)
+  return saveProfileConfig(cfg, {
+    summary: mode
+      ? `permission_mode → ${mode} (workspace)`
+      : "permission_mode cleared (workspace)",
+  })
 }
 
 export function addSavedRule(rule: SavedRule): void {
   const cfg = loadProfileConfig()
   const rules = [...(cfg.permission?.rules ?? []), rule]
   cfg.permission = { rules }
-  saveProfileConfig(cfg)
+  // Immediate — refine/policy apply must land without a second /config approve.
+  saveProfileConfig(cfg, {
+    immediate: true,
+    summary: `add saved rule ${rule.id}`,
+  })
 }
 
 export function removeSavedRule(id: string): boolean {
@@ -129,6 +153,6 @@ export function removeSavedRule(id: string): boolean {
   const next = rules.filter((r) => r.id !== id)
   if (next.length === rules.length) return false
   cfg.permission = { rules: next }
-  saveProfileConfig(cfg)
+  saveProfileConfig(cfg, { immediate: true, summary: `remove saved rule ${id}` })
   return true
 }

@@ -229,6 +229,15 @@ Precedence (highest wins): **env > profile workspace > profile global > project 
 Project `.axi.json` accepts only repo-safe keys (`max_agent_steps`, `max_tool_result_bytes`, `context`).
 Secrets, providers, and permission rules stay in the profile (`~/.axi`).
 
+### Config dry-run + approve
+
+Setup/config disk writes show **exact paths** and stage for approve — no silent mutation (default gate **on**).
+
+- Targets: `~/.axi/settings.json` (e.g. `/mode`) · `~/.axi/config.json` (keys, model, sound, notify, temp).
+- Pending: `~/.axi/pending_config.json`. On approve: copy to `~/.axi/backups/<file>.<iso>` then atomic write.
+- Slash: `/config status|approve|deny|gate on|off`. Bypass: `AXI_CONFIG_APPLY=immediate` (tests / scripts).
+- Refine saved-rule writes stay **immediate** (global harness still uses `/refine deploy`).
+
 ## Agent core + hosts
 
 TTY chat and `axi ask` both call `runTurn(history, host)`.

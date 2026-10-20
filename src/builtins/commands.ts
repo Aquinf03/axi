@@ -166,6 +166,10 @@ export const SLASH_SPECS: SlashSpec[] = [
   { name: "/sound", hint: "on · off" },
   { name: "/notify", hint: "on · off · reply desktop alerts" },
   { name: "/mode", hint: "ask · auto · plan · full-access (permission mode)" },
+  {
+    name: "/config",
+    hint: "dry-run setup writes · status|approve|deny · gate on|off",
+  },
   { name: "/codemode", hint: "sticky Node scratchpad · on|off|status · reset · stop" },
   { name: "/stance", hint: "explore · execute · challenge · status · unpin" },
   { name: "/investigate", hint: "hypothesis graph · status|add|link|abandon|clear" },
