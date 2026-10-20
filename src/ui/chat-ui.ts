@@ -40,6 +40,7 @@ import {
 import {
   activeObjectiveText,
   armPulseTimer,
+  claimMissionHost,
   clearObjectiveBackoff,
   clearPulseTimer,
   consumePulseWake,
@@ -49,6 +50,8 @@ import {
   objectiveBackoffWakeMessage,
   onObjectiveBackoffWake,
   onPulseFire,
+  releaseMissionHost,
+  takePendingKick,
   usageToTurnTokens,
 } from "../core/mission.js"
 import { beginUndo, clearUndo, commitUndo, undoLast } from "../core/agent/undo.js"
@@ -334,9 +337,14 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
   const armMissionObjectiveBackoff = () => {
     onObjectiveBackoffWake(spec.id, (sid) => {
       if (sid !== spec.id) return
+      // Daemon owns delivery when up (pendingKick on disk) — avoid double-fire.
+      if (daemonIsUp()) {
+        note(`mission objective  backoff wake · (daemon delivering)`)
+        return
+      }
       const o = loadMission(sid).objective
       if (!o || o.status !== "active") return
-      const msg = objectiveBackoffWakeMessage(o)
+      const msg = takePendingKick(sid)?.message ?? objectiveBackoffWakeMessage(o)
       note(
         `mission objective  backoff wake · streak ${o.noProgressStreak}`,
       )
@@ -381,6 +389,8 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
   }
   armFactoryTick()
   const armMissionDecisionLoop = () => {
+    // Daemon ticks choose loops when up — leave running state on disk.
+    if (daemonIsUp()) return
     onDecisionLoopTick(spec.id, (sid, notice) => {
       if (sid !== spec.id) return
       note(notice)
@@ -797,6 +807,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
     const quit = () => {
       if (done) return
       done = true
+      releaseMissionHost(spec.id, "tui")
       saveChat(train, spec, history)
       shutdownSkills(train)
       clearDeferredTools(train)
@@ -1563,6 +1574,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       beginUndo(history.length - 1)
       beginTrajectoryTurn({ sessionId: spec.id, userText: t })
       busy = true
+      claimMissionHost(spec.id, "tui")
       write("\x1b[?25l")
       const spin = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
       let frame = 0
@@ -1762,6 +1774,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
           write(`${DIM}refine failed  ${msg}${RESET}\n`)
         }
         // Mission: objective/drive/pulse continuation (one kick; chain via re-submit).
+        // Flush persists pendingKick — daemon delivers when up; else TUI takes it.
         try {
           const flushed = flushMissionAfterTurn({
             sessionId: spec.id,
@@ -1776,8 +1789,14 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
           const cont = flushed.continuation
           if (cont && missionChain < MAX_MISSION_CHAIN) {
             write(`${DIM}${cont.notice.split("\n").join(`\n${DIM}`)}${RESET}\n`)
-            pendingMissionKick = cont.message
-            missionChain += 1
+            if (daemonIsUp()) {
+              write(`${DIM}mission  daemon will continue${RESET}\n`)
+              missionChain = 0
+            } else {
+              pendingMissionKick =
+                takePendingKick(spec.id)?.message ?? cont.message
+              missionChain += 1
+            }
           } else {
             missionChain = 0
           }
@@ -1800,6 +1819,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         if (contextFull(measureContext(train, history, contextWindow()))) {
           write("\x1b[?25h")
           busy = false
+          releaseMissionHost(spec.id, "tui")
           pendingMissionKick = null
           missionChain = 0
           await blockIfFull()
@@ -1831,6 +1851,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       }
       write("\x1b[?25h")
       busy = false
+      releaseMissionHost(spec.id, "tui")
       const queued = steerFor(spec.id).takeNext()
       if (queued) {
         await submitFn(queued)

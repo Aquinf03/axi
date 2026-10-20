@@ -234,10 +234,13 @@ export async function runDaemonServer(): Promise<void> {
       } else if (
         summary.pulsesDelivered ||
         summary.factoriesTicked ||
-        summary.pulsesMarked
+        summary.pulsesMarked ||
+        summary.backoffsMarked ||
+        summary.keepGoingDelivered ||
+        summary.chooseTicks
       ) {
         log(
-          `tick  pulses ${summary.pulsesMarked}/${summary.pulsesDelivered}  factory ${summary.factoriesTicked}`,
+          `tick  pulses ${summary.pulsesMarked}/${summary.pulsesDelivered}  keepgoing ${summary.keepGoingDelivered}  backoff ${summary.backoffsMarked}  choose ${summary.chooseTicks}  factory ${summary.factoriesTicked}`,
         )
       }
     } catch (err) {

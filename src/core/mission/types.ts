@@ -106,6 +106,19 @@ export type PulseFacet = {
   updatedAt: string
 }
 
+/** Durable next-turn kick so keep-going survives chat close (daemon delivers). */
+export type MissionPendingKick = {
+  kind: "objective" | "drive" | "pulse" | "backoff"
+  message: string
+  at: string
+}
+
+/** Who owns the parent mission turn — avoids TUI + daemon double-fire. */
+export type MissionHostClaim = {
+  owner: "tui" | "daemon"
+  at: string
+}
+
 export type MissionState = {
   schema: 1
   objective?: ObjectiveFacet
@@ -113,6 +126,10 @@ export type MissionState = {
   pulse?: PulseFacet
   /** Decision / choose-from-options loop (was decision.json). */
   choose?: ChooseFacet
+  /** Queued keep-going user row (objective / drive / backoff). */
+  pendingKick?: MissionPendingKick
+  /** Live claim while a host runs a parent mission turn. */
+  hostClaim?: MissionHostClaim
 }
 
 export const MISSION_SCHEMA = 1

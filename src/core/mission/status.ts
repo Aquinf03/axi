@@ -42,6 +42,9 @@ export function missionStatusText(sessionId: string): string {
     }
   }
 
+  if (m.pendingKick) {
+    lines.push(`  pending  ${m.pendingKick.kind} · daemon/TUI will continue`)
+  }
   if (m.drive?.enabled) {
     for (const ln of formatDriveStatus(m.drive).split("\n")) lines.push(`  ${ln}`)
   }

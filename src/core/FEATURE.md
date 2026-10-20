@@ -170,9 +170,10 @@ Background supervisor so work continues when the TUI is closed. Front door: `cor
 
 - CLI: `axi daemon start|stop|status|run` · slash `/daemon` · tool `daemon_status`
 - Socket + pid under `~/.axi/daemon/` (`daemon.sock`, `daemon.pid`, `daemon.log`)
-- Tick (~2s): mark due mission pulses and deliver via spawn; tick active factory runs
+- Tick (~2s): mark due pulses + objective backoffs; deliver parent keep-going turns; choose-loop ticks; pulse spawn children; factory runs
 - When up, `startAgent` / agent `spawn` prefer the daemon (survives chat exit); set `AXI_DAEMON=0` to force local
 - Roster: `axi agents [dir]` · `/agents` opens live TUI board · `/agents list` text · `/agents children` (kids of this chat)
+- **Mission keep-going without open chat:** `flushMissionAfterTurn` persists `pendingKick` on `mission.json`; daemon runs a headless parent turn (`deliverMissionKeepGoing`). Open TUI yields when daemon is up (same pattern as pulse).
 
 ## Factory
 
@@ -206,6 +207,8 @@ Keep working when the human goes quiet — **one product**, four engines. Front 
 - **Drive** — bounded keep-going + optional shell gates
 - **Pulse** — wall-clock wakes · durable pulse-jobs index
 - **Choose** (Decision) — `decide()` / `decision_*` tools · host observe→decide→act loop · lives in `mission.choose` (legacy `decision.json` migrated). Auto-refine gate + edit triage. Active chat model; optional vision via `images` / `view`.
+
+**Daemon product:** With `axi daemon` up, objective/drive/backoff kicks and choose ticks continue after the TUI closes. Pulse still delivers as a spawn child; objective/drive use the parent chat transcript via `pendingKick` + `hostClaim` (TUI/daemon mutex, 2m stale).
 
 ## Assets / vision
 

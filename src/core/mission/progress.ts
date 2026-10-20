@@ -8,6 +8,7 @@ import {
   OBJECTIVE_BACKOFF_BASE_MS,
   OBJECTIVE_NO_PROGRESS_CAP,
   MISSION_OBJECTIVE_PREFIX,
+  type MissionPendingKick,
   type ObjectiveFacet,
 } from "./types.js"
 
@@ -85,6 +86,15 @@ export function armObjectiveBackoff(sessionId: string): void {
       delete next.backoffUntil
       return { ...cur, objective: next }
     })
+    const o = loadMission(sessionId).objective
+    if (o && o.status === "active") {
+      const kick: MissionPendingKick = {
+        kind: "backoff",
+        message: objectiveBackoffWakeMessage(o),
+        at: nowIso(),
+      }
+      updateMission(sessionId, (cur) => ({ ...cur, pendingKick: kick }))
+    }
     if (sp.onWake) sp.onWake(sessionId)
   }, delay)
 }

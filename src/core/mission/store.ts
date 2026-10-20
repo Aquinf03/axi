@@ -9,6 +9,8 @@ import {
   normalizeDriveLimits,
   type ChooseFacet,
   type DriveFacet,
+  type MissionHostClaim,
+  type MissionPendingKick,
   type MissionState,
   type ObjectiveFacet,
   type PulseFacet,
@@ -110,6 +112,34 @@ function sanitizeChoose(raw: ChooseFacet | undefined): ChooseFacet | undefined {
   return { ...raw }
 }
 
+function sanitizePendingKick(
+  raw: Partial<MissionPendingKick> | undefined,
+): MissionPendingKick | undefined {
+  if (!raw || typeof raw !== "object") return undefined
+  const message = typeof raw.message === "string" ? raw.message.trim() : ""
+  if (!message) return undefined
+  const kind = raw.kind
+  const ok =
+    kind === "objective" || kind === "drive" || kind === "pulse" || kind === "backoff"
+  if (!ok) return undefined
+  return {
+    kind,
+    message: message.slice(0, 16_000),
+    at: typeof raw.at === "string" ? raw.at : new Date().toISOString(),
+  }
+}
+
+function sanitizeHostClaim(
+  raw: Partial<MissionHostClaim> | undefined,
+): MissionHostClaim | undefined {
+  if (!raw || typeof raw !== "object") return undefined
+  if (raw.owner !== "tui" && raw.owner !== "daemon") return undefined
+  return {
+    owner: raw.owner,
+    at: typeof raw.at === "string" ? raw.at : new Date().toISOString(),
+  }
+}
+
 export function sanitizeMission(raw: Partial<MissionState> | null | undefined): MissionState {
   if (!raw || typeof raw !== "object") return emptyMission()
   return {
@@ -118,6 +148,8 @@ export function sanitizeMission(raw: Partial<MissionState> | null | undefined): 
     drive: sanitizeDrive(raw.drive),
     pulse: sanitizePulse(raw.pulse),
     choose: sanitizeChoose(raw.choose as ChooseFacet | undefined),
+    pendingKick: sanitizePendingKick(raw.pendingKick),
+    hostClaim: sanitizeHostClaim(raw.hostClaim),
   }
 }
 

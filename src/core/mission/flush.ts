@@ -18,17 +18,28 @@ import {
 } from "./drive.js"
 import { evaluateDriveGates } from "./gates.js"
 import { consumePulseWake, takePulsePending } from "./pulse.js"
-import { loadMission } from "./store.js"
+import { loadMission, updateMission } from "./store.js"
 import {
   MISSION_DRIVE_PREFIX,
   MISSION_OBJECTIVE_PREFIX,
   MISSION_PULSE_PREFIX,
+  type MissionPendingKick,
 } from "./types.js"
 
 export type MissionContinuation = {
   kind: "objective" | "drive" | "pulse"
   message: string
   notice: string
+}
+
+function queueKick(sessionId: string, cont: MissionContinuation): MissionContinuation {
+  const row: MissionPendingKick = {
+    kind: cont.kind,
+    message: cont.message.slice(0, 16_000),
+    at: new Date().toISOString(),
+  }
+  updateMission(sessionId, (cur) => ({ ...cur, pendingKick: row }))
+  return cont
 }
 
 export type FlushMissionResult = {
@@ -90,11 +101,11 @@ export function flushMissionAfterTurn(opts: FlushMissionOpts): FlushMissionResul
       bumpObjectiveContinuation(sessionId)
       const o = loadMission(sessionId).objective!
       return {
-        continuation: {
+        continuation: queueKick(sessionId, {
           kind: "objective",
           message: objectiveContinuationMessage(o),
           notice: `mission objective  continue · cont ${o.continuationsUsed}`,
-        },
+        }),
       }
     }
     return { continuation: null }
@@ -106,11 +117,11 @@ export function flushMissionAfterTurn(opts: FlushMissionOpts): FlushMissionResul
     const wake = consumePulseWake(sessionId)
     if (wake) {
       return {
-        continuation: {
+        continuation: queueKick(sessionId, {
           kind: "pulse",
           message: wake.message,
           notice: `mission pulse  run#${wake.runCount}`,
-        },
+        }),
       }
     }
   }
@@ -140,11 +151,11 @@ export function flushMissionAfterTurn(opts: FlushMissionOpts): FlushMissionResul
     bumpDriveContinuation(sessionId)
     const d = loadMission(sessionId).drive!
     return {
-      continuation: {
+      continuation: queueKick(sessionId, {
         kind: "drive",
         message: gate.message,
         notice: `${gate.notice} · cont ${d.continuationsUsed}/${d.limits.maxContinuations}`,
-      },
+      }),
     }
   }
 
@@ -157,11 +168,11 @@ export function flushMissionAfterTurn(opts: FlushMissionOpts): FlushMissionResul
     bumpDriveContinuation(sessionId)
     const d = loadMission(sessionId).drive!
     return {
-      continuation: {
+      continuation: queueKick(sessionId, {
         kind: "drive",
         message: decision.message,
         notice: `mission drive  continue · cont ${d.continuationsUsed}/${d.limits.maxContinuations}`,
-      },
+      }),
     }
   }
   return { continuation: null }

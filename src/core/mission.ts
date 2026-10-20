@@ -20,6 +20,8 @@ export {
   type DriveFacet,
   type DriveGateConfig,
   type DriveLimits,
+  type MissionHostClaim,
+  type MissionPendingKick,
   type MissionState,
   type ObjectiveFacet,
   type ObjectiveStatus,
@@ -134,6 +136,22 @@ export {
   type FlushMissionResult,
   type MissionContinuation,
 } from "./mission/flush.js"
+
+export {
+  MISSION_HOST_CLAIM_STALE_MS,
+  claimMissionHost,
+  clearPendingKick,
+  deliverMissionKeepGoing,
+  isMissionHostBusy,
+  listPendingKeepGoing,
+  markDueObjectiveBackoffs,
+  peekPendingKick,
+  releaseMissionHost,
+  setPendingKick,
+  takePendingKick,
+  touchMissionHost,
+  type KeepGoingDelivery,
+} from "./mission/keepgoing.js"
 
 export { missionStatusText } from "./mission/status.js"
 

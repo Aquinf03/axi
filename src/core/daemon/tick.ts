@@ -1,20 +1,32 @@
 /**
  * Background ticks while the daemon is up (chat may be closed).
- * - mission: mark due pulses and deliver via spawn child
+ * - mission: mark due pulses / objective backoffs; deliver keep-going + pulse spawn
+ * - choose: run decision ticks for loops left running
  * - factory: tick any chat with a running factory
  */
 
 import { existsSync, readdirSync } from "node:fs"
 import path from "node:path"
 import { startAgent } from "../agent/spawn.js"
+import { runDecisionTick } from "../decision.js"
 import { factoryActive, tickFactory } from "../factory.js"
 import { axiHome } from "../home.js"
-import { consumePulseWake, loadMission, markDuePulses } from "../mission.js"
+import {
+  consumePulseWake,
+  deliverMissionKeepGoing,
+  listPendingKeepGoing,
+  loadMission,
+  markDueObjectiveBackoffs,
+  markDuePulses,
+} from "../mission.js"
 import { loadSession, workspaceOf } from "../session.js"
 
 export type TickSummary = {
   pulsesMarked: number
   pulsesDelivered: number
+  backoffsMarked: number
+  keepGoingDelivered: number
+  chooseTicks: number
   factoriesTicked: number
   errors: string[]
 }
@@ -43,6 +55,8 @@ function sessionWorkspace(sessionId: string): string | null {
 export async function runDaemonTick(): Promise<TickSummary> {
   const errors: string[] = []
   let pulsesDelivered = 0
+  let keepGoingDelivered = 0
+  let chooseTicks = 0
   let factoriesTicked = 0
 
   let pulsesMarked = 0
@@ -50,6 +64,13 @@ export async function runDaemonTick(): Promise<TickSummary> {
     pulsesMarked = markDuePulses().length
   } catch (err) {
     errors.push(`mission: ${err instanceof Error ? err.message : String(err)}`)
+  }
+
+  let backoffsMarked = 0
+  try {
+    backoffsMarked = markDueObjectiveBackoffs().length
+  } catch (err) {
+    errors.push(`backoff: ${err instanceof Error ? err.message : String(err)}`)
   }
 
   // Deliver only pulses marked due (pendingDue) — avoids double-fire with an open TUI timer.
@@ -79,6 +100,28 @@ export async function runDaemonTick(): Promise<TickSummary> {
     }
   }
 
+  // Parent-session keep-going (objective / drive / backoff) — one kick per session per tick.
+  for (const sid of listPendingKeepGoing()) {
+    try {
+      const r = await deliverMissionKeepGoing(sid)
+      if (r.error) errors.push(`keepgoing ${sid}: ${r.error}`)
+      if (r.delivered) keepGoingDelivered++
+    } catch (err) {
+      errors.push(`keepgoing ${sid}: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+
+  // Choose loops left running on disk (no open chat timer).
+  for (const sid of chatIds()) {
+    try {
+      if (loadMission(sid).choose?.status !== "running") continue
+      const notice = await runDecisionTick(sid)
+      if (notice) chooseTicks++
+    } catch (err) {
+      errors.push(`choose ${sid}: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+
   for (const sid of chatIds()) {
     try {
       if (!factoryActive(sid)) continue
@@ -91,5 +134,13 @@ export async function runDaemonTick(): Promise<TickSummary> {
     }
   }
 
-  return { pulsesMarked, pulsesDelivered, factoriesTicked, errors }
+  return {
+    pulsesMarked,
+    pulsesDelivered,
+    backoffsMarked,
+    keepGoingDelivered,
+    chooseTicks,
+    factoriesTicked,
+    errors,
+  }
 }
