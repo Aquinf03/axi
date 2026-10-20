@@ -429,6 +429,54 @@ export const CORE_TOOLS: AgentToolDef[] = [
       required: ["claim", "verdict"],
     },
   },
+  {
+    name: "obligation_add",
+    description:
+      "Add a required check to the mission obligation ledger (port/parity missions). /mission done is blocked while open checks remain.",
+    parameters: {
+      type: "object",
+      properties: {
+        check: { type: "string", description: "required check text" },
+        owner: {
+          type: "string",
+          description: "optional unique owner among open checks",
+        },
+        verifier: {
+          type: "string",
+          description: "optional what would prove it",
+        },
+      },
+      required: ["check"],
+    },
+  },
+  {
+    name: "obligation_owner",
+    description: "Assign a unique owner to an open obligation (required before close).",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "obligation id" },
+        owner: { type: "string", description: "unique owner name" },
+      },
+      required: ["id", "owner"],
+    },
+  },
+  {
+    name: "obligation_close",
+    description:
+      "Close an obligation only when it has a unique owner and a claim_reconcile entry with verdict=match.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "obligation id" },
+        reconcile_id: {
+          type: "string",
+          description: "claim_reconcile entry id with verdict match",
+        },
+      },
+      required: ["id", "reconcile_id"],
+    },
+  },
 ]
 
 /**

@@ -188,6 +188,10 @@ export const SLASH_SPECS: SlashSpec[] = [
     hint: "claim↔run · match|mismatch|unknown · gate|clear  (after run/spawn/codemode)",
   },
   {
+    name: "/ledger",
+    hint: "port obligations · init|add|owner|close · gates /mission done",
+  },
+  {
     name: "/turn",
     hint: "mark last turn · accept|edit|undo|retry|deny · status|clear  (feeds /refine)",
     aliases: ["/trajectory", "/traj"],

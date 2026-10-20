@@ -1,6 +1,7 @@
 import { formatDriveStatus } from "./drive.js"
 import { formatPulseStatus } from "./pulse.js"
 import { formatDecisionLoopStatus, loadDecisionLoop } from "../decision.js"
+import { ledgerMissionStatusLine } from "../ledger.js"
 import { loadMission } from "./store.js"
 
 /**
@@ -33,6 +34,8 @@ export function missionStatusText(sessionId: string): string {
       if (o.noProgressStreak > 0) {
         lines.push(`  no-progress ${o.noProgressStreak}`)
       }
+      const ob = ledgerMissionStatusLine(sessionId)
+      if (ob) lines.push(`  ${ob}`)
     }
   }
 

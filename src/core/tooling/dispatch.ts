@@ -45,6 +45,12 @@ import {
 import { isEvidenceGrade, tagEvidence } from "../evidence.js"
 import { isJudgmentLabel, tagJudgment } from "../judgment.js"
 import { isClaimRunVerdict, recordReconcile } from "../reconcile.js"
+import {
+  addObligation,
+  assignObligationOwner,
+  closeObligation,
+  missionCompletable,
+} from "../ledger.js"
 import { completeObjective, loadMission } from "../mission.js"
 import { parseStance, setStance, stanceStatusText } from "../stance.js"
 import {
@@ -174,6 +180,16 @@ export function permitLabel(train: string, name: string, rawArgs: string): strin
     const v = typeof args.verdict === "string" ? args.verdict : "?"
     const c = typeof args.claim === "string" ? args.claim.trim().slice(0, 80) : "?"
     return `reconcile ${v} · ${c}`
+  }
+  if (name === "obligation_add") {
+    const c = typeof args.check === "string" ? args.check.trim().slice(0, 80) : "?"
+    return `obligation add · ${c}`
+  }
+  if (name === "obligation_owner") {
+    return `obligation owner ${args.id ?? "?"} → ${args.owner ?? "?"}`
+  }
+  if (name === "obligation_close") {
+    return `obligation close ${args.id ?? "?"} via ${args.reconcile_id ?? args.reconcileId ?? "?"}`
   }
   if (name === "write") {
     const p = typeof args.path === "string" ? args.path : "?"
@@ -444,12 +460,56 @@ export async function runAgentTool(train: string, name: string, rawArgs: string)
     if (!before || before.status === "idle" || before.status === "complete") {
       return "no active mission objective to complete"
     }
-    completeObjective(sid)
+    const gate = missionCompletable(sid)
+    if (!gate.ok) return gate.message
+    try {
+      completeObjective(sid)
+    } catch (err) {
+      return err instanceof Error ? err.message : String(err)
+    }
     const summary =
       typeof args.summary === "string" && args.summary.trim() ? args.summary.trim() : ""
     return summary
       ? `mission objective complete — ${summary}`
       : "mission objective marked complete"
+  }
+  if (name === "obligation_add") {
+    const sid = getArlSessionId()
+    if (!sid) return "obligation_add needs an open chat session"
+    const check = typeof args.check === "string" ? args.check.trim() : ""
+    if (!check) return "obligation_add needs check=<text>"
+    const owner = typeof args.owner === "string" ? args.owner.trim() : undefined
+    const verifier = typeof args.verifier === "string" ? args.verifier.trim() : undefined
+    return addObligation({
+      sessionId: sid,
+      check,
+      source: "agent",
+      owner: owner || undefined,
+      verifier: verifier || undefined,
+    }).message
+  }
+  if (name === "obligation_owner") {
+    const sid = getArlSessionId()
+    if (!sid) return "obligation_owner needs an open chat session"
+    const id = typeof args.id === "string" ? args.id.trim() : ""
+    const owner = typeof args.owner === "string" ? args.owner.trim() : ""
+    if (!id || !owner) return "obligation_owner needs id= and owner="
+    return assignObligationOwner(sid, id, owner).message
+  }
+  if (name === "obligation_close") {
+    const sid = getArlSessionId()
+    if (!sid) return "obligation_close needs an open chat session"
+    const id = typeof args.id === "string" ? args.id.trim() : ""
+    const reconcileId =
+      typeof args.reconcile_id === "string"
+        ? args.reconcile_id.trim()
+        : typeof args.reconcileId === "string"
+          ? args.reconcileId.trim()
+          : ""
+    if (!id || !reconcileId) {
+      return "obligation_close needs id= and reconcile_id= (claim_reconcile match)"
+    }
+    return closeObligation({ sessionId: sid, id, reconcileId }).message
   }
   if (name === "decision_decide") {
     const observation =

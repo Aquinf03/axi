@@ -28,6 +28,7 @@ import {
   formatGradedText,
   isEvidenceGrade,
 } from "../evidence.js"
+import { formatLedgerForRefine } from "../ledger.js"
 import { formatReconcileForRefine } from "../reconcile.js"
 import { formatTrajectoryForRefine } from "../trajectory.js"
 import {
@@ -173,6 +174,7 @@ Falsification gate: for create/update of prompt, memory, or rejected, always inc
 Convergent-evidence gate (global scope only): for create/update of prompt, memory, or rejected, include "corroborations": an array of at least N independent evidence pointers (different sessions, tools, investigate nodes, or observations — not restatements of one win). Prefer keeping the lesson local until you have them. Do not invent duplicate corroborations.
 Evidence grades: prefer corroborations graded observed|derived (tool saw it / computed from that). Format as "observed: …" or "derived|tool: …", or objects {grade, source|note}. Treat inferred as hypothesis; keep unknown explicit in lesson text — never promote prose-only guesses as observed. When graded corroborations are present on a global lesson, ≥1 must be observed|derived (or --force /evidence gate off).
 Claim↔run: prefer lessons backed by match checks; treat mismatch as negative evidence (rejected / do-not-retry); leave unknown claims unchecked — do not promote them as facts.
+Obligation ledger: open port/parity checks block /mission done until each has a unique owner + reconcile match — do not invent closed checks.
 Judgment labels: when edits is non-empty, include top-level "judgment": one of hypothesis|tension|pivot|assumption|interpretation|design — what kind of move this refine is (intervention taxonomy).
 Never edit source files. Output JSON only:
 
@@ -1004,6 +1006,7 @@ export async function runRefine(opts: RunRefineOpts): Promise<RefineRunResult> {
     const traj = formatTrajectoryForRefine(opts.sessionId)
     const graded = formatEvidenceForRefine(opts.sessionId)
     const reconciled = formatReconcileForRefine(opts.sessionId)
+    const obligations = formatLedgerForRefine(opts.sessionId)
     const user = [
       `Target scope: ${scope}`,
       focus,
@@ -1017,6 +1020,8 @@ export async function runRefine(opts: RunRefineOpts): Promise<RefineRunResult> {
       graded,
       "\n# Claim↔run checks (match · mismatch · unknown)\n",
       reconciled,
+      "\n# Obligation ledger (port/parity checks)\n",
+      obligations,
       "\n# Conversation\n",
       conversationBlob(opts.history),
       "\nReply with JSON only.",

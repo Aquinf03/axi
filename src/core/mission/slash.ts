@@ -22,6 +22,7 @@ import { clearPulse, pausePulse, resumePulse, setPulse } from "./pulse.js"
 import { loadMission } from "./store.js"
 import { missionStatusText } from "./status.js"
 import { emptyLoop, saveDecisionLoop, stopDecisionLoop } from "../decision.js"
+import { runLedgerSlash } from "../ledger.js"
 import { updateMission } from "./store.js"
 import type { DriveLimits } from "./types.js"
 
@@ -169,8 +170,16 @@ export function runMissionSlash(sessionId: string | undefined, arg: string): Mis
   }
 
   if (head === "done" || head === "complete") {
-    completeObjective(sessionId)
-    return { text: missionStatusText(sessionId) }
+    try {
+      completeObjective(sessionId)
+      return { text: missionStatusText(sessionId) }
+    } catch (err) {
+      return { text: err instanceof Error ? err.message : String(err) }
+    }
+  }
+
+  if (head === "ledger") {
+    return runLedgerSlash(sessionId, tokens.slice(1).join(" "))
   }
 
   // --- power path (unchanged behavior, not the brochure) ---
