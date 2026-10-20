@@ -40,6 +40,7 @@ Continual harness store for self-improving lessons (prompt notes, memories, **re
 - **Convergent-evidence gate** (default **on**): global create/update of `prompt` / `memory` / `rejected` needs ≥ N independent `corroborations` (default **2**), or human `/refine --global --force`. Local refine is unaffected. `/refine convergent on|off|status|n <1-8>`. Stored on entry metadata.
 - **Human deploy gate** (default **on**): global `/refine` **stages** a pending ship (diff shown) — apply only after approve (`/refine deploy approve` or TUI ship/deny). Local stays auto. `/refine deploy on|off|status`. Pending: `~/.axi/arl/pending_deploy.json`.
 - **Pre-ship check** (default **on**): before global apply, zero-cost harness fingerprint (`agent/harness.ts`) + structural eval (digest renders, lesson bodies, policy sane, base prompt intact). Blocks ship on fail. `/refine preship on|off|status`. Local unaffected.
+- **Evidence grades** (default gate **on**): tag claims `observed` · `derived` · `inferred` · `unknown` (`evidence_tag`, `/evidence`). Unknowns stay explicit in the prompt. Feeds `/refine` + digest guidance; global lessons whose corroborations carry grades need ≥1 `observed|derived` (or `--force` / `/evidence gate off`). Session: `~/.axi/chats/<id>/evidence.json`.
 - Auto-refine follows `/arl on`. Options: `/arl interval <n>` · `/arl cooldown <m>` · `/arl compact on|off`. Reviewer gate every N turns and after compact (cooldown). **Usage→arl:** `edit` · `retry` · `deny` · `undo` (from `/turn` / trajectory) also arm auto-refine and **bypass cooldown**. Local-only unless the reviewer asks global.
 - Unify: `memory_write` dual-writes workspace + global arl memory; `memory_search`/`read` merge both. Skill stubs stay inventory (no auto `SKILL.md`). `spawn spec=<id>` loads harness subagents. Learned policy stays in digest/`prompt` entries — not `BASE_PROMPT`.
 - Helper: `formatRejectedContent({ tried, why, unless? })` for canonical rejected bodies.
@@ -94,6 +95,16 @@ Mark refine/mission pivots with the intervention taxonomy (MCS/Columbus product 
 - Auto-mark: mission `setObjective` → design; `completeObjective` → pivot; successful refine → recorded from proposal.
 - Slash: `/pivot status|mark <label> [note]|gate|clear` (aliases `/judgment` · `/judge`).
 - Tool: `judgment_tag`. Prompt injects recent pivots each turn.
+
+## Evidence grades
+
+Tag how sure a claim is (REA judgment primitive — not reverse-engineering). Front door: `core/evidence.ts`.
+
+- Grades: **observed** (tool saw it) · **derived** (computed from observed) · **inferred** (conclusion) · **unknown** (keep explicit).
+- Persist: `~/.axi/chats/<id>/evidence.json` (recent claims, capped).
+- Gate default **on**: global `/refine` lessons whose corroborations carry grades need ≥1 `observed|derived` (or `--force` / `/evidence gate off`). Ungraded corroborations still use the convergent count only.
+- Slash: `/evidence status|tag <grade> <claim>|gate|clear`. Tool: `evidence_tag`.
+- Prompt injects open unknowns + recent claims each turn. `/refine` sees `# Graded claims`; digest guidance prefers observed/derived.
 
 ## Trajectory log
 
@@ -225,6 +236,7 @@ Import fat subsystems only through their front doors:
 | prune | `core/prune.ts` |
 | belief | `core/belief.ts` |
 | judgment | `core/judgment.ts` |
+| evidence | `core/evidence.ts` |
 | trajectory | `core/trajectory.ts` |
 | factory | `core/factory.ts` |
 | daemon | `core/daemon.ts` |

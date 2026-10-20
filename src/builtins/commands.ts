@@ -180,6 +180,10 @@ export const SLASH_SPECS: SlashSpec[] = [
     aliases: ["/judgment", "/judge"],
   },
   {
+    name: "/evidence",
+    hint: "grade a claim · observed|derived|inferred|unknown · gate|clear  (feeds /refine)",
+  },
+  {
     name: "/turn",
     hint: "mark last turn · accept|edit|undo|retry|deny · status|clear  (feeds /refine)",
     aliases: ["/trajectory", "/traj"],

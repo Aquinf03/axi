@@ -21,6 +21,13 @@ import {
   savedRules,
 } from "../config.js"
 import { newRuleId, type SavedRule } from "../permissions.js"
+import {
+  corroborationsHaveObservedOrDerived,
+  evidenceGateEnabled,
+  formatEvidenceForRefine,
+  formatGradedText,
+  isEvidenceGrade,
+} from "../evidence.js"
 import { formatTrajectoryForRefine } from "../trajectory.js"
 import {
   clearPendingDeploy,
@@ -163,6 +170,7 @@ Prefer the smallest component. Prefer empty edits over speculation.
 After a clear failed approach with a reusable reason, create a rejected entry so later turns avoid rediscovering the same dead end.
 Falsification gate: for create/update of prompt, memory, or rejected, always include "falsify": a concrete check or observation that would disprove the lesson (cheap to try). Do not invent vague falsifiers.
 Convergent-evidence gate (global scope only): for create/update of prompt, memory, or rejected, include "corroborations": an array of at least N independent evidence pointers (different sessions, tools, investigate nodes, or observations — not restatements of one win). Prefer keeping the lesson local until you have them. Do not invent duplicate corroborations.
+Evidence grades: prefer corroborations graded observed|derived (tool saw it / computed from that). Format as "observed: …" or "derived|tool: …", or objects {grade, source|note}. Treat inferred as hypothesis; keep unknown explicit in lesson text — never promote prose-only guesses as observed. When graded corroborations are present on a global lesson, ≥1 must be observed|derived (or --force /evidence gate off).
 Judgment labels: when edits is non-empty, include top-level "judgment": one of hypothesis|tension|pivot|assumption|interpretation|design — what kind of move this refine is (intervention taxonomy).
 Never edit source files. Output JSON only:
 
@@ -229,12 +237,26 @@ export function normalizeCorroborations(raw: unknown): string[] {
       if (typeof item === "string") list.push(item)
       else if (item && typeof item === "object") {
         const o = item as Record<string, unknown>
-        const s =
+        const body =
           (typeof o.source === "string" && o.source) ||
           (typeof o.note === "string" && o.note) ||
+          (typeof o.text === "string" && o.text) ||
           (typeof o.id === "string" && o.id) ||
           ""
-        if (s) list.push(s)
+        if (!body) continue
+        const gradeRaw =
+          typeof o.grade === "string" ? o.grade.trim().toLowerCase() : ""
+        const ref =
+          typeof o.ref === "string"
+            ? o.ref
+            : typeof o.tool === "string"
+              ? o.tool
+              : undefined
+        if (isEvidenceGrade(gradeRaw)) {
+          list.push(formatGradedText(gradeRaw, body, ref))
+        } else {
+          list.push(body)
+        }
       }
     }
   } else if (typeof raw === "string" && raw.trim()) {
@@ -360,6 +382,7 @@ function validateEdit(
     gate?: boolean
     convergent?: boolean
     convergentNeed?: number
+    evidence?: boolean
     scope?: ArlScope
     forcePromote?: boolean
     isRollback?: boolean
@@ -431,6 +454,25 @@ function validateEdit(
       )
     }
   }
+  // Evidence grades: if corroborations carry grades, ≥1 must be observed|derived.
+  if (
+    opts?.evidence &&
+    !opts.isRollback &&
+    !opts.forcePromote &&
+    opts.scope === "global" &&
+    (edit.action === "create" || edit.action === "update") &&
+    edit.kind &&
+    (FALSIFY_KINDS as readonly string[]).includes(edit.kind)
+  ) {
+    const corps = corroborationsFromEdit(edit)
+    const strong = corroborationsHaveObservedOrDerived(corps)
+    if (strong === false) {
+      return (
+        `${edit.action} ${edit.kind} global needs ≥1 observed|derived corroboration` +
+        ` when grades are present — or /refine --global --force / /evidence gate off`
+      )
+    }
+  }
   return undefined
 }
 
@@ -464,6 +506,8 @@ export function applyRefinementProposal(
   const gate = falsifyGateEnabled()
   const convergent = convergentGateEnabled()
   const need = convergentMin()
+  const evidenceOn =
+    Boolean(options.sessionId) && evidenceGateEnabled(options.sessionId)
   const isRollback = Boolean(options.rollbackOf)
   const judgmentOn =
     Boolean(options.sessionId) && judgmentGateEnabled(options.sessionId)
@@ -509,6 +553,7 @@ export function applyRefinementProposal(
       gate,
       convergent,
       convergentNeed: need,
+      evidence: evidenceOn,
       scope: options.scope,
       forcePromote: options.forcePromote,
       isRollback,
@@ -955,6 +1000,7 @@ export async function runRefine(opts: RunRefineOpts): Promise<RefineRunResult> {
       ? `\n\nFocus instructions:\n${opts.instructions.trim()}`
       : ""
     const traj = formatTrajectoryForRefine(opts.sessionId)
+    const graded = formatEvidenceForRefine(opts.sessionId)
     const user = [
       `Target scope: ${scope}`,
       focus,
@@ -964,6 +1010,8 @@ export async function runRefine(opts: RunRefineOpts): Promise<RefineRunResult> {
       historyNote,
       "\n# Trajectory units (trace + user signal)\n",
       traj || "(none)",
+      "\n# Graded claims (observed · derived · inferred · unknown)\n",
+      graded,
       "\n# Conversation\n",
       conversationBlob(opts.history),
       "\nReply with JSON only.",

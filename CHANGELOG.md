@@ -31,6 +31,7 @@ Format is inspired by [Keep a Changelog](https://keepachangelog.com/). Versions 
 - Joint harness refine: one `/refine` pass can co-edit prompt/harness entries and saved tool policy (`kind=policy`)
 - Human deploy gate: global `/refine` stages a diff for approve before ship (`/refine deploy`)
 - Pre-ship check: global `/refine` runs harness fingerprint + tiny structural eval before apply (`/refine preship`)
+- Evidence grades: tag claims observed · derived · inferred · unknown (`/evidence`, `evidence_tag`); feed `/refine` + digest; keep unknowns explicit
 
 
 ### Notes

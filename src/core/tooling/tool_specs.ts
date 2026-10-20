@@ -382,6 +382,27 @@ export const CORE_TOOLS: AgentToolDef[] = [
       required: ["label"],
     },
   },
+  {
+    name: "evidence_tag",
+    description:
+      "Tag a claim with an evidence grade: observed (tool saw it), derived (computed from observed), inferred (model/human conclusion), or unknown (not established — keep explicit). Prefer observed/derived before promoting lessons.",
+    parameters: {
+      type: "object",
+      properties: {
+        grade: {
+          type: "string",
+          description: "observed | derived | inferred | unknown",
+        },
+        text: { type: "string", description: "short claim" },
+        ref: {
+          type: "string",
+          description: "optional backing pointer (tool name, investigate id, turn)",
+        },
+        note: { type: "string", description: "optional why" },
+      },
+      required: ["grade", "text"],
+    },
+  },
 ]
 
 /**

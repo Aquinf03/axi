@@ -32,6 +32,7 @@ import { getArlSessionId } from "../arl.js"
 import { hardRouteChallenge, stancePromptBlock } from "../stance.js"
 import { investigatePromptBlock } from "../investigate.js"
 import { beliefPromptBlock } from "../belief.js"
+import { evidencePromptBlock } from "../evidence.js"
 import { judgmentPromptBlock } from "../judgment.js"
 import { noteTrajectoryTool } from "../trajectory.js"
 import { addUsage, emptyUsage, type TokenUsage } from "../usage.js"
@@ -184,6 +185,7 @@ async function runTurnInner(
       investigate: investigatePromptBlock(stanceSession()),
       belief: beliefPromptBlock(stanceSession()),
       judgment: judgmentPromptBlock(stanceSession()),
+      evidence: evidencePromptBlock(stanceSession()),
     })
 
   const takeUsage = (piece: typeof usage | undefined) => {

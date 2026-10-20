@@ -42,6 +42,7 @@ import {
   startDecisionLoop,
   stopDecisionLoop,
 } from "../decision.js"
+import { isEvidenceGrade, tagEvidence } from "../evidence.js"
 import { isJudgmentLabel, tagJudgment } from "../judgment.js"
 import { completeObjective, loadMission } from "../mission.js"
 import { parseStance, setStance, stanceStatusText } from "../stance.js"
@@ -162,6 +163,11 @@ export function permitLabel(train: string, name: string, rawArgs: string): strin
     const l = typeof args.label === "string" ? args.label : "?"
     const n = typeof args.note === "string" && args.note.trim() ? ` · ${args.note.trim()}` : ""
     return `judgment ${l}${n}`
+  }
+  if (name === "evidence_tag") {
+    const g = typeof args.grade === "string" ? args.grade : "?"
+    const t = typeof args.text === "string" ? args.text.trim().slice(0, 80) : "?"
+    return `evidence ${g} · ${t}`
   }
   if (name === "write") {
     const p = typeof args.path === "string" ? args.path : "?"
@@ -678,6 +684,27 @@ export async function runAgentTool(train: string, name: string, rawArgs: string)
     }
     const note = typeof args.note === "string" ? args.note.trim() : undefined
     return tagJudgment({ sessionId: sid, label: labelRaw, source: "agent", note }).message
+  }
+  if (name === "evidence_tag") {
+    const sid = getArlSessionId()
+    if (!sid) return "evidence_tag needs an open chat session"
+    const gradeRaw = typeof args.grade === "string" ? args.grade.trim().toLowerCase() : ""
+    if (!isEvidenceGrade(gradeRaw)) {
+      return "evidence_tag grade=observed|derived|inferred|unknown"
+    }
+    const text = typeof args.text === "string" ? args.text.trim() : ""
+    if (!text) return "evidence_tag needs text=<claim>"
+    const ref = typeof args.ref === "string" ? args.ref.trim() : undefined
+    const note = typeof args.note === "string" ? args.note.trim() : undefined
+    return tagEvidence({
+      sessionId: sid,
+      grade: gradeRaw,
+      text,
+      source: "agent",
+      ref: ref || undefined,
+      note: note || undefined,
+      refKind: ref ? "tool" : undefined,
+    }).message
   }
   if (name === "plot") {
     const kind = typeof args.kind === "string" && args.kind.trim() ? args.kind.trim() : "all"
