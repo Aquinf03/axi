@@ -49,6 +49,7 @@ import { runInvestigateSlash } from "../core/investigate.js"
 import { runBeliefSlash } from "../core/belief.js"
 import { runEvidenceSlash } from "../core/evidence.js"
 import { runJudgmentSlash } from "../core/judgment.js"
+import { runReconcileSlash } from "../core/reconcile.js"
 import { runTrajectorySlash } from "../core/trajectory.js"
 import {
   formatAgentsRoster,
@@ -644,7 +645,7 @@ export function applyChoice(c: Choice): {
         "  sound      click + message cues",
         "  notify     desktop alert when a reply finishes (if terminal unfocused)",
         "",
-        "slash: /new /rename /open /delete [/delete all] /compact /undo /image /status /doctor /spawn /agents /daemon /provider /model /temp /key /sound /notify /arl /refine /codemode /stance /investigate /revise /pivot /evidence /turn /factory /mission /decision /mode",
+        "slash: /new /rename /open /delete [/delete all] /compact /undo /image /status /doctor /spawn /agents /daemon /provider /model /temp /key /sound /notify /arl /refine /codemode /stance /investigate /revise /pivot /evidence /reconcile /turn /factory /mission /decision /mode",
         "",
         "keys: axi provider openai",
         "now: " + activeLabel(),
@@ -1102,6 +1103,9 @@ export function runSlash(line: string, opts: SlashOpts = {}): SlashResult {
   }
   if (cmd === "/evidence") {
     return runEvidenceSlash(opts.sessionId, arg)
+  }
+  if (cmd === "/reconcile") {
+    return runReconcileSlash(opts.sessionId, arg)
   }
   if (cmd === "/turn") {
     return runTrajectorySlash(opts.sessionId, arg)

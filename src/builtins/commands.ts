@@ -184,6 +184,10 @@ export const SLASH_SPECS: SlashSpec[] = [
     hint: "grade a claim · observed|derived|inferred|unknown · gate|clear  (feeds /refine)",
   },
   {
+    name: "/reconcile",
+    hint: "claim↔run · match|mismatch|unknown · gate|clear  (after run/spawn/codemode)",
+  },
+  {
     name: "/turn",
     hint: "mark last turn · accept|edit|undo|retry|deny · status|clear  (feeds /refine)",
     aliases: ["/trajectory", "/traj"],

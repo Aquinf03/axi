@@ -403,6 +403,32 @@ export const CORE_TOOLS: AgentToolDef[] = [
       required: ["grade", "text"],
     },
   },
+  {
+    name: "claim_reconcile",
+    description:
+      "Reconcile a plan or code claim with what run / spawn / codemode saw: match, mismatch, or unknown (never checked). Surface conflicts explicitly — do not invent match from chat prose alone.",
+    parameters: {
+      type: "object",
+      properties: {
+        claim: { type: "string", description: "the plan or code claim" },
+        verdict: {
+          type: "string",
+          description: "match | mismatch | unknown",
+        },
+        tool: {
+          type: "string",
+          description: "optional: run | spawn | spawn_log | codemode_run | …",
+        },
+        ref: { type: "string", description: "optional turn/job/path pointer" },
+        observed: {
+          type: "string",
+          description: "short excerpt of what execution showed (not full stdout)",
+        },
+        note: { type: "string", description: "optional why" },
+      },
+      required: ["claim", "verdict"],
+    },
+  },
 ]
 
 /**

@@ -44,6 +44,7 @@ import {
 } from "../decision.js"
 import { isEvidenceGrade, tagEvidence } from "../evidence.js"
 import { isJudgmentLabel, tagJudgment } from "../judgment.js"
+import { isClaimRunVerdict, recordReconcile } from "../reconcile.js"
 import { completeObjective, loadMission } from "../mission.js"
 import { parseStance, setStance, stanceStatusText } from "../stance.js"
 import {
@@ -168,6 +169,11 @@ export function permitLabel(train: string, name: string, rawArgs: string): strin
     const g = typeof args.grade === "string" ? args.grade : "?"
     const t = typeof args.text === "string" ? args.text.trim().slice(0, 80) : "?"
     return `evidence ${g} · ${t}`
+  }
+  if (name === "claim_reconcile") {
+    const v = typeof args.verdict === "string" ? args.verdict : "?"
+    const c = typeof args.claim === "string" ? args.claim.trim().slice(0, 80) : "?"
+    return `reconcile ${v} · ${c}`
   }
   if (name === "write") {
     const p = typeof args.path === "string" ? args.path : "?"
@@ -704,6 +710,31 @@ export async function runAgentTool(train: string, name: string, rawArgs: string)
       ref: ref || undefined,
       note: note || undefined,
       refKind: ref ? "tool" : undefined,
+    }).message
+  }
+  if (name === "claim_reconcile") {
+    const sid = getArlSessionId()
+    if (!sid) return "claim_reconcile needs an open chat session"
+    const verdictRaw =
+      typeof args.verdict === "string" ? args.verdict.trim().toLowerCase() : ""
+    if (!isClaimRunVerdict(verdictRaw)) {
+      return "claim_reconcile verdict=match|mismatch|unknown"
+    }
+    const claim = typeof args.claim === "string" ? args.claim.trim() : ""
+    if (!claim) return "claim_reconcile needs claim=<text>"
+    const tool = typeof args.tool === "string" ? args.tool.trim() : undefined
+    const ref = typeof args.ref === "string" ? args.ref.trim() : undefined
+    const observed = typeof args.observed === "string" ? args.observed.trim() : undefined
+    const note = typeof args.note === "string" ? args.note.trim() : undefined
+    return recordReconcile({
+      sessionId: sid,
+      claim,
+      verdict: verdictRaw,
+      source: "agent",
+      tool: tool || undefined,
+      ref: ref || undefined,
+      observed: observed || undefined,
+      note: note || undefined,
     }).message
   }
   if (name === "plot") {

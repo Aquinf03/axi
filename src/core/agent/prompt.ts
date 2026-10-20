@@ -21,6 +21,8 @@ export type PromptBits = {
   judgment?: string
   /** Evidence grades on claims (observed · derived · inferred · unknown). */
   evidence?: string
+  /** Claim↔run reconcile (match · mismatch · unknown). */
+  reconcile?: string
 }
 
 export function systemPrompt(train: string, extraOrBits: string | PromptBits = ""): string {
@@ -34,6 +36,7 @@ export function systemPrompt(train: string, extraOrBits: string | PromptBits = "
     bits.belief?.trim() ?? "",
     bits.judgment?.trim() ?? "",
     bits.evidence?.trim() ?? "",
+    bits.reconcile?.trim() ?? "",
     bits.objective ? `Current request:\n${bits.objective}` : "",
     bits.progress ? `This turn so far (do not forget; do not redo):\n${bits.progress}` : "",
     bits.extra?.trim() ?? "",
