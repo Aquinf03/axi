@@ -1,6 +1,7 @@
 /** Objective facet — durable “what we’re finishing”. */
 
 import { assertMissionCompletable, bindLedgerToObjective, clearLedger } from "../ledger.js"
+import { assertResidualClear } from "../residual.js"
 import { tagJudgment } from "../judgment.js"
 import { loadMission, saveMission, updateMission } from "./store.js"
 import { clearObjectiveBackoff } from "./progress.js"
@@ -100,6 +101,7 @@ export function clearObjective(sessionId: string): MissionState {
 
 export function completeObjective(sessionId: string): MissionState {
   assertMissionCompletable(sessionId)
+  assertResidualClear(sessionId)
   clearObjectiveBackoff(sessionId)
   const before = loadMission(sessionId)
   const next = updateMission(sessionId, (cur) => {
@@ -158,7 +160,7 @@ export function objectiveContinuationMessage(o: ObjectiveFacet): string {
     "",
     "Mission objective is still active. Continue working toward it. Prefer tools when needed.",
     "When the objective is fully done, tell the user — they can /mission done (or use mission_done).",
-    "If an obligation ledger has open checks, close them first (/ledger) — mission done is blocked until each has a unique owner + passing claim↔run match.",
+    "If an obligation ledger has open checks, close them first (/ledger). Clear residual unknowns (/audit resolve|accept|drop) — mission done is blocked while either remains.",
     "",
     `<objective>\n${o.objective}\n</objective>`,
     o.tokenBudget != null

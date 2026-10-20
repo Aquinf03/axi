@@ -32,6 +32,7 @@ export {
   saveEvidence,
   setEvidenceGate,
   tagEvidence,
+  updateEvidenceGrade,
   type TagEvidenceInput,
   type TagEvidenceResult,
 } from "./evidence/store.js"

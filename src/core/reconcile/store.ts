@@ -165,6 +165,26 @@ export function clearReconcile(sessionId: string): ReconcileState {
   return s
 }
 
+/** Update an existing reconcile verdict (used by residual-unknown resolve). */
+export function updateReconcileVerdict(
+  sessionId: string,
+  id: string,
+  verdict: ClaimRunVerdict,
+): RecordReconcileResult {
+  if (!isClaimRunVerdict(verdict)) {
+    return {
+      ok: false,
+      message: `reconcile: unknown verdict (want ${RECONCILE_VERDICTS.join("|")})`,
+    }
+  }
+  const state = loadReconcile(sessionId)
+  const entry = state.entries.find((e) => e.id === id)
+  if (!entry) return { ok: false, message: `reconcile: no entry ${id}` }
+  entry.verdict = verdict
+  saveReconcile(sessionId, state)
+  return { ok: true, entry, message: `reconcile  ${id} → ${verdict}` }
+}
+
 export function reconcileStatusText(sessionId?: string): string {
   if (!sessionId) return "reconcile  (no chat session)"
   const s = loadReconcile(sessionId)

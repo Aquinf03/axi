@@ -43,6 +43,7 @@ Continual harness store for self-improving lessons (prompt notes, memories, **re
 - **Evidence grades** (default gate **on**): tag claims `observed` · `derived` · `inferred` · `unknown` (`evidence_tag`, `/evidence`). Unknowns stay explicit in the prompt. Feeds `/refine` + digest guidance; global lessons whose corroborations carry grades need ≥1 `observed|derived` (or `--force` / `/evidence gate off`). Session: `~/.axi/chats/<id>/evidence.json`.
 - **Claim↔run reconcile** (default gate **on**): after `run` / spawn / codemode, tag plan/code claims `match` · `mismatch` · `unknown` (`claim_reconcile`, `/reconcile`). Explicit only — no auto-parse of stdout. Prompt surfaces open mismatches/unknowns; feeds `/refine`. Session: `~/.axi/chats/<id>/reconcile.json`.
 - **Obligation ledger** (default gate **on**): for port/parity missions, list required checks (`/ledger init port`); close only with a **unique owner** + **claim↔run match**. Open checks block `/mission done` / `mission_done`. Session: `~/.axi/chats/<id>/ledger.json`.
+- **Residual-unknown audit** (default gate **on**): open evidence/reconcile unknowns must be **resolve** · **accept** · **drop** (`/audit`, `unknown_dispose`) before `/mission done` or global `/refine` apply. Session: `~/.axi/chats/<id>/residual.json`.
 - Auto-refine follows `/arl on`. Options: `/arl interval <n>` · `/arl cooldown <m>` · `/arl compact on|off`. Reviewer gate every N turns and after compact (cooldown). **Usage→arl:** `edit` · `retry` · `deny` · `undo` (from `/turn` / trajectory) also arm auto-refine and **bypass cooldown**. Local-only unless the reviewer asks global.
 - Unify: `memory_write` dual-writes workspace + global arl memory; `memory_search`/`read` merge both. Skill stubs stay inventory (no auto `SKILL.md`). `spawn spec=<id>` loads harness subagents. Learned policy stays in digest/`prompt` entries — not `BASE_PROMPT`.
 - Helper: `formatRejectedContent({ tried, why, unless? })` for canonical rejected bodies.
@@ -107,6 +108,16 @@ Tag how sure a claim is (REA judgment primitive — not reverse-engineering). Fr
 - Gate default **on**: global `/refine` lessons whose corroborations carry grades need ≥1 `observed|derived` (or `--force` / `/evidence gate off`). Ungraded corroborations still use the convergent count only.
 - Slash: `/evidence status|tag <grade> <claim>|gate|clear`. Tool: `evidence_tag`.
 - Prompt injects open unknowns + recent claims each turn. `/refine` sees `# Graded claims`; digest guidance prefers observed/derived.
+
+## Residual-unknown audit
+
+Before `/mission done` or promoting a global arl lesson, clear hanging unknowns. Front door: `core/residual.ts`.
+
+- Sources: evidence claims graded `unknown` + claim↔run checks with verdict `unknown`.
+- Actions: **resolve** (regrade evidence → observed|derived|inferred, or reconcile → match|mismatch) · **accept** (keep unknown on purpose) · **drop**.
+- Persist dispositions: `~/.axi/chats/<id>/residual.json`.
+- Gate default **on**: blocks `/mission done`, `mission_done`, and global `/refine` apply / deploy approve. `/audit gate off` skips.
+- Slash: `/audit status|resolve|accept|drop|gate|clear` (alias `/unknowns`). Tool: `unknown_dispose`.
 
 ## Obligation ledger
 
@@ -263,6 +274,7 @@ Import fat subsystems only through their front doors:
 | evidence | `core/evidence.ts` |
 | reconcile | `core/reconcile.ts` |
 | ledger | `core/ledger.ts` |
+| residual | `core/residual.ts` |
 | trajectory | `core/trajectory.ts` |
 | factory | `core/factory.ts` |
 | daemon | `core/daemon.ts` |

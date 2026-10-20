@@ -160,6 +160,26 @@ export function clearEvidence(sessionId: string): EvidenceState {
   return s
 }
 
+/** Update an existing claim’s grade (used by residual-unknown resolve). */
+export function updateEvidenceGrade(
+  sessionId: string,
+  id: string,
+  grade: EvidenceGrade,
+): TagEvidenceResult {
+  if (!isEvidenceGrade(grade)) {
+    return {
+      ok: false,
+      message: `evidence: unknown grade (want ${EVIDENCE_GRADES.join("|")})`,
+    }
+  }
+  const state = loadEvidence(sessionId)
+  const claim = state.claims.find((c) => c.id === id)
+  if (!claim) return { ok: false, message: `evidence: no claim ${id}` }
+  claim.grade = grade
+  saveEvidence(sessionId, state)
+  return { ok: true, claim, message: `evidence  ${id} → ${grade}` }
+}
+
 export function evidenceStatusText(sessionId?: string): string {
   if (!sessionId) return "evidence  (no chat session)"
   const s = loadEvidence(sessionId)

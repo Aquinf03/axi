@@ -34,6 +34,7 @@ Format is inspired by [Keep a Changelog](https://keepachangelog.com/). Versions 
 - Evidence grades: tag claims observed · derived · inferred · unknown (`/evidence`, `evidence_tag`); feed `/refine` + digest; keep unknowns explicit
 - Claim↔run reconcile: match · mismatch · unknown after run/spawn/codemode (`/reconcile`, `claim_reconcile`)
 - Obligation ledger: required port/parity checks; `/mission done` only when each has a unique owner + passing reconcile (`/ledger`)
+- Residual-unknown audit: resolve · accept · drop open unknowns before `/mission done` or global `/refine` (`/audit`)
 
 
 ### Notes

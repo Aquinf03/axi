@@ -192,6 +192,11 @@ export const SLASH_SPECS: SlashSpec[] = [
     hint: "port obligations · init|add|owner|close · gates /mission done",
   },
   {
+    name: "/audit",
+    hint: "residual unknowns · resolve|accept|drop · gates mission done + global refine",
+    aliases: ["/unknowns"],
+  },
+  {
     name: "/turn",
     hint: "mark last turn · accept|edit|undo|retry|deny · status|clear  (feeds /refine)",
     aliases: ["/trajectory", "/traj"],

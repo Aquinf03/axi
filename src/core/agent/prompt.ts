@@ -25,6 +25,8 @@ export type PromptBits = {
   reconcile?: string
   /** Rebuild obligation ledger (required checks before mission done). */
   ledger?: string
+  /** Residual-unknown audit (resolve · accept · drop). */
+  residual?: string
 }
 
 export function systemPrompt(train: string, extraOrBits: string | PromptBits = ""): string {
@@ -40,6 +42,7 @@ export function systemPrompt(train: string, extraOrBits: string | PromptBits = "
     bits.evidence?.trim() ?? "",
     bits.reconcile?.trim() ?? "",
     bits.ledger?.trim() ?? "",
+    bits.residual?.trim() ?? "",
     bits.objective ? `Current request:\n${bits.objective}` : "",
     bits.progress ? `This turn so far (do not forget; do not redo):\n${bits.progress}` : "",
     bits.extra?.trim() ?? "",

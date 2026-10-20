@@ -2,6 +2,7 @@ import { formatDriveStatus } from "./drive.js"
 import { formatPulseStatus } from "./pulse.js"
 import { formatDecisionLoopStatus, loadDecisionLoop } from "../decision.js"
 import { ledgerMissionStatusLine } from "../ledger.js"
+import { residualMissionStatusLine } from "../residual.js"
 import { loadMission } from "./store.js"
 
 /**
@@ -36,6 +37,8 @@ export function missionStatusText(sessionId: string): string {
       }
       const ob = ledgerMissionStatusLine(sessionId)
       if (ob) lines.push(`  ${ob}`)
+      const unk = residualMissionStatusLine(sessionId)
+      if (unk) lines.push(`  ${unk}`)
     }
   }
 

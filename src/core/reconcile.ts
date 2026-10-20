@@ -29,6 +29,7 @@ export {
   recordReconcile,
   saveReconcile,
   setReconcileGate,
+  updateReconcileVerdict,
   type RecordReconcileInput,
   type RecordReconcileResult,
 } from "./reconcile/store.js"

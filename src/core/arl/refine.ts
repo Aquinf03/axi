@@ -29,6 +29,7 @@ import {
   isEvidenceGrade,
 } from "../evidence.js"
 import { formatLedgerForRefine } from "../ledger.js"
+import { assertResidualClear, formatResidualForRefine } from "../residual.js"
 import { formatReconcileForRefine } from "../reconcile.js"
 import { formatTrajectoryForRefine } from "../trajectory.js"
 import {
@@ -175,6 +176,7 @@ Convergent-evidence gate (global scope only): for create/update of prompt, memor
 Evidence grades: prefer corroborations graded observed|derived (tool saw it / computed from that). Format as "observed: …" or "derived|tool: …", or objects {grade, source|note}. Treat inferred as hypothesis; keep unknown explicit in lesson text — never promote prose-only guesses as observed. When graded corroborations are present on a global lesson, ≥1 must be observed|derived (or --force /evidence gate off).
 Claim↔run: prefer lessons backed by match checks; treat mismatch as negative evidence (rejected / do-not-retry); leave unknown claims unchecked — do not promote them as facts.
 Obligation ledger: open port/parity checks block /mission done until each has a unique owner + reconcile match — do not invent closed checks.
+Residual unknowns: open evidence/reconcile unknowns block /mission done and global promote until resolve · accept · drop (/audit).
 Judgment labels: when edits is non-empty, include top-level "judgment": one of hypothesis|tension|pivot|assumption|interpretation|design — what kind of move this refine is (intervention taxonomy).
 Never edit source files. Output JSON only:
 
@@ -1007,6 +1009,7 @@ export async function runRefine(opts: RunRefineOpts): Promise<RefineRunResult> {
     const graded = formatEvidenceForRefine(opts.sessionId)
     const reconciled = formatReconcileForRefine(opts.sessionId)
     const obligations = formatLedgerForRefine(opts.sessionId)
+    const residuals = formatResidualForRefine(opts.sessionId)
     const user = [
       `Target scope: ${scope}`,
       focus,
@@ -1022,6 +1025,8 @@ export async function runRefine(opts: RunRefineOpts): Promise<RefineRunResult> {
       reconciled,
       "\n# Obligation ledger (port/parity checks)\n",
       obligations,
+      "\n# Residual unknowns (resolve · accept · drop)\n",
+      residuals,
       "\n# Conversation\n",
       conversationBlob(opts.history),
       "\nReply with JSON only.",
@@ -1112,6 +1117,7 @@ function applyGlobalWithPreShip(opts: {
   forcePromote: boolean
   sessionId?: string
 }): { result: RefinementResult; preship: PreShipReport } {
+  if (opts.sessionId) assertResidualClear(opts.sessionId)
   const baseline = loadArlState("global")
   // Dry-run first — mutate memory only, project policy, fingerprint.
   const previewState: ArlState = JSON.parse(JSON.stringify(baseline)) as ArlState

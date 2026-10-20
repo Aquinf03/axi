@@ -35,6 +35,7 @@ import { beliefPromptBlock } from "../belief.js"
 import { evidencePromptBlock } from "../evidence.js"
 import { judgmentPromptBlock } from "../judgment.js"
 import { ledgerPromptBlock } from "../ledger.js"
+import { residualPromptBlock } from "../residual.js"
 import { reconcilePromptBlock } from "../reconcile.js"
 import { noteTrajectoryTool } from "../trajectory.js"
 import { addUsage, emptyUsage, type TokenUsage } from "../usage.js"
@@ -190,6 +191,7 @@ async function runTurnInner(
       evidence: evidencePromptBlock(stanceSession()),
       reconcile: reconcilePromptBlock(stanceSession()),
       ledger: ledgerPromptBlock(stanceSession()),
+      residual: residualPromptBlock(stanceSession()),
     })
 
   const takeUsage = (piece: typeof usage | undefined) => {

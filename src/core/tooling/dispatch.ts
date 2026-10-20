@@ -52,6 +52,11 @@ import {
   missionCompletable,
 } from "../ledger.js"
 import { completeObjective, loadMission } from "../mission.js"
+import {
+  disposeUnknown,
+  isResidualKind,
+  residualClear,
+} from "../residual.js"
 import { parseStance, setStance, stanceStatusText } from "../stance.js"
 import {
   abandonInvestigate,
@@ -190,6 +195,9 @@ export function permitLabel(train: string, name: string, rawArgs: string): strin
   }
   if (name === "obligation_close") {
     return `obligation close ${args.id ?? "?"} via ${args.reconcile_id ?? args.reconcileId ?? "?"}`
+  }
+  if (name === "unknown_dispose") {
+    return `audit ${args.action ?? "?"} ${args.kind ?? "?"}:${args.id ?? args.ref_id ?? "?"}`
   }
   if (name === "write") {
     const p = typeof args.path === "string" ? args.path : "?"
@@ -462,6 +470,8 @@ export async function runAgentTool(train: string, name: string, rawArgs: string)
     }
     const gate = missionCompletable(sid)
     if (!gate.ok) return gate.message
+    const unk = residualClear(sid)
+    if (!unk.ok) return unk.message
     try {
       completeObjective(sid)
     } catch (err) {
@@ -510,6 +520,39 @@ export async function runAgentTool(train: string, name: string, rawArgs: string)
       return "obligation_close needs id= and reconcile_id= (claim_reconcile match)"
     }
     return closeObligation({ sessionId: sid, id, reconcileId }).message
+  }
+  if (name === "unknown_dispose") {
+    const sid = getArlSessionId()
+    if (!sid) return "unknown_dispose needs an open chat session"
+    const kindRaw = typeof args.kind === "string" ? args.kind.trim().toLowerCase() : ""
+    if (!isResidualKind(kindRaw)) {
+      return "unknown_dispose kind=evidence|reconcile"
+    }
+    const actionRaw = typeof args.action === "string" ? args.action.trim().toLowerCase() : ""
+    if (actionRaw !== "resolve" && actionRaw !== "accept" && actionRaw !== "drop") {
+      return "unknown_dispose action=resolve|accept|drop"
+    }
+    const refId =
+      typeof args.id === "string"
+        ? args.id.trim()
+        : typeof args.ref_id === "string"
+          ? args.ref_id.trim()
+          : ""
+    if (!refId) return "unknown_dispose needs id="
+    const note = typeof args.note === "string" ? args.note.trim() : undefined
+    const gradeRaw = typeof args.grade === "string" ? args.grade.trim().toLowerCase() : ""
+    const verdictRaw =
+      typeof args.verdict === "string" ? args.verdict.trim().toLowerCase() : ""
+    return disposeUnknown({
+      sessionId: sid,
+      kind: kindRaw,
+      refId,
+      action: actionRaw,
+      source: "agent",
+      note: note || undefined,
+      grade: isEvidenceGrade(gradeRaw) ? gradeRaw : undefined,
+      verdict: isClaimRunVerdict(verdictRaw) ? verdictRaw : undefined,
+    }).message
   }
   if (name === "decision_decide") {
     const observation =

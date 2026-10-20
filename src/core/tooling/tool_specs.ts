@@ -477,6 +477,29 @@ export const CORE_TOOLS: AgentToolDef[] = [
       required: ["id", "reconcile_id"],
     },
   },
+  {
+    name: "unknown_dispose",
+    description:
+      "Clear a residual unknown before /mission done or global /refine: resolve (regrade evidence or rematch reconcile), accept (keep unknown on purpose), or drop.",
+    parameters: {
+      type: "object",
+      properties: {
+        kind: { type: "string", description: "evidence | reconcile" },
+        id: { type: "string", description: "evidence claim id or reconcile entry id" },
+        action: { type: "string", description: "resolve | accept | drop" },
+        grade: {
+          type: "string",
+          description: "for resolve+evidence: observed | derived | inferred",
+        },
+        verdict: {
+          type: "string",
+          description: "for resolve+reconcile: match | mismatch",
+        },
+        note: { type: "string", description: "optional why" },
+      },
+      required: ["kind", "id", "action"],
+    },
+  },
 ]
 
 /**
