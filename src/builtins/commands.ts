@@ -170,6 +170,10 @@ export const SLASH_SPECS: SlashSpec[] = [
     name: "/config",
     hint: "dry-run setup writes · status|approve|deny · gate on|off",
   },
+  {
+    name: "/steer",
+    hint: "mid-flight · pause|resume|abort|queue|inject|redirect · status",
+  },
   { name: "/codemode", hint: "sticky Node scratchpad · on|off|status · reset · stop" },
   { name: "/stance", hint: "explore · execute · challenge · status · unpin" },
   { name: "/investigate", hint: "hypothesis graph · status|add|link|abandon|clear" },

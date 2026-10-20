@@ -62,6 +62,7 @@ import { runLedgerSlash } from "../core/ledger.js"
 import { runReconcileSlash } from "../core/reconcile.js"
 import { runResidualSlash } from "../core/residual.js"
 import { runTrajectorySlash } from "../core/trajectory.js"
+import { runSteerSlash, streamSignal } from "../core/agent/steer.js"
 import {
   formatAgentsRoster,
   formatDaemonStatusText,
@@ -662,7 +663,7 @@ export function applyChoice(c: Choice): {
         "  sound      click + message cues",
         "  notify     desktop alert when a reply finishes (if terminal unfocused)",
         "",
-        "slash: /new /rename /open /delete [/delete all] /compact /undo /image /status /doctor /spawn /agents /daemon /provider /model /temp /key /sound /notify /arl /refine /codemode /stance /investigate /revise /pivot /evidence /reconcile /ledger /audit /config /turn /factory /mission /decision /mode",
+        "slash: /new /rename /open /delete [/delete all] /compact /undo /image /status /doctor /spawn /agents /daemon /provider /model /temp /key /sound /notify /arl /refine /codemode /stance /investigate /revise /pivot /evidence /reconcile /ledger /audit /config /steer /turn /factory /mission /decision /mode",
         "",
         "keys: axi provider openai",
         "now: " + activeLabel(),
@@ -1002,6 +1003,9 @@ export function runSlash(line: string, opts: SlashOpts = {}): SlashResult {
       return { text: denyPendingConfig().text }
     }
     return { text: "usage: /config status|gate on|off|approve|deny" }
+  }
+  if (cmd === "/steer") {
+    return runSteerSlash(opts.sessionId, arg)
   }
   if (cmd === "/arl") {
     const tokens = arg.trim().split(/\s+/).filter(Boolean)
@@ -1522,6 +1526,7 @@ async function streamResponses(
   search: boolean,
   onDelta: (chunk: string) => void,
   id: ProviderId,
+  userSignal?: AbortSignal,
 ): Promise<StreamOut> {
   const tools: Record<string, unknown>[] = []
   if (search) tools.push({ type: "web_search" })
@@ -1541,7 +1546,7 @@ async function streamResponses(
       ...(tools.length ? { tools } : {}),
       ...(id === "openai" && fns.length && /^gpt-5/i.test(model) ? { reasoning: { effort: "none" } } : {}),
     }),
-    signal: AbortSignal.timeout(120_000),
+    signal: streamSignal(120_000, userSignal),
   })
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { error?: { message?: string } }
@@ -1604,7 +1609,7 @@ async function streamResponses(
 export async function streamTurn(
   history: ChatMsg[],
   onDelta: (chunk: string) => void,
-  opts: { system: string; tools: AgentToolJson[]; images?: ChatImage[] },
+  opts: { system: string; tools: AgentToolJson[]; images?: ChatImage[]; signal?: AbortSignal },
 ): Promise<StreamOut> {
   const id = activeId()
   if (!id) throw new Error("no provider. axi provider openai")
@@ -1659,7 +1664,7 @@ export async function streamTurn(
             }
           : {}),
       }),
-      signal: AbortSignal.timeout(120_000),
+      signal: streamSignal(120_000, opts.signal),
     })
     if (!res.ok) {
       const body = (await res.json().catch(() => ({}))) as { error?: { message?: string } }
@@ -1726,7 +1731,18 @@ export async function streamTurn(
   }
 
   if (id === "openai" || id === "grok") {
-    return streamResponses(base, key, model, system, hist, fns, wantsWebSearch(tools), onDelta, id)
+    return streamResponses(
+      base,
+      key,
+      model,
+      system,
+      hist,
+      fns,
+      wantsWebSearch(tools),
+      onDelta,
+      id,
+      opts.signal,
+    )
   }
 
   const res = await fetch(`${base}/chat/completions`, {
@@ -1743,7 +1759,7 @@ export async function streamTurn(
       ...temperatureBody(),
       ...(fns.length ? { tools: openaiTools(fns) } : {}),
     }),
-    signal: AbortSignal.timeout(120_000),
+    signal: streamSignal(120_000, opts.signal),
   })
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { error?: { message?: string } }

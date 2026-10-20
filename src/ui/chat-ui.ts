@@ -53,6 +53,10 @@ import {
 } from "../core/mission.js"
 import { beginUndo, clearUndo, commitUndo, undoLast } from "../core/agent/undo.js"
 import {
+  isSteerAbortError,
+  steerFor,
+} from "../core/agent/steer.js"
+import {
   beginTrajectoryTurn,
   closeTrajectoryTurn,
   signalTrajectory,
@@ -564,7 +568,13 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
     }
     let extra = ""
     if (armed) extra = `${DIM}  press ctrl+c again to exit${RESET}`
-    else if (!inside && !keyFor && !renameFor && pendingImages.length) {
+    else if (busy && !inside && !keyFor && !renameFor) {
+      const st = steerFor(spec.id)
+      const n = st.queueLength()
+      if (st.isPaused()) extra = `${DIM}  paused · esc abort · /steer resume${RESET}`
+      else if (n) extra = `${DIM}  queued ${n} · esc abort${RESET}`
+      else extra = `${DIM}  esc abort · type to queue${RESET}`
+    } else if (!inside && !keyFor && !renameFor && pendingImages.length) {
       extra = `${DIM}  +${pendingImages.length} image${pendingImages.length === 1 ? "" : "s"}${RESET}`
     } else if (!inside && !keyFor && !renameFor && contextFull(measureContext(train, history, contextWindow()))) {
       extra = `${DIM}  context full · /compact${RESET}`
@@ -1501,6 +1511,28 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         quit()
         return
       }
+      if (busy) {
+        chars.length = 0
+        cursor = 0
+        leaveScreen()
+        pick = 0
+        if (t.startsWith("/steer")) {
+          playCue("click")
+          await applySlash(t)
+          return
+        }
+        if (t.startsWith("/")) {
+          note("busy — wait, esc abort, or /steer …")
+          paintComposer()
+          return
+        }
+        const st = steerFor(spec.id)
+        st.enqueue(t)
+        playCue("click")
+        note(`queued  (${st.queueLength()})`)
+        paintComposer()
+        return
+      }
       if (t.startsWith("/") && t !== "/") {
         chars.length = 0
         cursor = 0
@@ -1542,6 +1574,11 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       const toolLabel = () =>
         !lastTool ? "" : toolCount > 1 ? `· ${lastTool} ×${toolCount}` : `· ${lastTool}`
       const tick = () => {
+        // Composer takes the line while the human types a queued /steer message.
+        if (chars.length || screen) {
+          paintComposer()
+          return
+        }
         const verb = spinPhase === "running" ? "running" : "thinking"
         const detail = spinPhase === "running" && spinDetail ? `  ${spinDetail}` : lastTool ? `  ${toolLabel()}` : ""
         write(`\r${DIM}${spin[frame % spin.length]} ${verb}${detail}${RESET}\x1b[K`)
@@ -1588,9 +1625,12 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         pending = ""
       }
       try {
+        const steer = steerFor(spec.id)
+        steer.beginTurn()
         const host: AgentHost = {
           workspace: hostEnv.workspaceRoot,
           env: hostEnv,
+          steer,
           onDelta: (chunk) => {
             if (!started) {
               started = true
@@ -1763,6 +1803,8 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
           pendingMissionKick = null
           missionChain = 0
           await blockIfFull()
+          const queuedFull = steerFor(spec.id).takeNext()
+          if (queuedFull) await submitFn(queuedFull)
           return
         }
       } catch (err) {
@@ -1770,20 +1812,30 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
           clearInterval(timer)
           timer = null
         }
-        history.pop()
+        const aborted = isSteerAbortError(err)
+        if (!aborted) history.pop()
         commitUndo()
         closeTrajectoryTurn({
           sessionId: spec.id,
           signal: "deny",
           signalNote: err instanceof Error ? err.message : String(err),
         })
-        const msg = err instanceof Error ? err.message : String(err)
+        const msg = aborted
+          ? "canceled"
+          : err instanceof Error
+            ? err.message
+            : String(err)
         write(`\r\x1b[K${DIM}${msg}${RESET}\n\n`)
         pendingMissionKick = null
         missionChain = 0
       }
       write("\x1b[?25h")
       busy = false
+      const queued = steerFor(spec.id).takeNext()
+      if (queued) {
+        await submitFn(queued)
+        return
+      }
       const kick = pendingMissionKick
       pendingMissionKick = null
       if (kick) {
@@ -1860,9 +1912,13 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
           }
           continue
         }
-        if (busy && k.kind !== "ctrl-c") continue
         if (k.kind !== "ctrl-c" && armed) armed = false
         if (k.kind === "ctrl-c") {
+          if (busy) {
+            steerFor(spec.id).abort()
+            note("aborting turn…")
+            continue
+          }
           if (armed) {
             quit()
             return
@@ -1876,10 +1932,16 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
           return
         }
         if (k.kind === "clear") {
+          if (busy) continue
           welcome()
           continue
         }
         if (k.kind === "escape") {
+          if (busy) {
+            steerFor(spec.id).abort()
+            note("aborting turn…")
+            continue
+          }
           if (renameFor) {
             renameFor = false
             enterScreen("chat")

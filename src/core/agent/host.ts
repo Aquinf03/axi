@@ -6,6 +6,7 @@
 
 import type { PermitChoice } from "../permissions.js"
 import type { HostEnv } from "../hosts/surface.js"
+import type { SteerPort } from "./steer.js"
 
 export type ToolStartFn = (name: string, args?: string) => void
 
@@ -40,4 +41,6 @@ export type AgentHost = {
   onToolDone?: ToolDoneFn
   /** Permission prompt for sensitive tools. Omit → deny when ask is required. */
   askPermit?: PermitAskFn
+  /** Mid-flight pause / inject / redirect / abort. Omit → no steer. */
+  steer?: SteerPort
 }

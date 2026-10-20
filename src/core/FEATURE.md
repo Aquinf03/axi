@@ -246,10 +246,21 @@ TTY chat and `axi ask` both call `runTurn(history, host)`.
 - Tool batches: permits stay serial; read-only calls (`read`/`grep`/…) in one model batch run concurrently (`core/agent/parallel.ts`)
 - Tool failures: typed `[tool-failure code=…]` + hint; identical tool+args retry blocked for the turn (`core/agent/tool-retry.ts`)
 - Loop guards: after repeated all-fail batches, one stall redirect then force-stop; before finishing, check named output paths from the request (`core/agent/loop-guard.ts`)
-- Turn host: `AgentHost` — `workspace`, `onDelta`, `onToolStart`, `onToolDone`, `askPermit`
+- Turn host: `AgentHost` — `workspace`, `onDelta`, `onToolStart`, `onToolDone`, `askPermit`, optional `steer`
 - Env host: `HostEnv` — `workspaceRoot`, `writeClipboard`, `readClipboard`, `openUrl`
 - Native TTY: `createNativeHost(workspace)`; tests: `createMemoryHost`
 - Ask: `createAskHost`; chat: builds turn host + injects `createNativeHost`
+
+### Steer-interrupt
+
+Redirect / pause / inject a running turn mid-flight, plus a message queue while busy (`core/agent/steer.ts`).
+
+- **Queue** — type + enter while the agent is busy → FIFO; drained one-by-one after the turn.
+- **Inject** — `/steer inject <text>` lands as a `[steer:inject]` user row between tool batches.
+- **Redirect** — `/steer redirect <text>` updates the turn objective + `[steer:redirect]` row.
+- **Pause / resume** — `/steer pause|resume` blocks the loop between rounds (stream still finishes the current fetch unless aborted).
+- **Abort** — `esc` or `ctrl-c` while busy (or `/steer abort`) aborts `streamTurn` via `AbortSignal`.
+- Slash: `/steer status|pause|resume|abort|clear|queue|inject|redirect`.
 
 Do not call `pbcopy` / `open` / `xdg-open` from core — go through `HostEnv`.
 Slash: `/url` opens via host; `/copy` writes clipboard via host; `/mode` uses injected workspace.

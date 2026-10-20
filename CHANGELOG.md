@@ -36,6 +36,7 @@ Format is inspired by [Keep a Changelog](https://keepachangelog.com/). Versions 
 - Obligation ledger: required port/parity checks; `/mission done` only when each has a unique owner + passing reconcile (`/ledger`)
 - Residual-unknown audit: resolve · accept · drop open unknowns before `/mission done` or global `/refine` (`/audit`)
 - Config dry-run + approve: setup/config writes show paths + backups first (`/config approve`)
+- Steer-interrupt: pause / redirect / inject mid-flight + queue messages while busy (`/steer`, esc abort)
 
 
 ### Notes

@@ -27,6 +27,14 @@ import {
 } from "./loop-guard.js"
 import type { AgentHost, PermitAskFn, ToolDoneFn, ToolStartFn } from "./host.js"
 import { runBatch } from "./parallel.js"
+import {
+  formatSteerInject,
+  formatSteerRedirect,
+  isSteerAbortError,
+  isSteerInjected,
+  SteerAbortError,
+  waitWhilePaused,
+} from "./steer.js"
 import { streamTurn, type ChatMsg } from "../../gateway.js"
 import { getArlSessionId } from "../arl.js"
 import { hardRouteChallenge, stancePromptBlock } from "../stance.js"
@@ -85,6 +93,7 @@ const WISH =
 
 function isInjectedUser(c: string): boolean {
   return (
+    isSteerInjected(c) ||
     c.startsWith("Earlier in this chat") ||
     c.startsWith("[arl-digest]") ||
     c.startsWith("[mission:") ||
@@ -159,7 +168,7 @@ async function runTurnInner(
   scratch: ReturnType<typeof createScratch>,
 ): Promise<TurnResult> {
   const train = host.workspace
-  const objective = lastUserRequest(history)
+  let objective = lastUserRequest(history)
   scratch.push("objective", objective)
   const msgs: ChatMsg[] = history.map((m) => ({ ...m }))
   const progress: string[] = []
@@ -172,9 +181,10 @@ async function runTurnInner(
   const retries = createRetryGuard()
   let stall = emptyStall()
   let outputChecked = false
-  const namedOutputs = extractNamedOutputs(objective)
+  let namedOutputs = extractNamedOutputs(objective)
   const cfg = resolveConfig(train)
   const maxRounds = cfg.max_agent_steps
+  const steerSignal = host.steer?.signal
 
   const act = toolsAllowed(history)
   const stanceSession = () => getArlSessionId()
@@ -198,23 +208,56 @@ async function runTurnInner(
     if (piece) usage = addUsage(usage, piece)
   }
 
+  const applySteer = async (): Promise<void> => {
+    if (!host.steer) return
+    const wait = await waitWhilePaused(host.steer)
+    if (wait === "aborted" || host.steer.isAborted()) {
+      throw new SteerAbortError(host.steer.abortReason() ?? "canceled by user")
+    }
+    const { injects, redirect } = host.steer.takeInjections()
+    for (const t of injects) {
+      msgs.push({ role: "user", content: formatSteerInject(t) })
+    }
+    if (redirect) {
+      objective = redirect.length > 2000 ? redirect.slice(0, 2000) + "…" : redirect
+      scratch.push("objective", objective)
+      namedOutputs = extractNamedOutputs(objective)
+      outputChecked = false
+      msgs.push({ role: "user", content: formatSteerRedirect(redirect) })
+    }
+  }
+
+  const stream = async (
+    hist: ChatMsg[],
+    opts: { system: string; tools: ReturnType<typeof toolsForTrain> },
+  ) => {
+    try {
+      return await streamTurn(hist, host.onDelta, { ...opts, signal: steerSignal })
+    } catch (err) {
+      if (isSteerAbortError(err) || host.steer?.isAborted()) {
+        throw new SteerAbortError(host.steer?.abortReason() ?? "canceled by user")
+      }
+      throw err
+    }
+  }
+
   const forceStop = async (msg: string): Promise<TurnResult> => {
     const wrapSys = system()
     if (!harness) harness = harnessFingerprint(wrapSys, [])
-    const wrap = await streamTurn(
-      [...msgs, { role: "user", content: msg }],
-      host.onDelta,
-      { system: wrapSys, tools: [] },
-    )
+    const wrap = await stream([...msgs, { role: "user", content: msg }], {
+      system: wrapSys,
+      tools: [],
+    })
     takeUsage(wrap.usage)
     return { text: wrap.text, usage, harness }
   }
 
   for (let i = 0; i < maxRounds; i++) {
+    await applySteer()
     const sys = system()
     const tools = act ? toolsForTrain(train) : []
     if (!harness) harness = harnessFingerprint(sys, tools)
-    const out = await streamTurn(msgs, host.onDelta, {
+    const out = await stream(msgs, {
       system: sys,
       tools,
     })
