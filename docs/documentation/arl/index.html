@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>arl (auto RL) · axi Docs</title>
+  <meta name="description" content="Continual harness: digest, /refine, falsify, convergent, deploy, evidence." />
+  <link rel="icon" href="../../assets/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/docs.css" />
+</head>
+<body>
+  <header class="docs-header">
+    <div class="docs-header-inner">
+      <a class="brand" href="../" title="Aquin Labs">
+        <img src="../../assets/mainlogo2.png" alt="" width="22" height="22" />
+        <span>Aquin<span class="brand-gap">Labs</span></span>
+      </a>
+      <div class="header-actions">
+        <a class="header-link" href="../">Docs</a>
+        <a class="header-link" href="../../changelog/">Changelog</a>
+        <a class="header-cta" href="https://github.com/Aquinf03/axi" rel="noopener">GitHub</a>
+      </div>
+    </div>
+  </header>
+  <div class="docs-frame">
+    <aside class="docs-sidebar" aria-label="Documentation">
+    <nav><a class="nav-link" href="https://aquinf03.github.io/axi/documentation/" rel="noopener">Live docs</a>
+<a class="nav-link" href="../">Getting started</a>
+<a class="nav-link" href="../install/">Install</a>
+<a class="nav-link" href="../chat/">Chat</a>
+<a class="nav-link" href="../cli/">CLI reference</a>
+<a class="nav-link" href="../provider/">Provider & keys</a>
+<a class="nav-link" href="../permissions/">Permissions</a>
+<a class="nav-link" href="../slash/">Slash commands</a>
+<p class="nav-section">Product</p>
+<a class="nav-link nested" href="../mission/">Mission</a>
+<a class="nav-link nested active" href="../arl/">arl (auto RL)</a>
+<a class="nav-link nested" href="../daemon/">Daemon & agents</a>
+<a class="nav-link nested" href="../factory/">Factory</a>
+<a class="nav-link nested" href="../skills/">Skills, tools & MCP</a>
+</nav>
+    </aside>
+    <main class="docs-main"><h1>arl (auto RL)</h1>
+<p class="lead">Continual harness for reusable lessons across turns — without rewriting the base personality every time. Front door <code class="chip">core/arl.ts</code>. Default <strong>off</strong>.</p>
+<div class="codeblock" data-shell="1">
+  <div class="codeblock-bar">
+    <span>chat</span>
+    <button type="button" class="copy-btn">Copy</button>
+  </div>
+  <pre><code><span class="line"><span class="prompt">$</span><span>/arl on</span></span>
+<span class="line"><span class="prompt">$</span><span>/refine</span></span>
+<span class="line"><span class="prompt">$</span><span>/refine --global</span></span>
+<span class="line"><span class="prompt">$</span><span>/refine deploy approve</span></span></code></pre>
+</div>
+<h2>Core ideas</h2>
+<ul>
+  <li><strong>Digest</strong> — ranked <code class="chip">[arl-digest]</code> user row at cold boundaries (start, compact, ask)</li>
+  <li><strong>Kinds</strong> — prompt · memory · rejected · skill · subagent · policy</li>
+  <li><strong>Refine</strong> — plan + apply harness edits; agent schedules, host applies end-of-turn</li>
+  <li><strong>Rejected</strong> — file-drawer negatives (tried + why) so dead ends are not rediscovered</li>
+</ul>
+<h2>Gates (defaults on)</h2>
+<div class="table-wrap mb">
+    <table class="plain">
+      <thead><tr><th>Gate</th><th>Slash</th></tr></thead>
+      <tbody>
+<tr><td class="mono">Falsify — what would disprove the lesson</td><td><code class="chip">/refine falsify</code></td></tr>
+<tr><td class="mono">Convergent — N corroborations for global lessons</td><td><code class="chip">/refine convergent</code></td></tr>
+<tr><td class="mono">Deploy — stage global ship for approve</td><td><code class="chip">/refine deploy</code></td></tr>
+<tr><td class="mono">Preship — harness fingerprint + structural eval</td><td><code class="chip">/refine preship</code></td></tr>
+<tr><td class="mono">Evidence · reconcile · ledger · residual</td><td>/evidence · /reconcile · /ledger · /audit</td></tr>
+      </tbody>
+    </table>
+  </div>
+<p class="lead">Global harness: <code class="chip">~/.axi/arl/</code>. Per chat: <code class="chip">~/.axi/chats/&lt;id&gt;/arl/</code>. Trajectory signals (<code class="chip">/turn</code> accept/edit/undo/retry/deny) arm auto-refine.</p>
+
+    </main>
+  </div>
+  <script src="../../assets/docs.js"></script>
+</body>
+</html>

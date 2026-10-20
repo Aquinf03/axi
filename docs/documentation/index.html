@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Getting started with axi · axi Docs</title>
+  <meta name="description" content="axi is the coding / research agent for the current folder. TTY chat, ask, mission, arl, daemon. Train/eval stay in aq." />
+  <link rel="icon" href="../assets/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/docs.css" />
+</head>
+<body>
+  <header class="docs-header">
+    <div class="docs-header-inner">
+      <a class="brand" href="./" title="Aquin Labs">
+        <img src="../assets/mainlogo2.png" alt="" width="22" height="22" />
+        <span>Aquin<span class="brand-gap">Labs</span></span>
+      </a>
+      <div class="header-actions">
+        <a class="header-link" href="./">Docs</a>
+        <a class="header-link" href="../changelog/">Changelog</a>
+        <a class="header-cta" href="https://github.com/Aquinf03/axi" rel="noopener">GitHub</a>
+      </div>
+    </div>
+  </header>
+  <div class="docs-frame">
+    <aside class="docs-sidebar" aria-label="Documentation">
+    <nav><a class="nav-link" href="https://aquinf03.github.io/axi/documentation/" rel="noopener">Live docs</a>
+<a class="nav-link active" href="./">Getting started</a>
+<a class="nav-link" href="install/">Install</a>
+<a class="nav-link" href="chat/">Chat</a>
+<a class="nav-link" href="cli/">CLI reference</a>
+<a class="nav-link" href="provider/">Provider & keys</a>
+<a class="nav-link" href="permissions/">Permissions</a>
+<a class="nav-link" href="slash/">Slash commands</a>
+<p class="nav-section">Product</p>
+<a class="nav-link nested" href="mission/">Mission</a>
+<a class="nav-link nested" href="arl/">arl (auto RL)</a>
+<a class="nav-link nested" href="daemon/">Daemon & agents</a>
+<a class="nav-link nested" href="factory/">Factory</a>
+<a class="nav-link nested" href="skills/">Skills, tools & MCP</a>
+</nav>
+    </aside>
+    <main class="docs-main"><article>
+  <h1 class="hero">Getting started</h1>
+  <p class="lead"><strong>axi</strong> is the coding / research agent for the folder you are in. Chats, keys, and memory live under <code class="chip">~/.axi</code>. Model <strong>train / eval / fleet</strong> stay in the separate <strong>aq</strong> package — axi shells out to <code class="chip">aq</code> when cwd (or a child) has <code class="chip">recipe.yaml</code>.</p>
+
+  <h2>How the pieces fit</h2>
+  <div class="table-wrap mb">
+    <table class="plain">
+      <thead><tr><th>Name</th><th>What it is</th></tr></thead>
+      <tbody>
+<tr><td class="mono"><code class="chip">axi</code></td><td>This package — TTY agent, ask, mission, arl, daemon, factory.</td></tr>
+<tr><td class="mono"><code class="chip">aq</code></td><td>Framework CLI + kernel (separate repo). Train / eval / jobs / fleet.</td></tr>
+<tr><td class="mono"><code class="chip">~/.axi</code></td><td>Profile: chats, keys, settings, arl harness, daemon socket.</td></tr>
+<tr><td class="mono"><code class="chip">recipe.yaml</code></td><td>Marks a train folder — axi unlocks aq_* tools against it.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Quick start</h2>
+  <div class="codeblock" data-shell="1">
+  <div class="codeblock-bar">
+    <span>shell</span>
+    <button type="button" class="copy-btn">Copy</button>
+  </div>
+  <pre><code><span class="line"><span class="prompt">$</span><span>npm i &amp;&amp; npm link</span></span>
+<span class="line"><span class="prompt">$</span><span>axi provider openai</span></span>
+<span class="line"><span class="prompt">$</span><span>cd /path/to/project</span></span>
+<span class="line"><span class="prompt">$</span><span>axi</span></span></code></pre>
+</div>
+  <p class="lead">Needs <strong>Node ≥ 18</strong>. Configure a provider once, then chat in any folder. Optional: install <a href="https://aquinf03.github.io/aq/documentation/" rel="noopener">aq</a> and set <code class="chip">AQ_ROOT</code> for train tools.</p>
+
+  <h2>What you can do</h2>
+  <div class="table-wrap mb">
+    <table class="plain">
+      <thead><tr><th>Surface</th><th>Entry</th></tr></thead>
+      <tbody>
+<tr><td class="mono">TTY chat</td><td><code class="chip">axi</code> · slash menus · permits</td></tr>
+<tr><td class="mono">One-shot</td><td><code class="chip">axi ask</code> [-y] [--json] <prompt></td></tr>
+<tr><td class="mono">Mission keep-going</td><td><code class="chip">/mission &lt;goal&gt;</code> · daemon continues when chat closes</td></tr>
+<tr><td class="mono">Self-improve</td><td><code class="chip">/arl on</code> · <code class="chip">/refine</code></td></tr>
+<tr><td class="mono">Background</td><td><code class="chip">axi daemon start</code> · spawn · factory</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Next</h2>
+  <p class="lead"><a href="install/">Install</a> · <a href="chat/">Chat</a> · <a href="cli/">CLI</a> · <a href="mission/">Mission</a> · <a href="arl/">arl</a> · <a href="../changelog/">Changelog</a></p>
+</article>
+    </main>
+  </div>
+  <script src="../assets/docs.js"></script>
+</body>
+</html>

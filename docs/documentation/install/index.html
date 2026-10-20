@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Install · axi Docs</title>
+  <meta name="description" content="Install axi from a checkout. Node ≥ 18. Optional aq for train tools." />
+  <link rel="icon" href="../../assets/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/docs.css" />
+</head>
+<body>
+  <header class="docs-header">
+    <div class="docs-header-inner">
+      <a class="brand" href="../" title="Aquin Labs">
+        <img src="../../assets/mainlogo2.png" alt="" width="22" height="22" />
+        <span>Aquin<span class="brand-gap">Labs</span></span>
+      </a>
+      <div class="header-actions">
+        <a class="header-link" href="../">Docs</a>
+        <a class="header-link" href="../../changelog/">Changelog</a>
+        <a class="header-cta" href="https://github.com/Aquinf03/axi" rel="noopener">GitHub</a>
+      </div>
+    </div>
+  </header>
+  <div class="docs-frame">
+    <aside class="docs-sidebar" aria-label="Documentation">
+    <nav><a class="nav-link" href="https://aquinf03.github.io/axi/documentation/" rel="noopener">Live docs</a>
+<a class="nav-link" href="../">Getting started</a>
+<a class="nav-link active" href="../install/">Install</a>
+<a class="nav-link" href="../chat/">Chat</a>
+<a class="nav-link" href="../cli/">CLI reference</a>
+<a class="nav-link" href="../provider/">Provider & keys</a>
+<a class="nav-link" href="../permissions/">Permissions</a>
+<a class="nav-link" href="../slash/">Slash commands</a>
+<p class="nav-section">Product</p>
+<a class="nav-link nested" href="../mission/">Mission</a>
+<a class="nav-link nested" href="../arl/">arl (auto RL)</a>
+<a class="nav-link nested" href="../daemon/">Daemon & agents</a>
+<a class="nav-link nested" href="../factory/">Factory</a>
+<a class="nav-link nested" href="../skills/">Skills, tools & MCP</a>
+</nav>
+    </aside>
+    <main class="docs-main"><h1>Install</h1>
+<p class="lead">axi ships as an npm package with a <code class="chip">bin/axi</code> entry. Needs Node ≥ 18. After link, run <code class="chip">axi doctor</code>.</p>
+<div class="prereq"><span class="prereq-label">Prerequisite</span>Node ≥ 18 · npm · (optional) aq checkout for train tools</div>
+<section class="tool" id="from-source">
+  <h3 class="tool-cmd">npm i &amp;&amp; npm link</h3>
+  <p class="tool-desc">Install from an axi checkout and put <code>axi</code> on your PATH.</p>
+<div class="codeblock" data-shell="1">
+  <div class="codeblock-bar">
+    <span>example</span>
+    <button type="button" class="copy-btn">Copy</button>
+  </div>
+  <pre><code><span class="line"><span class="prompt">$</span><span>cd axi &amp;&amp; npm i &amp;&amp; npm link</span></span>
+<span class="line"><span class="prompt">$</span><span>axi version</span></span>
+<span class="line"><span class="prompt">$</span><span>axi doctor</span></span></code></pre>
+</div>
+</section>
+<section class="tool" id="provider">
+  <h3 class="tool-cmd">axi provider &lt;name&gt;</h3>
+  <p class="tool-desc">Save a provider key and select it. Names: openai · anthropic · grok · ollama.</p>
+<div class="codeblock" data-shell="1">
+  <div class="codeblock-bar">
+    <span>example</span>
+    <button type="button" class="copy-btn">Copy</button>
+  </div>
+  <pre><code><span class="line"><span class="prompt">$</span><span>axi provider openai</span></span>
+<span class="line"><span class="prompt">$</span><span>axi provider use anthropic</span></span>
+<span class="line"><span class="prompt">$</span><span>axi provider list</span></span></code></pre>
+</div>
+</section>
+<section class="tool" id="aq-bridge">
+  <h3 class="tool-cmd">AQ_ROOT / AQ_BIN</h3>
+  <p class="tool-desc">Point axi at an aq install so train tools work inside recipe.yaml folders.</p>
+  <div class="table-wrap mb">
+  <table>
+    <thead><tr><th>Flag</th><th>Description</th></tr></thead>
+    <tbody><tr>
+  <td class="flag">AQ_ROOT</td>
+  <td>Path to the aq package (contains bin/aq).</td>
+</tr>
+<tr>
+  <td class="flag">AQ_BIN</td>
+  <td>Path to the aq binary.</td>
+</tr>
+<tr>
+  <td class="flag">sibling ../aq</td>
+  <td>Also discovered if axi and aq checkouts sit next to each other.</td>
+</tr></tbody>
+  </table>
+</div>
+<div class="codeblock" data-shell="1">
+  <div class="codeblock-bar">
+    <span>example</span>
+    <button type="button" class="copy-btn">Copy</button>
+  </div>
+  <pre><code><span class="line"><span class="prompt">$</span><span>export AQ_ROOT=/path/to/aq</span></span>
+<span class="line"><span class="prompt">$</span><span>axi doctor</span></span></code></pre>
+</div>
+</section>
+<h2>Profile</h2>
+<p class="lead">First run creates <code class="chip">~/.axi</code>. An older <code class="chip">~/.aq</code> agent profile is migrated when present. Keys and settings never belong in the project tree — project <code class="chip">.axi.json</code> is repo-safe keys only.</p>
+<div class="codeblock" data-shell="0">
+  <div class="codeblock-bar">
+    <span>~/.axi</span>
+    <button type="button" class="copy-btn">Copy</button>
+  </div>
+  <pre><code><span class="line"><span>~/.axi/</span></span>
+<span class="line"><span>  config.json          providers, keys, sound, notify</span></span>
+<span class="line"><span>  settings.json        permission mode, saved rules</span></span>
+<span class="line"><span>  chats/&lt;id&gt;/          messages, mission, arl, factory</span></span>
+<span class="line"><span>  arl/                 global harness + pending deploy</span></span>
+<span class="line"><span>  daemon/              sock, pid, log</span></span>
+<span class="line"><span>  backups/             config dry-run backups</span></span></code></pre>
+</div>
+
+    </main>
+  </div>
+  <script src="../../assets/docs.js"></script>
+</body>
+</html>

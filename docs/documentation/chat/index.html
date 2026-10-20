@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chat · axi Docs</title>
+  <meta name="description" content="TTY chat: composer, slash menus, permits, steer, mission kicks." />
+  <link rel="icon" href="../../assets/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/docs.css" />
+</head>
+<body>
+  <header class="docs-header">
+    <div class="docs-header-inner">
+      <a class="brand" href="../" title="Aquin Labs">
+        <img src="../../assets/mainlogo2.png" alt="" width="22" height="22" />
+        <span>Aquin<span class="brand-gap">Labs</span></span>
+      </a>
+      <div class="header-actions">
+        <a class="header-link" href="../">Docs</a>
+        <a class="header-link" href="../../changelog/">Changelog</a>
+        <a class="header-cta" href="https://github.com/Aquinf03/axi" rel="noopener">GitHub</a>
+      </div>
+    </div>
+  </header>
+  <div class="docs-frame">
+    <aside class="docs-sidebar" aria-label="Documentation">
+    <nav><a class="nav-link" href="https://aquinf03.github.io/axi/documentation/" rel="noopener">Live docs</a>
+<a class="nav-link" href="../">Getting started</a>
+<a class="nav-link" href="../install/">Install</a>
+<a class="nav-link active" href="../chat/">Chat</a>
+<a class="nav-link" href="../cli/">CLI reference</a>
+<a class="nav-link" href="../provider/">Provider & keys</a>
+<a class="nav-link" href="../permissions/">Permissions</a>
+<a class="nav-link" href="../slash/">Slash commands</a>
+<p class="nav-section">Product</p>
+<a class="nav-link nested" href="../mission/">Mission</a>
+<a class="nav-link nested" href="../arl/">arl (auto RL)</a>
+<a class="nav-link nested" href="../daemon/">Daemon & agents</a>
+<a class="nav-link nested" href="../factory/">Factory</a>
+<a class="nav-link nested" href="../skills/">Skills, tools & MCP</a>
+</nav>
+    </aside>
+    <main class="docs-main"><h1>Chat</h1>
+<p class="lead">Interactive agent on a TTY. Chat and <code class="chip">/</code> menus stay in normal scrollback. Permission pickers and confirms use the alternate screen.</p>
+<div class="codeblock" data-shell="1">
+  <div class="codeblock-bar">
+    <span>shell</span>
+    <button type="button" class="copy-btn">Copy</button>
+  </div>
+  <pre><code><span class="line"><span class="prompt">$</span><span>axi</span></span>
+<span class="line"><span class="prompt">$</span><span>axi chat last</span></span>
+<span class="line"><span class="prompt">$</span><span>axi chat &lt;id&gt;</span></span></code></pre>
+</div>
+<h2>Composer</h2>
+<ul>
+  <li>Type to chat · <code class="chip">/</code> opens settings / slash hints</li>
+  <li>While the agent is busy: type + enter <strong>queues</strong> a message; <code class="chip">esc</code> / <code class="chip">ctrl-c</code> aborts the turn (<code class="chip">/steer</code>)</li>
+  <li><code class="chip">/image &lt;path&gt;</code> attaches an image for the next user turn</li>
+  <li><code class="chip">/copy</code> · <code class="chip">/url</code> go through the host (clipboard / open URL)</li>
+</ul>
+<h2>Permits</h2>
+<p class="lead">Sensitive tools ask once / always / deny. <code class="chip">plan</code> mode is fail-closed read-only. See <a href="../permissions/">Permissions</a>.</p>
+<h2>Sessions</h2>
+<p class="lead">Portable ids under <code class="chip">~/.axi/chats/&lt;id&gt;/</code> with <code class="chip">workspace_root</code>. Spawn workers are child sessions (hidden from the normal chat list).</p>
+
+    </main>
+  </div>
+  <script src="../../assets/docs.js"></script>
+</body>
+</html>

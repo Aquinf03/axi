@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Slash commands · axi Docs</title>
+  <meta name="description" content="In-chat slash commands for mission, arl, steer, factory, and more." />
+  <link rel="icon" href="../../assets/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/docs.css" />
+</head>
+<body>
+  <header class="docs-header">
+    <div class="docs-header-inner">
+      <a class="brand" href="../" title="Aquin Labs">
+        <img src="../../assets/mainlogo2.png" alt="" width="22" height="22" />
+        <span>Aquin<span class="brand-gap">Labs</span></span>
+      </a>
+      <div class="header-actions">
+        <a class="header-link" href="../">Docs</a>
+        <a class="header-link" href="../../changelog/">Changelog</a>
+        <a class="header-cta" href="https://github.com/Aquinf03/axi" rel="noopener">GitHub</a>
+      </div>
+    </div>
+  </header>
+  <div class="docs-frame">
+    <aside class="docs-sidebar" aria-label="Documentation">
+    <nav><a class="nav-link" href="https://aquinf03.github.io/axi/documentation/" rel="noopener">Live docs</a>
+<a class="nav-link" href="../">Getting started</a>
+<a class="nav-link" href="../install/">Install</a>
+<a class="nav-link" href="../chat/">Chat</a>
+<a class="nav-link" href="../cli/">CLI reference</a>
+<a class="nav-link" href="../provider/">Provider & keys</a>
+<a class="nav-link" href="../permissions/">Permissions</a>
+<a class="nav-link active" href="../slash/">Slash commands</a>
+<p class="nav-section">Product</p>
+<a class="nav-link nested" href="../mission/">Mission</a>
+<a class="nav-link nested" href="../arl/">arl (auto RL)</a>
+<a class="nav-link nested" href="../daemon/">Daemon & agents</a>
+<a class="nav-link nested" href="../factory/">Factory</a>
+<a class="nav-link nested" href="../skills/">Skills, tools & MCP</a>
+</nav>
+    </aside>
+    <main class="docs-main"><h1>Slash commands</h1>
+<p class="lead">Type <code class="chip">/</code> in the composer. Hints appear under the prompt.</p>
+<div class="table-wrap mb">
+    <table class="plain">
+      <thead><tr><th>Command</th><th>Hint</th></tr></thead>
+      <tbody>
+<tr><td class="mono"><code>/help</code></td><td>commands</td></tr>
+<tr><td class="mono"><code>/new · /chats · /open · /rename · /delete</code></td><td>session</td></tr>
+<tr><td class="mono"><code>/compact · /undo · /context · /status · /doctor</code></td><td>session health</td></tr>
+<tr><td class="mono"><code>/provider · /model · /key · /temp · /mode · /config</code></td><td>setup</td></tr>
+<tr><td class="mono"><code>/mission · /decision</code></td><td>keep-going / choose</td></tr>
+<tr><td class="mono"><code>/arl · /refine · /turn</code></td><td>auto RL + trajectory</td></tr>
+<tr><td class="mono"><code>/steer</code></td><td>pause · inject · redirect · queue · abort</td></tr>
+<tr><td class="mono"><code>/stance · /investigate · /revise · /pivot</code></td><td>judgment</td></tr>
+<tr><td class="mono"><code>/evidence · /reconcile · /ledger · /audit</code></td><td>claim quality</td></tr>
+<tr><td class="mono"><code>/codemode · /factory · /spawn · /agents · /daemon</code></td><td>workers</td></tr>
+<tr><td class="mono"><code>/image · /copy · /url · /permissions · /exit</code></td><td>host + assets</td></tr>
+      </tbody>
+    </table>
+  </div>
+<p class="lead">Full specs live in <code class="chip">src/builtins/commands.ts</code> — single source for help and menus.</p>
+
+    </main>
+  </div>
+  <script src="../../assets/docs.js"></script>
+</body>
+</html>

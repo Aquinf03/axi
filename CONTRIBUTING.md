@@ -71,6 +71,16 @@ npm run ready
 
 Talks to `aq` via `AQ_ROOT`, `AQ_BIN`, or sibling `../aq`. Provider setup: `axi provider …` (keys stay in `~/.axi`).
 
+## Docs
+
+Public product docs are static GitHub Pages under [`docs/`](./docs/) (same chrome as aq).
+
+```bash
+npm run docs    # regenerates documentation/ + changelog HTML via scripts/build-docs.mjs
+```
+
+Prefer editing `scripts/build-docs.mjs` then regenerating so nav/chrome stay consistent. Point GitHub Pages at `/docs` on the default branch. Live: https://aquinf03.github.io/axi/documentation/
+
 ## PR requirements
 
 Before you open a pull request:

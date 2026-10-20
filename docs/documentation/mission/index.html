@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mission · axi Docs</title>
+  <meta name="description" content="Objective / Drive / Pulse / Choose — keep working when the human goes quiet." />
+  <link rel="icon" href="../../assets/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/docs.css" />
+</head>
+<body>
+  <header class="docs-header">
+    <div class="docs-header-inner">
+      <a class="brand" href="../" title="Aquin Labs">
+        <img src="../../assets/mainlogo2.png" alt="" width="22" height="22" />
+        <span>Aquin<span class="brand-gap">Labs</span></span>
+      </a>
+      <div class="header-actions">
+        <a class="header-link" href="../">Docs</a>
+        <a class="header-link" href="../../changelog/">Changelog</a>
+        <a class="header-cta" href="https://github.com/Aquinf03/axi" rel="noopener">GitHub</a>
+      </div>
+    </div>
+  </header>
+  <div class="docs-frame">
+    <aside class="docs-sidebar" aria-label="Documentation">
+    <nav><a class="nav-link" href="https://aquinf03.github.io/axi/documentation/" rel="noopener">Live docs</a>
+<a class="nav-link" href="../">Getting started</a>
+<a class="nav-link" href="../install/">Install</a>
+<a class="nav-link" href="../chat/">Chat</a>
+<a class="nav-link" href="../cli/">CLI reference</a>
+<a class="nav-link" href="../provider/">Provider & keys</a>
+<a class="nav-link" href="../permissions/">Permissions</a>
+<a class="nav-link" href="../slash/">Slash commands</a>
+<p class="nav-section">Product</p>
+<a class="nav-link nested active" href="../mission/">Mission</a>
+<a class="nav-link nested" href="../arl/">arl (auto RL)</a>
+<a class="nav-link nested" href="../daemon/">Daemon & agents</a>
+<a class="nav-link nested" href="../factory/">Factory</a>
+<a class="nav-link nested" href="../skills/">Skills, tools & MCP</a>
+</nav>
+    </aside>
+    <main class="docs-main"><h1>Mission</h1>
+<p class="lead">Keep working when the human goes quiet — <strong>one product</strong>, four engines. Persist <code class="chip">~/.axi/chats/&lt;id&gt;/mission.json</code>.</p>
+<div class="table-wrap mb">
+    <table class="plain">
+      <thead><tr><th>Slash</th><th>Effect</th></tr></thead>
+      <tbody>
+<tr><td class="mono"><code class="chip">/mission &lt;goal&gt;</code></td><td>Start — sets objective + light drive</td></tr>
+<tr><td class="mono"><code class="chip">/mission</code></td><td>Status</td></tr>
+<tr><td class="mono"><code class="chip">/mission stop</code></td><td>Stop objective, drive, pulse, choose</td></tr>
+<tr><td class="mono"><code class="chip">/mission done</code></td><td>Mark goal finished (ledger / residual gates apply)</td></tr>
+<tr><td class="mono"><code class="chip">/mission advanced</code></td><td>Drive / pulse / budget power path</td></tr>
+      </tbody>
+    </table>
+  </div>
+<h2>Engines</h2>
+<div class="table-wrap mb">
+    <table class="plain">
+      <thead><tr><th>Engine</th><th>Role</th></tr></thead>
+      <tbody>
+<tr><td class="mono">Objective</td><td>Re-inject + no-progress backoff · mission_done</td></tr>
+<tr><td class="mono">Drive</td><td>Bounded keep-going + optional shell gates</td></tr>
+<tr><td class="mono">Pulse</td><td>Wall-clock wakes · durable pulse-jobs index</td></tr>
+<tr><td class="mono">Choose</td><td>observe → decide → act loop (mission.choose)</td></tr>
+      </tbody>
+    </table>
+  </div>
+<h2>Daemon product</h2>
+<p class="lead">With <code class="chip">axi daemon</code> up, objective / drive / backoff kicks and choose ticks continue after the TUI closes. Continuations persist as <code class="chip">pendingKick</code>; the daemon runs a headless parent turn. Pulse still delivers as a spawn child. Open chat yields when the daemon is up.</p>
+<div class="codeblock" data-shell="1">
+  <div class="codeblock-bar">
+    <span>shell</span>
+    <button type="button" class="copy-btn">Copy</button>
+  </div>
+  <pre><code><span class="line"><span class="prompt">$</span><span>axi daemon start</span></span>
+<span class="line"><span class="prompt">$</span><span>axi mission status</span></span></code></pre>
+</div>
+
+    </main>
+  </div>
+  <script src="../../assets/docs.js"></script>
+</body>
+</html>

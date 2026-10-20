@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Factory · axi Docs</title>
+  <meta name="description" content="Subagent DAG: when / foreach / loop, MACHINE.md, live dock." />
+  <link rel="icon" href="../../assets/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/docs.css" />
+</head>
+<body>
+  <header class="docs-header">
+    <div class="docs-header-inner">
+      <a class="brand" href="../" title="Aquin Labs">
+        <img src="../../assets/mainlogo2.png" alt="" width="22" height="22" />
+        <span>Aquin<span class="brand-gap">Labs</span></span>
+      </a>
+      <div class="header-actions">
+        <a class="header-link" href="../">Docs</a>
+        <a class="header-link" href="../../changelog/">Changelog</a>
+        <a class="header-cta" href="https://github.com/Aquinf03/axi" rel="noopener">GitHub</a>
+      </div>
+    </div>
+  </header>
+  <div class="docs-frame">
+    <aside class="docs-sidebar" aria-label="Documentation">
+    <nav><a class="nav-link" href="https://aquinf03.github.io/axi/documentation/" rel="noopener">Live docs</a>
+<a class="nav-link" href="../">Getting started</a>
+<a class="nav-link" href="../install/">Install</a>
+<a class="nav-link" href="../chat/">Chat</a>
+<a class="nav-link" href="../cli/">CLI reference</a>
+<a class="nav-link" href="../provider/">Provider & keys</a>
+<a class="nav-link" href="../permissions/">Permissions</a>
+<a class="nav-link" href="../slash/">Slash commands</a>
+<p class="nav-section">Product</p>
+<a class="nav-link nested" href="../mission/">Mission</a>
+<a class="nav-link nested" href="../arl/">arl (auto RL)</a>
+<a class="nav-link nested" href="../daemon/">Daemon & agents</a>
+<a class="nav-link nested active" href="../factory/">Factory</a>
+<a class="nav-link nested" href="../skills/">Skills, tools & MCP</a>
+</nav>
+    </aside>
+    <main class="docs-main"><h1>Factory</h1>
+<p class="lead">DAG of spawned subagents. Front door <code class="chip">core/factory.ts</code>. Persist <code class="chip">~/.axi/chats/&lt;id&gt;/factory.json</code> — one run per chat.</p>
+<div class="codeblock" data-shell="1">
+  <div class="codeblock-bar">
+    <span>chat</span>
+    <button type="button" class="copy-btn">Copy</button>
+  </div>
+  <pre><code><span class="line"><span class="prompt">$</span><span>/factory run builder</span></span>
+<span class="line"><span class="prompt">$</span><span>/factory status</span></span>
+<span class="line"><span class="prompt">$</span><span>/factory log &lt;node&gt;</span></span>
+<span class="line"><span class="prompt">$</span><span>/factory cancel &lt;node&gt; &lt;why&gt;</span></span></code></pre>
+</div>
+<h2>Spec shape</h2>
+<div class="codeblock" data-shell="0">
+  <div class="codeblock-bar">
+    <span>machine</span>
+    <button type="button" class="copy-btn">Copy</button>
+  </div>
+  <pre><code><span class="line"><span>{ &quot;name&quot;: &quot;builder&quot;, &quot;max_parallel&quot;: 2,</span></span>
+<span class="line"><span>  &quot;nodes&quot;: [</span></span>
+<span class="line"><span>    { &quot;id&quot;: &quot;plan&quot;, &quot;prompt&quot;: &quot;…&quot; },</span></span>
+<span class="line"><span>    { &quot;id&quot;: &quot;impl&quot;, &quot;needs&quot;: [&quot;plan&quot;], &quot;prompt&quot;: &quot;Use {plan}&quot; }</span></span>
+<span class="line"><span>  ] }</span></span></code></pre>
+</div>
+<ul>
+  <li><strong>when</strong> — skip if guard fails</li>
+  <li><strong>foreach</strong> — expand over a JSON list</li>
+  <li><strong>loop</strong> — re-run until until-guard passes</li>
+  <li><strong>MACHINE.md</strong> — frontmatter + fenced machine-spec JSON</li>
+</ul>
+<p class="lead">Seeds: <code class="chip">builder</code>, <code class="chip">review</code>, <code class="chip">retry-merge</code>, <code class="chip">review-sweep</code>. User machines: <code class="chip">~/.axi/factory/machines/</code>. Live dock paints above the composer while a run exists.</p>
+
+    </main>
+  </div>
+  <script src="../../assets/docs.js"></script>
+</body>
+</html>

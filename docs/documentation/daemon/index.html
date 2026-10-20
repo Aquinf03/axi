@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Daemon &amp; agents · axi Docs</title>
+  <meta name="description" content="Background supervisor: mission keep-going, pulse, factory, spawn host." />
+  <link rel="icon" href="../../assets/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/docs.css" />
+</head>
+<body>
+  <header class="docs-header">
+    <div class="docs-header-inner">
+      <a class="brand" href="../" title="Aquin Labs">
+        <img src="../../assets/mainlogo2.png" alt="" width="22" height="22" />
+        <span>Aquin<span class="brand-gap">Labs</span></span>
+      </a>
+      <div class="header-actions">
+        <a class="header-link" href="../">Docs</a>
+        <a class="header-link" href="../../changelog/">Changelog</a>
+        <a class="header-cta" href="https://github.com/Aquinf03/axi" rel="noopener">GitHub</a>
+      </div>
+    </div>
+  </header>
+  <div class="docs-frame">
+    <aside class="docs-sidebar" aria-label="Documentation">
+    <nav><a class="nav-link" href="https://aquinf03.github.io/axi/documentation/" rel="noopener">Live docs</a>
+<a class="nav-link" href="../">Getting started</a>
+<a class="nav-link" href="../install/">Install</a>
+<a class="nav-link" href="../chat/">Chat</a>
+<a class="nav-link" href="../cli/">CLI reference</a>
+<a class="nav-link" href="../provider/">Provider & keys</a>
+<a class="nav-link" href="../permissions/">Permissions</a>
+<a class="nav-link" href="../slash/">Slash commands</a>
+<p class="nav-section">Product</p>
+<a class="nav-link nested" href="../mission/">Mission</a>
+<a class="nav-link nested" href="../arl/">arl (auto RL)</a>
+<a class="nav-link nested active" href="../daemon/">Daemon & agents</a>
+<a class="nav-link nested" href="../factory/">Factory</a>
+<a class="nav-link nested" href="../skills/">Skills, tools & MCP</a>
+</nav>
+    </aside>
+    <main class="docs-main"><h1>Daemon &amp; agents</h1>
+<p class="lead">Background supervisor so work continues when the TUI is closed. Socket + pid under <code class="chip">~/.axi/daemon/</code>.</p>
+<div class="codeblock" data-shell="1">
+  <div class="codeblock-bar">
+    <span>shell</span>
+    <button type="button" class="copy-btn">Copy</button>
+  </div>
+  <pre><code><span class="line"><span class="prompt">$</span><span>axi daemon start</span></span>
+<span class="line"><span class="prompt">$</span><span>axi daemon status</span></span>
+<span class="line"><span class="prompt">$</span><span>axi agents</span></span>
+<span class="line"><span class="prompt">$</span><span>axi daemon stop</span></span></code></pre>
+</div>
+<h2>Tick (~2s)</h2>
+<ul>
+  <li>Mark due pulses + objective backoffs</li>
+  <li>Deliver parent keep-going turns (<code class="chip">pendingKick</code>)</li>
+  <li>Choose-loop ticks for <code class="chip">mission.choose</code> left running</li>
+  <li>Pulse spawn children · factory DAG ticks</li>
+</ul>
+<p class="lead">When up, <code class="chip">startAgent</code> / spawn prefer the daemon. Force local: <code class="chip">AXI_DAEMON=0</code>.</p>
+<h2>Agents view</h2>
+<p class="lead"><code class="chip">/agents</code> opens a live multi-agent TUI (daemon status, this-chat + workspace, filter, log/cancel). <code class="chip">/agents list</code> keeps the text board. <code class="chip">axi agents</code> from the shell.</p>
+
+    </main>
+  </div>
+  <script src="../../assets/docs.js"></script>
+</body>
+</html>

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CLI reference · axi Docs</title>
+  <meta name="description" content="axi CLI: chat, ask, provider, doctor, spawn, daemon, mission, agents." />
+  <link rel="icon" href="../../assets/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/docs.css" />
+</head>
+<body>
+  <header class="docs-header">
+    <div class="docs-header-inner">
+      <a class="brand" href="../" title="Aquin Labs">
+        <img src="../../assets/mainlogo2.png" alt="" width="22" height="22" />
+        <span>Aquin<span class="brand-gap">Labs</span></span>
+      </a>
+      <div class="header-actions">
+        <a class="header-link" href="../">Docs</a>
+        <a class="header-link" href="../../changelog/">Changelog</a>
+        <a class="header-cta" href="https://github.com/Aquinf03/axi" rel="noopener">GitHub</a>
+      </div>
+    </div>
+  </header>
+  <div class="docs-frame">
+    <aside class="docs-sidebar" aria-label="Documentation">
+    <nav><a class="nav-link" href="https://aquinf03.github.io/axi/documentation/" rel="noopener">Live docs</a>
+<a class="nav-link" href="../">Getting started</a>
+<a class="nav-link" href="../install/">Install</a>
+<a class="nav-link" href="../chat/">Chat</a>
+<a class="nav-link active" href="../cli/">CLI reference</a>
+<a class="nav-link" href="../provider/">Provider & keys</a>
+<a class="nav-link" href="../permissions/">Permissions</a>
+<a class="nav-link" href="../slash/">Slash commands</a>
+<p class="nav-section">Product</p>
+<a class="nav-link nested" href="../mission/">Mission</a>
+<a class="nav-link nested" href="../arl/">arl (auto RL)</a>
+<a class="nav-link nested" href="../daemon/">Daemon & agents</a>
+<a class="nav-link nested" href="../factory/">Factory</a>
+<a class="nav-link nested" href="../skills/">Skills, tools & MCP</a>
+</nav>
+    </aside>
+    <main class="docs-main"><h1>CLI reference</h1>
+<p class="lead">Quiet, cwd-based. Default command is TTY chat.</p>
+<section class="tool" id="axi">
+  <h3 class="tool-cmd">axi · axi agent</h3>
+  <p class="tool-desc">Open interactive chat in the current folder.</p>
+<div class="codeblock" data-shell="1">
+  <div class="codeblock-bar">
+    <span>example</span>
+    <button type="button" class="copy-btn">Copy</button>
+  </div>
+  <pre><code><span class="line"><span class="prompt">$</span><span>axi</span></span></code></pre>
+</div>
+</section>
+<section class="tool" id="ask">
+  <h3 class="tool-cmd">axi ask [-y] [--json] [dir] &lt;prompt&gt;</h3>
+  <p class="tool-desc">One-shot answer without the chat UI.</p>
+  <div class="table-wrap mb">
+  <table>
+    <thead><tr><th>Flag</th><th>Description</th></tr></thead>
+    <tbody><tr>
+  <td class="flag">-y / --yes</td>
+  <td>Auto-approve mutating tools (full-access for this ask).</td>
+</tr>
+<tr>
+  <td class="flag">--json</td>
+  <td>Emit text, tools, usage, harness.</td>
+</tr>
+<tr>
+  <td class="flag">--auto / --full-access / --mode</td>
+  <td>Permission mode for this ask.</td>
+</tr></tbody>
+  </table>
+</div>
+<div class="codeblock" data-shell="1">
+  <div class="codeblock-bar">
+    <span>example</span>
+    <button type="button" class="copy-btn">Copy</button>
+  </div>
+  <pre><code><span class="line"><span class="prompt">$</span><span>axi ask &quot;how does src/cli.ts wire commands?&quot;</span></span></code></pre>
+</div>
+<div class="codeblock" data-shell="1">
+  <div class="codeblock-bar">
+    <span>example</span>
+    <button type="button" class="copy-btn">Copy</button>
+  </div>
+  <pre><code><span class="line"><span class="prompt">$</span><span>axi ask -y --json &quot;run doctor and summarize&quot;</span></span></code></pre>
+</div>
+</section>
+<section class="tool" id="chat">
+  <h3 class="tool-cmd">axi chat [list|last|&lt;id&gt;|new]</h3>
+  <p class="tool-desc">List or resume chats under ~/.axi/chats/.</p>
+<div class="codeblock" data-shell="1">
+  <div class="codeblock-bar">
+    <span>example</span>
+    <button type="button" class="copy-btn">Copy</button>
+  </div>
+  <pre><code><span class="line"><span class="prompt">$</span><span>axi chat list</span></span>
+<span class="line"><span class="prompt">$</span><span>axi chat last</span></span></code></pre>
+</div>
+</section>
+<section class="tool" id="provider">
+  <h3 class="tool-cmd">axi provider [list|&lt;name&gt;|use &lt;name&gt;]</h3>
+  <p class="tool-desc">List or set model providers (openai · anthropic · grok · ollama).</p>
+<div class="codeblock" data-shell="1">
+  <div class="codeblock-bar">
+    <span>example</span>
+    <button type="button" class="copy-btn">Copy</button>
+  </div>
+  <pre><code><span class="line"><span class="prompt">$</span><span>axi provider</span></span>
+<span class="line"><span class="prompt">$</span><span>axi provider openai</span></span></code></pre>
+</div>
+</section>
+<section class="tool" id="doctor">
+  <h3 class="tool-cmd">axi doctor [--json] [dir]</h3>
+  <p class="tool-desc">Health check: agent, provider, workspace, skills, mcp, aq bridge.</p>
+<div class="codeblock" data-shell="1">
+  <div class="codeblock-bar">
+    <span>example</span>
+    <button type="button" class="copy-btn">Copy</button>
+  </div>
+  <pre><code><span class="line"><span class="prompt">$</span><span>axi doctor</span></span></code></pre>
+</div>
+</section>
+<section class="tool" id="spawn">
+  <h3 class="tool-cmd">axi spawn agent|list|log|cancel …</h3>
+  <p class="tool-desc">Background worker agents. Cancel requires a why (prune-with-receipt).</p>
+<div class="codeblock" data-shell="1">
+  <div class="codeblock-bar">
+    <span>example</span>
+    <button type="button" class="copy-btn">Copy</button>
+  </div>
+  <pre><code><span class="line"><span class="prompt">$</span><span>axi spawn agent -- &quot;investigate flaky test&quot;</span></span>
+<span class="line"><span class="prompt">$</span><span>axi spawn list</span></span></code></pre>
+</div>
+</section>
+<section class="tool" id="daemon">
+  <h3 class="tool-cmd">axi daemon start|stop|status|run</h3>
+  <p class="tool-desc">Background supervisor: mission keep-going, pulse, factory, spawn host.</p>
+<div class="codeblock" data-shell="1">
+  <div class="codeblock-bar">
+    <span>example</span>
+    <button type="button" class="copy-btn">Copy</button>
+  </div>
+  <pre><code><span class="line"><span class="prompt">$</span><span>axi daemon start</span></span>
+<span class="line"><span class="prompt">$</span><span>axi daemon status</span></span></code></pre>
+</div>
+</section>
+<section class="tool" id="mission-cli">
+  <h3 class="tool-cmd">axi mission tick|status|rebuild-index</h3>
+  <p class="tool-desc">Mark due pulses / inspect mission when chat is closed.</p>
+<div class="codeblock" data-shell="1">
+  <div class="codeblock-bar">
+    <span>example</span>
+    <button type="button" class="copy-btn">Copy</button>
+  </div>
+  <pre><code><span class="line"><span class="prompt">$</span><span>axi mission tick</span></span>
+<span class="line"><span class="prompt">$</span><span>axi mission status</span></span></code></pre>
+</div>
+</section>
+<section class="tool" id="agents">
+  <h3 class="tool-cmd">axi agents [dir] [--parent &lt;chatId&gt;]</h3>
+  <p class="tool-desc">Text roster of workers + daemon status. In chat, /agents opens the live TUI.</p>
+<div class="codeblock" data-shell="1">
+  <div class="codeblock-bar">
+    <span>example</span>
+    <button type="button" class="copy-btn">Copy</button>
+  </div>
+  <pre><code><span class="line"><span class="prompt">$</span><span>axi agents</span></span></code></pre>
+</div>
+</section>
+<section class="tool" id="version">
+  <h3 class="tool-cmd">axi version [--verbose] [--json]</h3>
+  <p class="tool-desc">Print agent version (and paths with --verbose).</p>
+<div class="codeblock" data-shell="1">
+  <div class="codeblock-bar">
+    <span>example</span>
+    <button type="button" class="copy-btn">Copy</button>
+  </div>
+  <pre><code><span class="line"><span class="prompt">$</span><span>axi version</span></span></code></pre>
+</div>
+</section>
+
+    </main>
+  </div>
+  <script src="../../assets/docs.js"></script>
+</body>
+</html>

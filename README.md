@@ -8,11 +8,12 @@ Model **train / eval / fleet** stay in the **aq** CLI (separate install). axi sh
 
 Chats, keys, and memory live in **`~/.axi`** (first run migrates `~/.aq` if present).
 
-**Repo:** https://github.com/Aquinf03/axi · **Changelog:** [`CHANGELOG.md`](./CHANGELOG.md) · **aq:** https://github.com/aquinf03/aq
+**Repo:** https://github.com/Aquinf03/axi · **Docs:** https://aquinf03.github.io/axi/documentation/ · **Changelog:** https://aquinf03.github.io/axi/changelog/  
+**aq:** https://github.com/aquinf03/aq · **Notes:** [`CHANGELOG.md`](./CHANGELOG.md)
 
 **Contributing** · [`CONTRIBUTING.md`](./CONTRIBUTING.md) · **Code of conduct** · [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md) · **Security** · [`SECURITY.md`](./SECURITY.md) · **License** · [`LICENSE`](./LICENSE)
 
-Good first contributions: docs clarifications, tighter unit tests next to `src/`, small slash/CLI fixes with a reproduction, and eval cases under `scripts/tests/`.
+Good first contributions: docs under `docs/documentation/` (regen with `npm run docs`), tighter unit tests next to `src/`, small slash/CLI fixes with a reproduction, and eval cases under `scripts/tests/`.
 
 ## Install
 
@@ -41,6 +42,16 @@ axi provider openai
 axi doctor
 ```
 
+## Docs
+
+Static GitHub Pages site (same chrome as aq):
+
+```bash
+npm run docs          # regenerate docs/documentation + changelog HTML
+```
+
+Browse locally: open `docs/documentation/index.html` or serve `docs/`. Source of truth for user-facing product docs is `docs/` — regen via `scripts/build-docs.mjs`.
+
 ## Layout
 
 ```
@@ -50,6 +61,7 @@ src/core/            sessions, skills, tool_specs, permissions, config, output, 
 src/tools/           tool implementations (schemas in core/tooling/tool_specs)
 src/ui/              TTY render / input / notify (no product state)
 src/gateway/         provider HTTP + keys (import via gateway.ts)
+docs/                GitHub Pages: documentation/ + changelog/ + assets/
 scripts/tests/       agent evals (ours only, not user evals/)
 internals/           local checklists (gitignored — not published)
 ```

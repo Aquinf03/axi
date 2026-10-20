@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Provider &amp; keys · axi Docs</title>
+  <meta name="description" content="Configure openai, anthropic, grok, or ollama. Keys in ~/.axi/config.json." />
+  <link rel="icon" href="../../assets/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/docs.css" />
+</head>
+<body>
+  <header class="docs-header">
+    <div class="docs-header-inner">
+      <a class="brand" href="../" title="Aquin Labs">
+        <img src="../../assets/mainlogo2.png" alt="" width="22" height="22" />
+        <span>Aquin<span class="brand-gap">Labs</span></span>
+      </a>
+      <div class="header-actions">
+        <a class="header-link" href="../">Docs</a>
+        <a class="header-link" href="../../changelog/">Changelog</a>
+        <a class="header-cta" href="https://github.com/Aquinf03/axi" rel="noopener">GitHub</a>
+      </div>
+    </div>
+  </header>
+  <div class="docs-frame">
+    <aside class="docs-sidebar" aria-label="Documentation">
+    <nav><a class="nav-link" href="https://aquinf03.github.io/axi/documentation/" rel="noopener">Live docs</a>
+<a class="nav-link" href="../">Getting started</a>
+<a class="nav-link" href="../install/">Install</a>
+<a class="nav-link" href="../chat/">Chat</a>
+<a class="nav-link" href="../cli/">CLI reference</a>
+<a class="nav-link active" href="../provider/">Provider & keys</a>
+<a class="nav-link" href="../permissions/">Permissions</a>
+<a class="nav-link" href="../slash/">Slash commands</a>
+<p class="nav-section">Product</p>
+<a class="nav-link nested" href="../mission/">Mission</a>
+<a class="nav-link nested" href="../arl/">arl (auto RL)</a>
+<a class="nav-link nested" href="../daemon/">Daemon & agents</a>
+<a class="nav-link nested" href="../factory/">Factory</a>
+<a class="nav-link nested" href="../skills/">Skills, tools & MCP</a>
+</nav>
+    </aside>
+    <main class="docs-main"><h1>Provider &amp; keys</h1>
+<p class="lead">Providers: <strong>openai</strong> · <strong>anthropic</strong> · <strong>grok</strong> · <strong>ollama</strong>. Keys and model selection live in <code class="chip">~/.axi/config.json</code> (gated by <code class="chip">/config</code> dry-run when enabled).</p>
+<div class="codeblock" data-shell="1">
+  <div class="codeblock-bar">
+    <span>shell</span>
+    <button type="button" class="copy-btn">Copy</button>
+  </div>
+  <pre><code><span class="line"><span class="prompt">$</span><span>axi provider list</span></span>
+<span class="line"><span class="prompt">$</span><span>axi provider openai</span></span>
+<span class="line"><span class="prompt">$</span><span>axi provider use anthropic</span></span>
+<span class="line"><span class="prompt">$</span><span>axi model gpt-4.1</span></span></code></pre>
+</div>
+<h2>In chat</h2>
+<ul>
+  <li><code class="chip">/provider</code> · <code class="chip">/model</code> · <code class="chip">/key</code> · <code class="chip">/temp</code></li>
+  <li><code class="chip">/status</code> — tokens in/out/cached, cache-hit %, ~$ for last turn + chat</li>
+  <li><code class="chip">/sound</code> · <code class="chip">/notify</code> — cues and desktop reply alerts</li>
+</ul>
+<p class="lead">Config writes stage for approve by default — <code class="chip">/config status|approve|deny</code>. Bypass for scripts: <code class="chip">AXI_CONFIG_APPLY=immediate</code>.</p>
+
+    </main>
+  </div>
+  <script src="../../assets/docs.js"></script>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Permissions · axi Docs</title>
+  <meta name="description" content="ask · auto · plan · full-access. Tool text is evidence only — never a grant." />
+  <link rel="icon" href="../../assets/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/docs.css" />
+</head>
+<body>
+  <header class="docs-header">
+    <div class="docs-header-inner">
+      <a class="brand" href="../" title="Aquin Labs">
+        <img src="../../assets/mainlogo2.png" alt="" width="22" height="22" />
+        <span>Aquin<span class="brand-gap">Labs</span></span>
+      </a>
+      <div class="header-actions">
+        <a class="header-link" href="../">Docs</a>
+        <a class="header-link" href="../../changelog/">Changelog</a>
+        <a class="header-cta" href="https://github.com/Aquinf03/axi" rel="noopener">GitHub</a>
+      </div>
+    </div>
+  </header>
+  <div class="docs-frame">
+    <aside class="docs-sidebar" aria-label="Documentation">
+    <nav><a class="nav-link" href="https://aquinf03.github.io/axi/documentation/" rel="noopener">Live docs</a>
+<a class="nav-link" href="../">Getting started</a>
+<a class="nav-link" href="../install/">Install</a>
+<a class="nav-link" href="../chat/">Chat</a>
+<a class="nav-link" href="../cli/">CLI reference</a>
+<a class="nav-link" href="../provider/">Provider & keys</a>
+<a class="nav-link active" href="../permissions/">Permissions</a>
+<a class="nav-link" href="../slash/">Slash commands</a>
+<p class="nav-section">Product</p>
+<a class="nav-link nested" href="../mission/">Mission</a>
+<a class="nav-link nested" href="../arl/">arl (auto RL)</a>
+<a class="nav-link nested" href="../daemon/">Daemon & agents</a>
+<a class="nav-link nested" href="../factory/">Factory</a>
+<a class="nav-link nested" href="../skills/">Skills, tools & MCP</a>
+</nav>
+    </aside>
+    <main class="docs-main"><h1>Permissions</h1>
+<p class="lead">Every sensitive tool goes through <code class="chip">authorizeTool</code>. Tool / model text is <strong>evidence only</strong> — never a grant or mode change.</p>
+<div class="table-wrap mb">
+    <table class="plain">
+      <thead><tr><th>Mode</th><th>Behavior</th></tr></thead>
+      <tbody>
+<tr><td class="mono"><code class="chip">ask</code></td><td>Prompt once / always / deny for sensitive tools (default).</td></tr>
+<tr><td class="mono"><code class="chip">auto</code></td><td>Approve matching session/saved rules; still ask when unsure.</td></tr>
+<tr><td class="mono"><code class="chip">plan</code></td><td>Fail-closed read-only — write/run blocked even if you would approve.</td></tr>
+<tr><td class="mono"><code class="chip">full-access</code></td><td>Auto-yes (yolo alias). Use sparingly.</td></tr>
+      </tbody>
+    </table>
+  </div>
+<p class="lead">Set via <code class="chip">/mode</code>, <code class="chip">AXI_PERMISSION_MODE</code>, or profile settings. Saved rules: <code class="chip">~/.axi/settings.json</code>. Session <code class="chip">always</code> is non-persistent.</p>
+<div class="codeblock" data-shell="1">
+  <div class="codeblock-bar">
+    <span>shell</span>
+    <button type="button" class="copy-btn">Copy</button>
+  </div>
+  <pre><code><span class="line"><span class="prompt">$</span><span>axi ask --mode plan &quot;review src/cli.ts&quot;</span></span>
+<span class="line"><span class="prompt">$</span><span>axi ask -y &quot;apply the fix&quot;</span></span></code></pre>
+</div>
+
+    </main>
+  </div>
+  <script src="../../assets/docs.js"></script>
+</body>
+</html>

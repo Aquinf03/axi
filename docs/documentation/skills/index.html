@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Skills, tools &amp; MCP · axi Docs</title>
+  <meta name="description" content="Core tools, deferred tools, skills packs, MCP extras." />
+  <link rel="icon" href="../../assets/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/docs.css" />
+</head>
+<body>
+  <header class="docs-header">
+    <div class="docs-header-inner">
+      <a class="brand" href="../" title="Aquin Labs">
+        <img src="../../assets/mainlogo2.png" alt="" width="22" height="22" />
+        <span>Aquin<span class="brand-gap">Labs</span></span>
+      </a>
+      <div class="header-actions">
+        <a class="header-link" href="../">Docs</a>
+        <a class="header-link" href="../../changelog/">Changelog</a>
+        <a class="header-cta" href="https://github.com/Aquinf03/axi" rel="noopener">GitHub</a>
+      </div>
+    </div>
+  </header>
+  <div class="docs-frame">
+    <aside class="docs-sidebar" aria-label="Documentation">
+    <nav><a class="nav-link" href="https://aquinf03.github.io/axi/documentation/" rel="noopener">Live docs</a>
+<a class="nav-link" href="../">Getting started</a>
+<a class="nav-link" href="../install/">Install</a>
+<a class="nav-link" href="../chat/">Chat</a>
+<a class="nav-link" href="../cli/">CLI reference</a>
+<a class="nav-link" href="../provider/">Provider & keys</a>
+<a class="nav-link" href="../permissions/">Permissions</a>
+<a class="nav-link" href="../slash/">Slash commands</a>
+<p class="nav-section">Product</p>
+<a class="nav-link nested" href="../mission/">Mission</a>
+<a class="nav-link nested" href="../arl/">arl (auto RL)</a>
+<a class="nav-link nested" href="../daemon/">Daemon & agents</a>
+<a class="nav-link nested" href="../factory/">Factory</a>
+<a class="nav-link nested active" href="../skills/">Skills, tools & MCP</a>
+</nav>
+    </aside>
+    <main class="docs-main"><h1>Skills, tools &amp; MCP</h1>
+<p class="lead">Core tools are always offered. Deferred tools (<code class="chip">aq_*</code>, spawn, plot, memory, factory, …) appear after <code class="chip">tools_search</code> loads them for the session. Discover ≠ authorize.</p>
+<div class="table-wrap mb">
+    <table class="plain">
+      <thead><tr><th>Layer</th><th>Examples</th></tr></thead>
+      <tbody>
+<tr><td class="mono">Core</td><td>read · edit · write · run · grep · web · view · tools_search</td></tr>
+<tr><td class="mono">Deferred</td><td>aq_train · spawn · codemode_run · factory_* · memory_*</td></tr>
+<tr><td class="mono">MCP / skills</td><td>extras from skills packs and MCP servers</td></tr>
+      </tbody>
+    </table>
+  </div>
+<p class="lead">Schemas: <code class="chip">src/core/tooling/tool_specs.ts</code>. Implementations: <code class="chip">src/tools/</code>. Prefer <code class="chip">view</code> over <code class="chip">read</code> for images.</p>
+<p class="lead"><code class="chip">axi doctor</code> reports skills + MCP health for the workspace.</p>
+
+    </main>
+  </div>
+  <script src="../../assets/docs.js"></script>
+</body>
+</html>
