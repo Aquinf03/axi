@@ -44,13 +44,15 @@ axi doctor
 
 ## Docs
 
-Static GitHub Pages site (same chrome as aq):
+**Live:** https://aquinf03.github.io/axi/documentation/ · **Changelog:** https://aquinf03.github.io/axi/changelog/
+
+Static GitHub Pages site under [`docs/`](./docs/) (same chrome as aq). Install, chat, CLI, mission, arl, daemon, factory, and more.
 
 ```bash
 npm run docs          # regenerate docs/documentation + changelog HTML
 ```
 
-Browse locally: open `docs/documentation/index.html` or serve `docs/`. Source of truth for user-facing product docs is `docs/` — regen via `scripts/build-docs.mjs`.
+Browse locally: open `docs/documentation/index.html` or serve `docs/`. Edit via `scripts/build-docs.mjs`, then regen.
 
 ## Layout
 

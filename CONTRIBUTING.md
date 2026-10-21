@@ -37,6 +37,7 @@ npm run ready       # build + gates + unit + smoke — exit 0
 - [What makes this different](#what-makes-this-different)
 - [What success feels like](#what-success-feels-like)
 - [Quick start](#quick-start)
+- [Docs](#docs)
 - [PR requirements](#pr-requirements)
 - [Core areas (higher bar)](#core-areas-higher-bar)
 - [AI tool usage](#ai-tool-usage)
@@ -219,7 +220,8 @@ npm run ready
 ## Types of contributions
 
 **Code:** bug fixes, features, performance, refactors  
-**Docs:** README, FEATURE notes, clarifying comments  
+**Docs:** public site under `docs/` (`npm run docs`), README, FEATURE notes, clarifying comments  
+
 **Tests:** unit next to modules; eval cases under `scripts/tests/`  
 **Issues:** clear bug reports and focused feature proposals  
 
@@ -245,9 +247,10 @@ Participation is governed by [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md). Repor
 
 ## Questions
 
-- Layout / habits: this file · [`src/core/FEATURE.md`](./src/core/FEATURE.md) · [`README.md`](./README.md)
+- Layout / habits: this file · [`src/core/FEATURE.md`](./src/core/FEATURE.md) · [`README.md`](./README.md) · [`docs/`](./docs/)
+- Product docs: https://aquinf03.github.io/axi/documentation/
 - Evals: [`scripts/tests/README.md`](./scripts/tests/README.md)
-- Changelog: [`CHANGELOG.md`](./CHANGELOG.md)
+- Changelog: [`CHANGELOG.md`](./CHANGELOG.md) · https://aquinf03.github.io/axi/changelog/
 - Security: [`SECURITY.md`](./SECURITY.md)
 - Framework (aq): https://github.com/aquinf03/aq
 - Contact: aquin@aquin.app

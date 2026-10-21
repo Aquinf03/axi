@@ -21,3 +21,5 @@ We do not currently offer a bounty for disclosures. We will acknowledge valid re
 ## Scope notes
 
 axi runs tools against a workspace with a permission model (`ask` / `auto` / `plan` / `full-access`). Reports that show a bypass of `authorizeTool`, unintended credential exposure from `~/.axi`, or unsafe default behavior are especially useful. Do not include live API keys or personal chat contents in reports — redact them.
+
+Product docs (permissions, config, daemon): https://aquinf03.github.io/axi/documentation/

@@ -3,6 +3,8 @@
 All notable user-facing changes to **axi** are listed here.  
 Format is inspired by [Keep a Changelog](https://keepachangelog.com/). Versions follow the `package.json` version.
 
+**Pages:** https://aquinf03.github.io/axi/changelog/ · **Docs:** https://aquinf03.github.io/axi/documentation/
+
 ## [0.0.2] — 2026-10
 
 ### Added

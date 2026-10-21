@@ -2,6 +2,8 @@
 
 Agent evals for axi. Not a user feature. Not `evals/` in a train. Not `aq eval`.
 
+Product docs (not this folder): https://aquinf03.github.io/axi/documentation/ · regen with `npm run docs` from the repo root.
+
 ## Classification
 
 Every case under `cases/<id>/` (must have `prompt.txt`) is classified in [`corpus.json`](corpus.json):

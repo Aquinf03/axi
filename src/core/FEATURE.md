@@ -1,12 +1,14 @@
 # Before adding a feature
 
+**User-facing docs:** https://aquinf03.github.io/axi/documentation/ (repo `docs/`; regen `npm run docs`). This file is the **internal** feature map for contributors.
+
 Answer in order, then implement:
 
 1. **Owner module** — `core` / `tools` / `ui` / `gateway` / `builtins` / `cli`?
 2. **Typed contract** — inputs, outputs, errors (`AxError` kind)?
 3. **Persistence?** — disk under `~/.axi`, train folder, or none?
 4. **Text + JSON?** — one snapshot, two renderers (when it has structured CLI output)?
-5. **Tests / docs** — unit next to code, eval case if agent-facing, README/help if user-facing?
+5. **Tests / docs** — unit next to code, eval case if agent-facing; user-facing → `scripts/build-docs.mjs` + `npm run docs` (and README/help)?
 
 ## Adding a command
 

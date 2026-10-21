@@ -3,6 +3,14 @@
   "version": "0.0.2",
   "description": "axi — coding / research agent. Optional aq train tools via the framework CLI.",
   "type": "module",
+  "homepage": "https://aquinf03.github.io/axi/documentation/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aquinf03/axi.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Aquinf03/axi/issues"
+  },
   "bin": {
     "axi": "./bin/axi"
   },
@@ -10,7 +18,8 @@
     "bin",
     "dist",
     "assets",
-    "scripts"
+    "scripts",
+    "docs"
   ],
   "scripts": {
     "build": "tsc && node scripts/copy-job-wait.mjs && python3 scripts/build-app-icon.py",

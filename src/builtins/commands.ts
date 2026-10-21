@@ -230,8 +230,9 @@ export const HELP_INTRO = [
 
 export const HELP_OUTRO = [
   "",
+  "Docs: https://aquinf03.github.io/axi/documentation/",
   "Framework (optional): aq train | eval | jobs | …",
-  "  Docs: https://aq.aquin.app/docs",
+  "  aq docs: https://aquinf03.github.io/aq/documentation/",
 ] as const
 
 export function matchCliKind(token: string | undefined): CliKind | null {
