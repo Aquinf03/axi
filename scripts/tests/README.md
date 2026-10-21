@@ -4,17 +4,27 @@ Agent evals for axi. Not a user feature. Not `evals/` in a train. Not `aq eval`.
 
 Product docs (not this folder): https://aquinf03.github.io/axi/documentation/ · regen with `npm run docs` from the repo root.
 
-## Classification
+## Classification (PGSO discipline)
 
-Every case under `cases/<id>/` (must have `prompt.txt`) is classified in [`corpus.json`](corpus.json):
+Every case under `cases/<id>/` is classified in [`corpus.json`](corpus.json). Shared rules live in [`corpus.mjs`](corpus.mjs) (fx PGSO *idea*, still no native profile pipeline).
 
 | Bucket | Meaning |
 | --- | --- |
 | **training** | Core agent behaviors — default smoke / primary suite |
 | **verification** | Still run for release confidence; heavier or secondary paths |
-| **excluded** | Intentional skip — must include a reason string |
+| **excluded** | Intentional skip — must include a reason string (≥8 chars) |
 
-`npm run check:corpus` fails on missing, duplicate, stale, or unclassified cases (fx PGSO corpus idea, without the native profile pipeline). Unit tests (`src/**/*.test.ts`) stay on `test:unit` and are not listed in the corpus.
+**Per case**
+
+| File | Required? |
+| --- | --- |
+| `prompt.txt` | yes (non-empty); id must be kebab-case |
+| `probe.mjs` | yes for training / verification (`export function probe`) |
+| `expect.json` | optional goldens: `toolsAnyOf` / `toolsAllOf` / `textIncludes` / `harnessPrefix` |
+| `meta.json` | optional: `timeoutMs` (5s–600s), `tags` |
+| `overlay/` | optional train overlay |
+
+`npm run check:corpus` fails on missing, duplicate, stale, unclassified, bad ids, empty reasons, missing probes, or invalid expect/meta. Unit tests (`src/**/*.test.ts`) stay on `test:unit` and are not listed in the corpus.
 
 ```bash
 npm run check:corpus

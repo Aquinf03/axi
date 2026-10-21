@@ -2,7 +2,7 @@
 /** Internal agent evals. Not a user CLI. Classification: scripts/tests/corpus.json */
 
 import { spawnSync } from "node:child_process"
-import { existsSync, mkdirSync, rmSync, cpSync, readFileSync, writeFileSync, readdirSync } from "node:fs"
+import { existsSync, mkdirSync, rmSync, cpSync, readFileSync, writeFileSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import {
@@ -12,22 +12,20 @@ import {
   rollupUsage,
   runZeroCostFixture,
 } from "./hygiene.mjs"
+import {
+  casesDir,
+  checkExpect,
+  classMap,
+  loadCaseExpect,
+  loadCaseMeta,
+  loadCorpus,
+  listCaseIds,
+} from "./corpus.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const agentRoot = path.resolve(here, "../..")
-const casesDir = path.join(here, "cases")
 const fixture = path.join(here, "fixtures", "tiny")
 const workRoot = path.join(here, ".work")
-const corpusPath = path.join(here, "corpus.json")
-
-function loadCorpus() {
-  const raw = JSON.parse(readFileSync(corpusPath, "utf8"))
-  const classOf = new Map()
-  for (const bucket of ["training", "verification", "excluded"]) {
-    for (const id of Object.keys(raw[bucket] ?? {})) classOf.set(id, bucket)
-  }
-  return { raw, classOf }
-}
 
 function maybeSetAqRoot() {
   if (process.env.AQ_ROOT?.trim()) return
@@ -62,12 +60,6 @@ function agentCmd() {
   const dist = path.join(agentRoot, "dist", "cli.js")
   if (existsSync(dist)) return [process.execPath, dist]
   throw new Error("build axi first (npm run build) so dist/cli.js exists, or set AXI to an explicit command")
-}
-
-function listCases() {
-  return readdirSync(casesDir)
-    .filter((n) => existsSync(path.join(casesDir, n, "prompt.txt")))
-    .sort()
 }
 
 function copyTrain(id) {
@@ -112,12 +104,12 @@ function parseAskJson(stdout) {
   return { text: raw, tools: [] }
 }
 
-function ask(train, prompt) {
+function ask(train, prompt, timeoutMs = 240_000) {
   const cmd = agentCmd()
   const r = spawnSync(cmd[0], [...cmd.slice(1), "ask", "-y", "--json", train, prompt], {
     cwd: train,
     encoding: "utf8",
-    timeout: 240_000,
+    timeout: timeoutMs,
     env: agentEnv(),
   })
   const stdout = r.stdout ?? ""
@@ -138,12 +130,15 @@ function ask(train, prompt) {
 async function runOne(id) {
   const dir = path.join(casesDir, id)
   const prompt = readFileSync(path.join(dir, "prompt.txt"), "utf8").trim()
+  const meta = loadCaseMeta(dir)
+  const expect = loadCaseExpect(dir)
+  const timeoutMs = meta?.timeoutMs ?? 240_000
   const train = copyTrain(id)
   const origin = snapshot(train)
   const parent = path.dirname(train)
   rmSync("/tmp/aq-internal-eval-escape.yaml", { force: true })
   rmSync(path.join(parent, "escaped.yaml"), { force: true })
-  const asked = ask(train, prompt)
+  const asked = ask(train, prompt, timeoutMs)
   writeFileSync(
     path.join(parent, "ask.json"),
     JSON.stringify(
@@ -161,9 +156,10 @@ async function runOne(id) {
   )
   const errors = []
   if (!asked.ok) errors.push(`ask failed: ${asked.error}`)
+  errors.push(...checkExpect(expect, asked))
   const probePath = path.join(dir, "probe.mjs")
   const mod = await import(pathToFileURL(probePath).href)
-  const fn = mod.probe || mod.probe
+  const fn = mod.probe
   if (typeof fn !== "function") throw new Error(`no probe() in ${id}`)
   const more = await fn({
     train,
@@ -171,6 +167,7 @@ async function runOne(id) {
     origin,
     text: asked.text,
     tools: asked.tools,
+    harness: asked.harness,
     repo: agentRoot,
   })
   if (Array.isArray(more)) errors.push(...more)
@@ -266,8 +263,9 @@ async function main() {
     }
   }
 
-  const { classOf } = loadCorpus()
-  const ids = listCases().filter((id) => {
+  const corpus = loadCorpus()
+  const classOf = classMap(corpus)
+  const ids = listCaseIds().filter((id) => {
     if (want.length && !want.includes(id)) return false
     const c = classOf.get(id)
     if (!c) return false
