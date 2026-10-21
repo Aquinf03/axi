@@ -26,6 +26,7 @@ import {
   saveAutoRefineSettings,
   getArlEntry,
 } from "../arl.js"
+import { setJudgmentGate } from "../judgment.js"
 
 describe("decision", () => {
   let home: string
@@ -163,6 +164,7 @@ describe("decision", () => {
   it("auto-refine gate via decideAnswer", async () => {
     setArlEnabled(true)
     setFalsifyGate(false)
+    setJudgmentGate("s-dec", false)
     saveAutoRefineSettings({ turnInterval: 1, compact: true, cooldownMs: 0 })
     const plan = JSON.stringify({
       summary: "prefer grep",
@@ -199,6 +201,7 @@ describe("decision", () => {
   it("auto-refine skip via decide", async () => {
     setArlEnabled(true)
     setFalsifyGate(false)
+    setJudgmentGate("s-skip", false)
     saveAutoRefineSettings({ turnInterval: 1, compact: true, cooldownMs: 0 })
     const out = await maybeAutoRefine({
       history: [{ role: "user", content: "noise" }],

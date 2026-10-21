@@ -41,10 +41,13 @@ describe("config precedence", () => {
   })
 
   it("env beats profile workspace", () => {
-    saveProfileConfig({
-      permission_mode: "ask",
-      workspaces: { [path.resolve(workspace)]: { permission_mode: "auto" } },
-    })
+    saveProfileConfig(
+      {
+        permission_mode: "ask",
+        workspaces: { [path.resolve(workspace)]: { permission_mode: "auto" } },
+      },
+      { immediate: true },
+    )
     process.env.AXI_PERMISSION_MODE = "full-access"
     const cfg = resolveConfig(workspace)
     assert.equal(cfg.permission_mode, "full-access")
@@ -52,10 +55,13 @@ describe("config precedence", () => {
   })
 
   it("profile workspace beats profile global", () => {
-    saveProfileConfig({
-      permission_mode: "ask",
-      workspaces: { [path.resolve(workspace)]: { permission_mode: "auto" } },
-    })
+    saveProfileConfig(
+      {
+        permission_mode: "ask",
+        workspaces: { [path.resolve(workspace)]: { permission_mode: "auto" } },
+      },
+      { immediate: true },
+    )
     const cfg = resolveConfig(workspace)
     assert.equal(cfg.permission_mode, "auto")
     assert.equal(cfg.sources.permission_mode, "profile_workspace")
