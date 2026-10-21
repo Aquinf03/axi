@@ -1,6 +1,6 @@
 /**
  * Aquin account login — same handoff as `aq login`:
- * open aquin.app/aq/?view=desktop → paste aquin://auth?code=… → exchange → ~/.aquin/config.json
+ * open aquin.app/axi/?view=desktop → paste aquin://auth?code=… → exchange → ~/.aquin/config.json
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
@@ -36,7 +36,7 @@ export function aquinAuthBase(): string {
 
 /** Desktop handoff URL opened in the browser. */
 export function aquinLoginUrl(): string {
-  return `${aquinAuthBase()}/aq/?view=desktop&client=axi`
+  return `${aquinAuthBase()}/axi/?view=desktop&client=axi`
 }
 
 export function normalizeAquinToken(raw: string): string {
