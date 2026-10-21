@@ -18,8 +18,10 @@ Good first contributions: docs under `docs/documentation/` (regen with `npm run 
 ## Install
 
 ```bash
-npm i && npm link    # bin: axi
+curl -fsSL https://aquin.app/axi/download/install.sh | bash
 ```
+
+From a checkout: `npm i && npm link` or `./install.sh`. Publish path matches **aq** (Cloudflare R2 + shared Worker) — see [`scripts/helpers/cloudflare/README.md`](./scripts/helpers/cloudflare/README.md).
 
 Needs **Node ≥ 18**. Talks to `aq` via:
 

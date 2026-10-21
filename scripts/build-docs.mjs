@@ -251,7 +251,7 @@ write(
 
   <h2>Quick start</h2>
   ${shellBlock("shell", [
-    "$ npm i && npm link",
+    "$ curl -fsSL https://aquin.app/axi/download/install.sh | bash",
     "$ axi provider openai",
     "$ cd /path/to/project",
     "$ axi",
@@ -280,14 +280,28 @@ write(
   "documentation/install/index.html",
   page({
     title: "Install",
-    description: "Install axi from a checkout. Node ≥ 18. Optional aq for train tools.",
+    description: "Install axi via curl (Cloudflare R2) or from a checkout. Node ≥ 18. Optional aq for train tools.",
     active: "install",
     depth: 2,
     body: `<h1>Install</h1>
-<p class="lead">axi ships as an npm package with a ${chip("bin/axi")} entry. Needs Node ≥ 18. After link, run ${chip("axi doctor")}.</p>
-<div class="prereq"><span class="prereq-label">Prerequisite</span>Node ≥ 18 · npm · (optional) aq checkout for train tools</div>
-${toolSection("from-source", "npm i && npm link", "Install from an axi checkout and put <code>axi</code> on your PATH.", {
-  examples: [{ lines: ["$ cd axi && npm i && npm link", "$ axi version", "$ axi doctor"] }],
+<p class="lead">Same publish path as aq: tarball on Cloudflare R2, install script on <code class="chip">aquin.app</code>. Needs Node ≥ 18. After install, run ${chip("axi doctor")}.</p>
+<div class="prereq"><span class="prereq-label">Prerequisite</span>Node ≥ 18 · npm · curl · (optional) aq for train tools</div>
+${toolSection("curl", "curl … | bash", "Team install — downloads <code>axi-latestv.tar.gz</code> from <code>aquin.app/releases</code> and links <code>axi</code> under <code>~/.local</code>.", {
+  examples: [
+    {
+      lines: [
+        "$ curl -fsSL https://aquin.app/axi/download/install.sh | bash",
+        "$ axi version",
+        "$ axi doctor",
+      ],
+    },
+  ],
+})}
+${toolSection("from-source", "npm i && npm link", "Install from an axi checkout (or <code>./install.sh</code> in the repo).", {
+  examples: [
+    { lines: ["$ cd axi && npm i && npm link", "$ axi version", "$ axi doctor"] },
+    { lines: ["$ cd axi && ./install.sh"] },
+  ],
 })}
 ${toolSection("provider", "axi provider <name>", "Save a provider key and select it. Names: openai · anthropic · grok · ollama.", {
   examples: [

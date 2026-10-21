@@ -31,6 +31,7 @@
     "check:corpus": "node scripts/tests/check-corpus.mjs",
     "check": "npm run check:boundaries && npm run check:public-surface && npm run check:budgets && npm run check:corpus",
     "docs": "node scripts/build-docs.mjs",
+    "release": "bash scripts/helpers/release.sh",
     "smoke": "node scripts/smoke-binary.mjs",
     "test:unit": "tsx --test 'src/**/*.test.ts'",
     "test": "node scripts/tests/run.mjs",
