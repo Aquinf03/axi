@@ -39,22 +39,27 @@ axi doctor
 ```bash
 cd /path/to/project   # any folder — or a train with recipe.yaml
 axi                   # TTY chat
+axi web               # browser UI (chat + viewer) → http://127.0.0.1:3000
 axi ask "how does src/cli.ts wire commands?"
 axi provider openai
 axi doctor
 ```
 
+In TTY chat, `/web` starts the same browser UI if it isn’t already running.
+
 ## Docs
 
 **Live:** https://aquinf03.github.io/axi/documentation/ · **Changelog:** https://aquinf03.github.io/axi/changelog/
 
-Static GitHub Pages site under [`docs/`](./docs/) (same chrome as aq). Install, chat, CLI, mission, arl, daemon, factory, and more.
+Static GitHub Pages site under [`docs/`](./docs/) (same chrome as aq). Install, chat, [web UI](https://aquinf03.github.io/axi/documentation/web/), CLI, mission, arl, daemon, factory, and more.
 
 ```bash
 npm run docs          # regenerate docs/documentation + changelog HTML
+axi web               # preferred — deps + Next + open browser
+# checkout alternate: npm run build && npm run web
 ```
 
-Browse locally: open `docs/documentation/index.html` or serve `docs/`. Edit via `scripts/build-docs.mjs`, then regen.
+Browse docs locally: open `docs/documentation/index.html` or serve `docs/`. Edit via `scripts/build-docs.mjs`, then regen.
 
 ## Layout
 
@@ -66,6 +71,7 @@ src/tools/           tool implementations (schemas in core/tooling/tool_specs)
 src/ui/              TTY render / input / notify (no product state)
 src/gateway/         provider HTTP + keys (import via gateway.ts)
 docs/                GitHub Pages: documentation/ + changelog/ + assets/
+web/                 Next.js App Router + shadcn (browser UI → local runTurn)
 scripts/tests/       agent evals (ours only, not user evals/)
 internals/           local checklists (gitignored — not published)
 ```

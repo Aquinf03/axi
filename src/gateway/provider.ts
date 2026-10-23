@@ -694,7 +694,7 @@ export function applyChoice(c: Choice): {
         "  sound      click + message cues",
         "  notify     desktop alert when a reply finishes (if terminal unfocused)",
         "",
-        "slash: /new /rename /open /delete [/delete all] /compact /undo /image /status /doctor /spawn /agents /daemon /provider /model /temp /key /sound /notify /arl /harness /refine /codemode /stance /investigate /revise /pivot /evidence /reconcile /ledger /audit /config /steer /turn /factory /mission /decision /mode",
+        "slash: /new /web /rename /open /delete [/delete all] /compact /undo /image /status /doctor /spawn /agents /daemon /provider /model /temp /key /sound /notify /arl /harness /refine /codemode /stance /investigate /revise /pivot /evidence /reconcile /ledger /audit /config /steer /turn /factory /mission /decision /mode",
         "",
         "keys: axi provider openai",
         "now: " + activeLabel(),
@@ -752,6 +752,8 @@ export type SlashResult = {
   open?: string
   /** Open via injected HostEnv.openUrl (not process spawn in core). */
   openUrl?: string
+  /** Launch browser web UI (chat-ui starts Next if needed). */
+  web?: boolean
   /** Copy last assistant reply, or explicit text, via HostEnv.writeClipboard. */
   copy?: true | string
   delete?: true | string
@@ -990,6 +992,10 @@ export function runSlash(line: string, opts: SlashOpts = {}): SlashResult {
   if (cmd === "/url") {
     if (!arg) return { text: "usage: /url <host|http(s)|file|mailto>  (bare hosts get https://)" }
     return { openUrl: arg }
+  }
+  if (cmd === "/web") {
+    // Handled in chat-ui (async launch); keep a sync fallback text.
+    return { web: true, text: "opening web UI…" }
   }
   if (cmd === "/copy") {
     return { copy: arg || true }

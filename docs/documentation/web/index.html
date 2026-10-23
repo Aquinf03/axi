@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Web UI · axi Docs</title>
+  <meta name="description" content="Browser shell: agentic chat + file tree, Monaco editor, terminal. axi web / /web." />
+  <link rel="icon" href="../../assets/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/docs.css" />
+</head>
+<body>
+  <header class="docs-header">
+    <div class="docs-header-inner">
+      <a class="brand" href="../" title="Aquin Labs">
+        <img src="../../assets/mainlogo2.png" alt="" width="22" height="22" />
+        <span>Aquin<span class="brand-gap">Labs</span></span>
+      </a>
+      <div class="header-actions">
+        <a class="header-link" href="../">Docs</a>
+        <a class="header-link" href="../../changelog/">Changelog</a>
+        <a class="header-cta" href="https://github.com/Aquinf03/axi" rel="noopener">GitHub</a>
+      </div>
+    </div>
+  </header>
+  <div class="docs-frame">
+    <aside class="docs-sidebar" aria-label="Documentation">
+    <nav><a class="nav-link" href="https://aquinf03.github.io/axi/documentation/" rel="noopener">Live docs</a>
+<a class="nav-link" href="../">Getting started</a>
+<a class="nav-link" href="../install/">Install</a>
+<a class="nav-link" href="../chat/">Chat</a>
+<a class="nav-link active" href="../web/">Web UI</a>
+<a class="nav-link" href="../cli/">CLI reference</a>
+<a class="nav-link" href="../provider/">Provider & keys</a>
+<a class="nav-link" href="../permissions/">Permissions</a>
+<a class="nav-link" href="../slash/">Slash commands</a>
+<p class="nav-section">Product</p>
+<a class="nav-link nested" href="../mission/">Mission</a>
+<a class="nav-link nested" href="../arl/">arl (auto RL)</a>
+<a class="nav-link nested" href="../daemon/">Daemon & agents</a>
+<a class="nav-link nested" href="../factory/">Factory</a>
+<a class="nav-link nested" href="../skills/">Skills, tools & MCP</a>
+</nav>
+    </aside>
+    <main class="docs-main"><h1>Web UI</h1>
+<p class="lead">Local Next.js shell for the same agent loop as TTY chat — chat on the left, VS Code–style viewer on the right (files · Monaco · terminal).</p>
+<div class="codeblock" data-shell="1">
+  <div class="codeblock-bar">
+    <span>shell</span>
+    <button type="button" class="copy-btn">Copy</button>
+  </div>
+  <pre><code><span class="line"><span class="prompt">$</span><span>cd /path/to/project</span></span>
+<span class="line"><span class="prompt">$</span><span>axi web</span></span>
+<span class="line"><span class="prompt">$</span><span># opens http://127.0.0.1:3000 · workspace = cwd</span></span></code></pre>
+</div>
+<div class="prereq"><span class="prereq-label">Needs</span>axi checkout (or release) with <code class="chip">web/</code> · Node ≥ 18 · built <code class="chip">dist/</code> (auto-built on first <code class="chip">axi web</code>)</div>
+<h2>Start</h2>
+<div class="table-wrap mb">
+    <table class="plain">
+      <thead><tr><th>Command</th><th>Effect</th></tr></thead>
+      <tbody>
+<tr><td class="mono"><code class="chip">axi web</code></td><td>Install web deps if needed, start Next, open the browser</td></tr>
+<tr><td class="mono"><code class="chip">axi web --detach</code></td><td>Background Next · print URL</td></tr>
+<tr><td class="mono"><code class="chip">axi web --port 3001</code></td><td>Alternate port</td></tr>
+<tr><td class="mono"><code class="chip">axi web --no-open</code></td><td>Start without opening a browser</td></tr>
+<tr><td class="mono"><code class="chip">/web</code></td><td>From TTY chat — same launch, detached + open</td></tr>
+      </tbody>
+    </table>
+  </div>
+<p class="lead">Workspace defaults to the current directory (<code class="chip">AXI_WEB_WORKSPACE</code> overrides). Chat turns use <strong>full-access</strong> for the web bridge.</p>
+<h2>Layout</h2>
+<ul>
+  <li><strong>Chat</strong> — multi-tab threads, live tool timeline, markdown replies</li>
+  <li><strong>Viewer</strong> — change workspace path, open/edit files, terminal in the workspace</li>
+</ul>
+<h2>API (local)</h2>
+<div class="table-wrap mb">
+    <table class="plain">
+      <thead><tr><th>Route</th><th>Role</th></tr></thead>
+      <tbody>
+<tr><td class="mono"><code class="chip">GET /api/status</code></td><td>Bridge ready?</td></tr>
+<tr><td class="mono"><code class="chip">POST /api/chat</code></td><td>NDJSON progress → done (runTurn)</td></tr>
+<tr><td class="mono"><code class="chip">GET /api/fs/tree</code></td><td>File tree</td></tr>
+<tr><td class="mono"><code class="chip">GET/PUT /api/fs/file</code></td><td>Read / save</td></tr>
+<tr><td class="mono"><code class="chip">POST /api/term</code></td><td>One-shot shell in workspace</td></tr>
+      </tbody>
+    </table>
+  </div>
+<p class="lead">Dev from a checkout: <code class="chip">npm run build &amp;&amp; npm run web</code> — prefer <code class="chip">axi web</code> for the full path.</p>
+
+    </main>
+  </div>
+  <script src="../../assets/docs.js"></script>
+</body>
+</html>

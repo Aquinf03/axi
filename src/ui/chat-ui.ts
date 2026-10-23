@@ -1167,6 +1167,27 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         paintComposer()
         return
       }
+      if (r.web) {
+        note("web UI  starting…")
+        paintComposer()
+        try {
+          const { launchWeb } = await import("../core/commands/web.js")
+          const launched = await launchWeb({
+            workspace: hostEnv.workspaceRoot,
+            open: true,
+            detach: true,
+          })
+          note(
+            launched.alreadyRunning
+              ? `web UI  already running · ${launched.url}`
+              : `web UI  ${launched.url}`,
+          )
+        } catch (err) {
+          note(`web UI  ${err instanceof Error ? err.message : String(err)}`)
+        }
+        paintComposer()
+        return
+      }
       if (r.copy !== undefined) {
         let text = typeof r.copy === "string" ? r.copy : ""
         if (!text) {

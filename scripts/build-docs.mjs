@@ -13,6 +13,7 @@ const NAV = [
   { href: "./", label: "Getting started", id: "home" },
   { href: "install/", label: "Install", id: "install" },
   { href: "chat/", label: "Chat", id: "chat" },
+  { href: "web/", label: "Web UI", id: "web" },
   { href: "cli/", label: "CLI reference", id: "cli" },
   { href: "provider/", label: "Provider & keys", id: "provider" },
   { href: "permissions/", label: "Permissions", id: "permissions" },
@@ -263,6 +264,7 @@ write(
     ["Surface", "Entry"],
     [
       ["TTY chat", `${chip("axi")} · slash menus · permits`],
+      ["Browser UI", `${chip("axi web")} · ${chip("/web")} · chat + file viewer`],
       ["One-shot", `${chip("axi ask")} [-y] [--json] <prompt>`],
       ["Mission keep-going", `${chip("/mission <goal>")} · daemon continues when chat closes`],
       ["Self-improve", `${chip("/arl on")} · ${chip("/refine")}`],
@@ -271,7 +273,7 @@ write(
   )}
 
   <h2>Next</h2>
-  <p class="lead"><a href="install/">Install</a> · <a href="chat/">Chat</a> · <a href="cli/">CLI</a> · <a href="mission/">Mission</a> · <a href="arl/">arl</a> · <a href="../changelog/">Changelog</a></p>
+  <p class="lead"><a href="install/">Install</a> · <a href="chat/">Chat</a> · <a href="web/">Web UI</a> · <a href="cli/">CLI</a> · <a href="mission/">Mission</a> · <a href="arl/">arl</a> · <a href="../changelog/">Changelog</a></p>
 </article>`,
   }),
 )
@@ -347,6 +349,7 @@ ${shellBlock("shell", ["$ axi", "$ axi chat last", "$ axi chat <id>"])}
   <li>While the agent is busy: type + enter <strong>queues</strong> a message; ${chip("esc")} / ${chip("ctrl-c")} aborts the turn (${chip("/steer")})</li>
   <li>${chip("/image <path>")} attaches an image for the next user turn</li>
   <li>${chip("/copy")} · ${chip("/url")} go through the host (clipboard / open URL)</li>
+  <li>${chip("/web")} starts the browser UI (Next) if needed and opens it</li>
 </ul>
 <h2>Permits</h2>
 <p class="lead">Sensitive tools ask once / always / deny. ${chip("plan")} mode is fail-closed read-only. See <a href="../permissions/">Permissions</a>.</p>
@@ -357,10 +360,58 @@ ${shellBlock("shell", ["$ axi", "$ axi chat last", "$ axi chat <id>"])}
 )
 
 write(
+  "documentation/web/index.html",
+  page({
+    title: "Web UI",
+    description: "Browser shell: agentic chat + file tree, Monaco editor, terminal. axi web / /web.",
+    active: "web",
+    depth: 2,
+    body: `<h1>Web UI</h1>
+<p class="lead">Local Next.js shell for the same agent loop as TTY chat — chat on the left, VS Code–style viewer on the right (files · Monaco · terminal).</p>
+${shellBlock("shell", [
+  "$ cd /path/to/project",
+  "$ axi web",
+  "# opens http://127.0.0.1:3000 · workspace = cwd",
+])}
+<div class="prereq"><span class="prereq-label">Needs</span>axi checkout (or release) with ${chip("web/")} · Node ≥ 18 · built ${chip("dist/")} (auto-built on first ${chip("axi web")})</div>
+<h2>Start</h2>
+${table(
+  ["Command", "Effect"],
+  [
+    [`${chip("axi web")}`, "Install web deps if needed, start Next, open the browser"],
+    [`${chip("axi web --detach")}`, "Background Next · print URL"],
+    [`${chip("axi web --port 3001")}`, "Alternate port"],
+    [`${chip("axi web --no-open")}`, "Start without opening a browser"],
+    [`${chip("/web")}`, "From TTY chat — same launch, detached + open"],
+  ],
+)}
+<p class="lead">Workspace defaults to the current directory (${chip("AXI_WEB_WORKSPACE")} overrides). Chat turns use <strong>full-access</strong> for the web bridge.</p>
+<h2>Layout</h2>
+<ul>
+  <li><strong>Chat</strong> — multi-tab threads, live tool timeline, markdown replies</li>
+  <li><strong>Viewer</strong> — change workspace path, open/edit files, terminal in the workspace</li>
+</ul>
+<h2>API (local)</h2>
+${table(
+  ["Route", "Role"],
+  [
+    [`${chip("GET /api/status")}`, "Bridge ready?"],
+    [`${chip("POST /api/chat")}`, "NDJSON progress → done (runTurn)"],
+    [`${chip("GET /api/fs/tree")}`, "File tree"],
+    [`${chip("GET/PUT /api/fs/file")}`, "Read / save"],
+    [`${chip("POST /api/term")}`, "One-shot shell in workspace"],
+  ],
+)}
+<p class="lead">Dev from a checkout: ${chip("npm run build && npm run web")} — prefer ${chip("axi web")} for the full path.</p>
+`,
+  }),
+)
+
+write(
   "documentation/cli/index.html",
   page({
     title: "CLI reference",
-    description: "axi CLI: chat, ask, provider, doctor, spawn, daemon, mission, agents.",
+    description: "axi CLI: chat, ask, web, provider, doctor, spawn, daemon, mission, agents.",
     active: "cli",
     depth: 2,
     body: `<h1>CLI reference</h1>
@@ -377,6 +428,17 @@ ${toolSection("ask", "axi ask [-y] [--json] [dir] <prompt>", "One-shot answer wi
   examples: [
     { lines: ['$ axi ask "how does src/cli.ts wire commands?"'] },
     { lines: ['$ axi ask -y --json "run doctor and summarize"'] },
+  ],
+})}
+${toolSection("web", "axi web [--port N] [--no-open] [--detach] [dir]", "Browser UI — install web deps if needed, start Next, open http://127.0.0.1:3000. See <a href=\"../web/\">Web UI</a>.", {
+  flags: [
+    ["--port N", "Listen port (default 3000)."],
+    ["--detach", "Background Next · print URL · exit."],
+    ["--no-open", "Do not open a browser."],
+    ["[dir]", "Workspace root (default: cwd)."],
+  ],
+  examples: [
+    { lines: ["$ axi web", "$ axi web --detach --port 3001"] },
   ],
 })}
 ${toolSection("chat", "axi chat [list|last|<id>|new]", "List or resume chats under ~/.axi/chats/.", {
@@ -472,6 +534,7 @@ ${table(
   ["Command", "Hint"],
   [
     ["/help", "commands"],
+    ["/web", "browser UI (starts Next if needed)"],
     ["/new · /chats · /open · /rename · /delete", "session"],
     ["/compact · /undo · /context · /status · /doctor", "session health"],
     ["/provider · /model · /key · /temp · /mode · /config", "setup"],
@@ -705,12 +768,13 @@ const clBody = `<!DOCTYPE html>
             <time datetime="2026-10">Oct 2026</time>
           </div>
           <div class="cl-body">
-            <h2 class="cl-title">Searchable harness browser</h2>
-            <p class="cl-prose">Browse the learned arl dataset in a filterable TUI.</p>
+            <h2 class="cl-title">Harness browser + web UI</h2>
+            <p class="cl-prose">Searchable arl harness TUI, plus a local Next.js browser shell for chat + viewer.</p>
             <h3 class="cl-section"><span>New</span></h3>
             <ul class="cl-list">
               <li><span><code class="chip">/arl browse</code> · alias <code class="chip">/harness</code> — type to filter, enter to show</span></li>
               <li><span><code class="chip">/arl list [query]</code> — text board of prompt / memory / rejected / skill / subagent</span></li>
+              <li><span><code class="chip">axi web</code> · <code class="chip">/web</code> — browser UI (chat + files / editor / terminal)</span></li>
             </ul>
             <p class="cl-prose"><a href="v0.0.3.md">Markdown notes →</a></p>
           </div>
@@ -763,6 +827,7 @@ Highlights:
 
 - \`/arl browse\` (alias \`/harness\`) — searchable harness TUI
 - \`/arl list [query]\` — text dump of the learned dataset
+- \`axi web\` / \`/web\` — local Next.js browser UI (chat + viewer)
 `,
 )
 

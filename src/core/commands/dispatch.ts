@@ -13,6 +13,7 @@ import { providerCmd } from "../../gateway.js"
 import { agentsCmd } from "./agents.js"
 import { daemonCmd } from "./daemon.js"
 import { missionCmd } from "./mission.js"
+import { webCmd } from "./web.js"
 
 function takeFlag(argv: string[], name: string): { argv: string[]; present: boolean } {
   const i = argv.indexOf(name)
@@ -89,6 +90,11 @@ export async function dispatchCli(argv: string[]): Promise<void> {
 
   if (kind === "chat") {
     await chatCmd(argv.slice(1))
+    return
+  }
+
+  if (kind === "web") {
+    await webCmd(argv.slice(1))
     return
   }
 }

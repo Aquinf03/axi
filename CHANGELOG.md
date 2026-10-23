@@ -10,6 +10,8 @@ Format is inspired by [Keep a Changelog](https://keepachangelog.com/). Versions 
 ### Added
 
 - `/arl browse` (alias `/harness`) — searchable TUI of the learned harness dataset; `/arl list [query]` text board
+- `web/` — Next.js App Router + shadcn browser shell (chat + file viewer); bridge `/api/chat` → `runTurn`
+- `axi web` / `/web` — install web deps if needed, start Next, open http://127.0.0.1:3000
 
 ### Fixed
 

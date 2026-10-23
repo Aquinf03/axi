@@ -104,6 +104,7 @@ Changes that touch the agent loop, permissions, or provider transport are review
 | Mission / arl / decision | `src/core/mission*`, `src/core/arl*`, `src/core/decision*` |
 | CLI / slash surface | `src/cli.ts`, `src/builtins/`, `src/core/commands/` |
 | TTY host | `src/ui/` |
+| Web UI | `web/`, `scripts/web-turn.mjs`, `axi web` / `/web` |
 
 For these areas, please:
 

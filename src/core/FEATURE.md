@@ -19,6 +19,14 @@ Answer in order, then implement:
 
 Do not scatter help strings or argument docs across UI and CLI.
 
+## Web UI
+
+Browser shell under `web/` (Next.js). Same agent loop as TTY via `scripts/web-turn.mjs` → `runTurn`.
+
+- CLI: `axi web [--port N] [--no-open] [--detach] [dir]` — `src/core/commands/web.ts`
+- Slash: `/web` — chat-ui calls `launchWeb({ detach: true })` and opens the browser
+- Docs: `scripts/build-docs.mjs` → `documentation/web/`; checkout notes in `web/README.md`
+
 ## Tool specs
 
 Default tool schemas live in `src/core/tooling/tool_specs.ts` (also via `src/builtins/tools.ts`).

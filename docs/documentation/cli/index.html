@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>CLI reference · axi Docs</title>
-  <meta name="description" content="axi CLI: chat, ask, provider, doctor, spawn, daemon, mission, agents." />
+  <meta name="description" content="axi CLI: chat, ask, web, provider, doctor, spawn, daemon, mission, agents." />
   <link rel="icon" href="../../assets/favicon.ico" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -31,6 +31,7 @@
 <a class="nav-link" href="../">Getting started</a>
 <a class="nav-link" href="../install/">Install</a>
 <a class="nav-link" href="../chat/">Chat</a>
+<a class="nav-link" href="../web/">Web UI</a>
 <a class="nav-link active" href="../cli/">CLI reference</a>
 <a class="nav-link" href="../provider/">Provider & keys</a>
 <a class="nav-link" href="../permissions/">Permissions</a>
@@ -89,6 +90,39 @@
     <button type="button" class="copy-btn">Copy</button>
   </div>
   <pre><code><span class="line"><span class="prompt">$</span><span>axi ask -y --json &quot;run doctor and summarize&quot;</span></span></code></pre>
+</div>
+</section>
+<section class="tool" id="web">
+  <h3 class="tool-cmd">axi web [--port N] [--no-open] [--detach] [dir]</h3>
+  <p class="tool-desc">Browser UI — install web deps if needed, start Next, open http://127.0.0.1:3000. See <a href="../web/">Web UI</a>.</p>
+  <div class="table-wrap mb">
+  <table>
+    <thead><tr><th>Flag</th><th>Description</th></tr></thead>
+    <tbody><tr>
+  <td class="flag">--port N</td>
+  <td>Listen port (default 3000).</td>
+</tr>
+<tr>
+  <td class="flag">--detach</td>
+  <td>Background Next · print URL · exit.</td>
+</tr>
+<tr>
+  <td class="flag">--no-open</td>
+  <td>Do not open a browser.</td>
+</tr>
+<tr>
+  <td class="flag">[dir]</td>
+  <td>Workspace root (default: cwd).</td>
+</tr></tbody>
+  </table>
+</div>
+<div class="codeblock" data-shell="1">
+  <div class="codeblock-bar">
+    <span>example</span>
+    <button type="button" class="copy-btn">Copy</button>
+  </div>
+  <pre><code><span class="line"><span class="prompt">$</span><span>axi web</span></span>
+<span class="line"><span class="prompt">$</span><span>axi web --detach --port 3001</span></span></code></pre>
 </div>
 </section>
 <section class="tool" id="chat">

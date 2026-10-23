@@ -15,6 +15,7 @@ export type CliKind =
   | "mission"
   | "daemon"
   | "agents"
+  | "web"
 
 export type CliSpec = {
   kind: CliKind
@@ -139,10 +140,23 @@ export const CLI_SPECS: CliSpec[] = [
       "axi agents [dir] --parent <id>   children of a chat",
     ],
   },
+  {
+    kind: "web",
+    tokens: ["web"],
+    usage: "axi web [--port N] [--no-open] [--detach] [dir]",
+    summary: "browser UI (Next.js → local runTurn)",
+    details: [
+      "axi web             build if needed, npm i web/, next dev, open browser",
+      "axi web --port 3001 alternate port",
+      "axi web --detach    background Next, print URL",
+      "axi web --no-open   start without opening a browser",
+    ],
+  },
 ]
 
 export const SLASH_SPECS: SlashSpec[] = [
   { name: "/help", hint: "commands" },
+  { name: "/web", hint: "open browser UI (starts Next if needed)" },
   { name: "/new", hint: "start a new chat", aliases: ["/newchat"] },
   { name: "/rename", hint: "rename this chat", aliases: ["/name"] },
   { name: "/chats", hint: "list chats" },

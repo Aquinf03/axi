@@ -32,6 +32,16 @@ cp "$ROOT/package-lock.json" "$STAGE/axi/"
 cp -R "$ROOT/bin" "$ROOT/dist" "$ROOT/assets" "$STAGE/axi/"
 # scripts/ is listed in package files (job-wait helpers etc.)
 cp -R "$ROOT/scripts" "$STAGE/axi/"
+# browser UI (axi web / /web) — source only; first run npm installs deps
+if [ -d "$ROOT/web" ]; then
+  mkdir -p "$STAGE/axi/web"
+  # copy without node_modules / .next
+  tar -C "$ROOT/web" \
+    --exclude=node_modules \
+    --exclude=.next \
+    --exclude='web/.next' \
+    -cf - . | tar -C "$STAGE/axi/web" -xf -
+fi
 # Drop local eval workdirs / huge fixtures from the published tree
 rm -rf "$STAGE/axi/scripts/tests/.work" 2>/dev/null || true
 cp "$ROOT/install.sh" "$ROOT/README.md" "$ROOT/LICENSE" "$STAGE/"
