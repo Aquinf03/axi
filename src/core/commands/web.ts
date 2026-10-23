@@ -10,6 +10,9 @@ import { createNativeHost } from "../hosts/native.js"
 
 const DEFAULT_PORT = 3000
 
+/** Web servers started for an axi TTY session — stopped when that session exits. */
+const sessionOwned = new Map<number, { port: number; child: ChildProcess }>()
+
 function takeFlag(argv: string[], name: string): { argv: string[]; present: boolean } {
   const i = argv.indexOf(name)
   if (i < 0) return { argv, present: false }
@@ -91,25 +94,97 @@ function ensureWebDeps(dir: string): void {
   if (r.status !== 0) throw new Error("web npm install failed")
 }
 
+function nextBin(dir: string): string {
+  const local = path.join(dir, "node_modules", "next", "dist", "bin", "next")
+  if (existsSync(local)) return local
+  const win = path.join(dir, "node_modules", ".bin", process.platform === "win32" ? "next.cmd" : "next")
+  if (existsSync(win)) return win
+  return "next"
+}
+
+/** Kill a process and its group / tree (Next spawns workers). */
+export function killWebProcess(pid: number): void {
+  if (!pid || pid <= 0) return
+  try {
+    if (process.platform === "win32") {
+      spawnSync("taskkill", ["/pid", String(pid), "/T", "/F"], {
+        stdio: "ignore",
+        windowsHide: true,
+      })
+      return
+    }
+    try {
+      process.kill(-pid, "SIGTERM")
+    } catch {
+      try {
+        process.kill(pid, "SIGTERM")
+      } catch {
+        /* already gone */
+      }
+    }
+    setTimeout(() => {
+      try {
+        process.kill(-pid, "SIGKILL")
+      } catch {
+        try {
+          process.kill(pid, "SIGKILL")
+        } catch {
+          /* ignore */
+        }
+      }
+    }, 1200).unref?.()
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Stop web UIs that this axi TTY session started (not orphan --detach servers). */
+export function stopSessionOwnedWeb(): void {
+  for (const [pid, entry] of sessionOwned) {
+    sessionOwned.delete(pid)
+    try {
+      entry.child.removeAllListeners()
+    } catch {
+      /* ignore */
+    }
+    killWebProcess(pid)
+  }
+}
+
+function trackSession(child: ChildProcess, port: number): void {
+  const pid = child.pid
+  if (!pid) return
+  sessionOwned.set(pid, { port, child })
+  child.once("exit", () => {
+    sessionOwned.delete(pid)
+  })
+}
+
 function startNext(opts: {
   dir: string
   port: number
   workspace: string
-  detach: boolean
+  /** orphan = survive axi exit; session = killed with TTY; foreground = inherit stdio */
+  mode: "orphan" | "session" | "foreground"
 }): ChildProcess {
   const env = {
     ...process.env,
     AXI_WEB_WORKSPACE: opts.workspace,
     PORT: String(opts.port),
   }
-  const child = spawn("npm", ["run", "dev", "--", "-p", String(opts.port)], {
+  const bin = nextBin(opts.dir)
+  const args = ["dev", "-p", String(opts.port)]
+  const sessionOrOrphan = opts.mode === "session" || opts.mode === "orphan"
+  const child = spawn(bin, args, {
     cwd: opts.dir,
     env,
-    stdio: opts.detach ? "ignore" : "inherit",
-    shell: process.platform === "win32",
-    detached: opts.detach,
+    stdio: opts.mode === "foreground" ? "inherit" : "ignore",
+    shell: process.platform === "win32" && bin.endsWith(".cmd"),
+    // New process group so we can kill Next + workers with -pid
+    detached: sessionOrOrphan,
   })
-  if (opts.detach) child.unref()
+  if (opts.mode === "orphan") child.unref()
+  if (opts.mode === "session") trackSession(child, opts.port)
   return child
 }
 
@@ -117,6 +192,7 @@ export type LaunchWebResult = {
   url: string
   alreadyRunning: boolean
   started: boolean
+  pid?: number
 }
 
 /** Ensure the web UI is reachable; optionally start Next and open the browser. */
@@ -124,9 +200,14 @@ export async function launchWeb(opts: {
   workspace?: string
   port?: number
   open?: boolean
-  /** Detach the Next process (for slash / background). Default false = foreground. */
+  /**
+   * orphan — survive after axi exits (`axi web --detach`)
+   * session — stop when TTY/chat exits (`/web`)
+   * Default orphan when detach true, else unused (caller starts foreground).
+   */
+  ownership?: "orphan" | "session"
+  /** @deprecated use ownership — true maps to orphan */
   detach?: boolean
-  /** Skip waiting / opening when only preparing. */
   waitMs?: number
 }): Promise<LaunchWebResult> {
   const port = opts.port && opts.port > 0 ? opts.port : DEFAULT_PORT
@@ -136,17 +217,25 @@ export async function launchWeb(opts: {
   ensureDist()
   ensureWebDeps(dir)
 
+  const ownership: "orphan" | "session" =
+    opts.ownership ?? (opts.detach === true ? "orphan" : "session")
+
   const free = await portFree(port)
   let alreadyRunning = !free
   let started = false
+  let pid: number | undefined
 
   if (free) {
-    startNext({ dir, port, workspace, detach: opts.detach === true })
+    const child = startNext({ dir, port, workspace, mode: ownership })
+    pid = child.pid
     started = true
     const ok = await waitHttp(url, opts.waitMs ?? 90_000)
-    if (!ok) throw new Error(`web UI did not become ready at ${url}`)
+    if (!ok) {
+      if (pid) killWebProcess(pid)
+      sessionOwned.delete(pid ?? -1)
+      throw new Error(`web UI did not become ready at ${url}`)
+    }
   } else {
-    // Confirm something answers HTTP
     const ok = await waitHttp(url, 3_000)
     if (!ok) alreadyRunning = false
   }
@@ -156,7 +245,7 @@ export async function launchWeb(opts: {
     await host.openUrl(url)
   }
 
-  return { url, alreadyRunning, started }
+  return { url, alreadyRunning, started, pid }
 }
 
 /** CLI: `axi web [--port N] [--no-open] [--detach] [dir]` */
@@ -183,7 +272,7 @@ export async function webCmd(argv: string[]): Promise<void> {
         workspace,
         port,
         open: !noOpen.present,
-        detach: true,
+        ownership: "orphan",
       })
       stdout.write(
         r.alreadyRunning
@@ -193,7 +282,6 @@ export async function webCmd(argv: string[]): Promise<void> {
       return
     }
 
-    // Foreground: start (or attach to existing) and keep this process tied to Next when we spawn it.
     const dir = ensureWebTree()
     ensureDist()
     ensureWebDeps(dir)
@@ -211,7 +299,7 @@ export async function webCmd(argv: string[]): Promise<void> {
 
     stdout.write(`axi web  ${url}\n`)
     stdout.write(`axi web  workspace ${workspace}\n`)
-    const child = startNext({ dir, port, workspace, detach: false })
+    const child = startNext({ dir, port, workspace, mode: "foreground" })
 
     const opened = { done: false }
     void (async () => {
@@ -231,10 +319,14 @@ export async function webCmd(argv: string[]): Promise<void> {
         resolve()
       })
       const stop = () => {
-        try {
-          child.kill("SIGTERM")
-        } catch {
-          /* ignore */
+        const pid = child.pid
+        if (pid) killWebProcess(pid)
+        else {
+          try {
+            child.kill("SIGTERM")
+          } catch {
+            /* ignore */
+          }
         }
       }
       process.on("SIGINT", stop)

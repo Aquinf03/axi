@@ -22,7 +22,7 @@ Opens [http://127.0.0.1:3000](http://127.0.0.1:3000). Installs `web/` deps if ne
 | `--detach` | Background Next · print URL · exit |
 | `--no-open` | Start without opening a browser |
 
-In TTY chat: `/web` does the same launch (detached) and opens the browser.
+In TTY chat: `/web` starts the UI for **this session** and opens the browser — exiting the chat (`/exit`, ctrl+c) stops that web server. Use `axi web --detach` if you want it to keep running after axi exits.
 
 See product docs: [Web UI](https://aquinf03.github.io/axi/documentation/web/).
 

@@ -156,7 +156,7 @@ export const CLI_SPECS: CliSpec[] = [
 
 export const SLASH_SPECS: SlashSpec[] = [
   { name: "/help", hint: "commands" },
-  { name: "/web", hint: "open browser UI (starts Next if needed)" },
+  { name: "/web", hint: "open browser UI · stops when this chat exits" },
   { name: "/new", hint: "start a new chat", aliases: ["/newchat"] },
   { name: "/rename", hint: "rename this chat", aliases: ["/name"] },
   { name: "/chats", hint: "list chats" },

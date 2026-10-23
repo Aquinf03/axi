@@ -92,6 +92,7 @@ import { extraTools, listSkills, shutdownSkills } from "../core/skills.js"
 import { clearDeferredTools } from "../core/tooling.js"
 import { agentLog, cancelAgent, formatAgents, listAgents, startAgent } from "../core/agent/spawn.js"
 import { formatDoctor, runDoctor } from "../core/commands/doctor.js"
+import { stopSessionOwnedWeb } from "../core/commands/web.js"
 import { isTrain } from "../core/schema.js"
 import {
   createChat,
@@ -817,6 +818,8 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
     const quit = () => {
       if (done) return
       done = true
+      // Web UIs started via /web die with this session
+      stopSessionOwnedWeb()
       releaseMissionHost(spec.id, "tui")
       saveChat(train, spec, history)
       shutdownSkills(train)
@@ -1175,12 +1178,12 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
           const launched = await launchWeb({
             workspace: hostEnv.workspaceRoot,
             open: true,
-            detach: true,
+            ownership: "session",
           })
           note(
             launched.alreadyRunning
-              ? `web UI  already running · ${launched.url}`
-              : `web UI  ${launched.url}`,
+              ? `web UI  already running · ${launched.url} (not owned by this session)`
+              : `web UI  ${launched.url} · stops when you exit`,
           )
         } catch (err) {
           note(`web UI  ${err instanceof Error ? err.message : String(err)}`)

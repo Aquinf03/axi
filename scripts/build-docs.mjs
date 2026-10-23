@@ -382,10 +382,10 @@ ${table(
     [`${chip("axi web --detach")}`, "Background Next · print URL"],
     [`${chip("axi web --port 3001")}`, "Alternate port"],
     [`${chip("axi web --no-open")}`, "Start without opening a browser"],
-    [`${chip("/web")}`, "From TTY chat — same launch, detached + open"],
+    [`${chip("/web")}`, "From TTY chat — session-owned; stops when you exit chat"],
   ],
 )}
-<p class="lead">Workspace defaults to the current directory (${chip("AXI_WEB_WORKSPACE")} overrides). Chat turns use <strong>full-access</strong> for the web bridge.</p>
+<p class="lead">Workspace defaults to the current directory (${chip("AXI_WEB_WORKSPACE")} overrides). Chat turns use <strong>full-access</strong> for the web bridge. ${chip("/web")} servers are tied to the TTY session; ${chip("axi web --detach")} survives after axi exits.</p>
 <h2>Layout</h2>
 <ul>
   <li><strong>Chat</strong> — multi-tab threads, live tool timeline, markdown replies</li>

@@ -65,11 +65,11 @@
 <tr><td class="mono"><code class="chip">axi web --detach</code></td><td>Background Next · print URL</td></tr>
 <tr><td class="mono"><code class="chip">axi web --port 3001</code></td><td>Alternate port</td></tr>
 <tr><td class="mono"><code class="chip">axi web --no-open</code></td><td>Start without opening a browser</td></tr>
-<tr><td class="mono"><code class="chip">/web</code></td><td>From TTY chat — same launch, detached + open</td></tr>
+<tr><td class="mono"><code class="chip">/web</code></td><td>From TTY chat — session-owned; stops when you exit chat</td></tr>
       </tbody>
     </table>
   </div>
-<p class="lead">Workspace defaults to the current directory (<code class="chip">AXI_WEB_WORKSPACE</code> overrides). Chat turns use <strong>full-access</strong> for the web bridge.</p>
+<p class="lead">Workspace defaults to the current directory (<code class="chip">AXI_WEB_WORKSPACE</code> overrides). Chat turns use <strong>full-access</strong> for the web bridge. <code class="chip">/web</code> servers are tied to the TTY session; <code class="chip">axi web --detach</code> survives after axi exits.</p>
 <h2>Layout</h2>
 <ul>
   <li><strong>Chat</strong> — multi-tab threads, live tool timeline, markdown replies</li>
