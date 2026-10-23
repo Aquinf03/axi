@@ -27,6 +27,7 @@ import {
   onDecisionLoopTick,
 } from "../core/decision.js"
 import { agentsMenuRows, daemonIsUp } from "../core/daemon.js"
+import { arlMenuRows, formatArlEntryDetail } from "../core/arl.js"
 import { stanceStatusText } from "../core/stance.js"
 import { codemodeModeStatusText } from "../core/codemode.js"
 import { resolveConfig } from "../core/config.js"
@@ -404,6 +405,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
   let spawnFor = false
   let spawnFocus = ""
   let agentFocus = ""
+  let arlFocus = ""
   let menuRows = 0
   const pendingImages: ChatImage[] = []
   setTabTitle(spec.name)
@@ -418,6 +420,11 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
     if (s === "chat-delete") return "delete"
     if (s === "spawn") return "spawn"
     if (s === "agents") return "agents"
+    if (s === "arl") return "harness"
+    if (s === "arl-entry") {
+      const id = arlFocus.includes("/") ? arlFocus.slice(arlFocus.indexOf("/") + 1) : arlFocus
+      return id || "entry"
+    }
     if (s === "agents-agent") {
       const a =
         chatAgents().find((x) => x.id === agentFocus) ??
@@ -487,7 +494,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
   const menuCtx = () => {
     const snap = measureContext(train, history, contextWindow())
     const q =
-      screen === "chats" || screen === "spawn" || screen === "agents"
+      screen === "chats" || screen === "spawn" || screen === "agents" || screen === "arl"
         ? chars.join("").replace(/^\//, "").trim().toLowerCase()
         : ""
     let focusName = spec.name
@@ -522,6 +529,8 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
           listAgents(train).find((x) => x.id === agentFocus)
         return a ? { id: a.id, name: a.name, status: a.status } : undefined
       })(),
+      arlRows: arlMenuRows(spec.id, q),
+      arlFocus,
       parts: snap.parts.map((p) => ({
         label: p.label,
         hint: `${Math.round((100 * p.tokens) / Math.max(1, snap.window))}%  ${p.tokens}`,
@@ -620,7 +629,8 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
     write("\x1b[J")
     if (painted) write(`\x1b[${painted}A`)
     menuRows = painted
-    if (inside && screen !== "chats" && screen !== "agents" && screen !== "spawn") write("\x1b[?25l")
+    if (inside && screen !== "chats" && screen !== "agents" && screen !== "spawn" && screen !== "arl")
+      write("\x1b[?25l")
     else write("\x1b[?25h")
     write(`\x1b[${promptPlain.length + cur + 1}G`)
   }
@@ -888,6 +898,12 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         return true
       }
       if (r.focusAgent) agentFocus = r.focusAgent
+      if (r.focusArl) arlFocus = r.focusArl
+      if (r.arlShow) {
+        note(formatArlEntryDetail(spec.id, arlFocus))
+        paintComposer()
+        return true
+      }
       if (r.agentsRefresh) {
         enterScreen("agents")
         paintComposer()
@@ -1370,6 +1386,14 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       }
       if (r.agentsView) {
         enterScreen("agents")
+        chars.length = 0
+        cursor = 0
+        pick = 0
+        paintComposer()
+        return
+      }
+      if (r.arlView) {
+        enterScreen("arl")
         chars.length = 0
         cursor = 0
         pick = 0

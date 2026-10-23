@@ -5,6 +5,16 @@ Format is inspired by [Keep a Changelog](https://keepachangelog.com/). Versions 
 
 **Pages:** https://aquinf03.github.io/axi/changelog/ · **Docs:** https://aquinf03.github.io/axi/documentation/
 
+## [0.0.3] — 2026-10
+
+### Added
+
+- `/arl browse` (alias `/harness`) — searchable TUI of the learned harness dataset; `/arl list [query]` text board
+
+### Fixed
+
+- Aquin desktop login URL test expects `/axi/?view=desktop` (matches auth cutover)
+
 ## [0.0.2] — 2026-10
 
 ### Added

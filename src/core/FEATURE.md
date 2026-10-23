@@ -33,6 +33,7 @@ Implementations stay in `src/tools/` + `core/tooling/dispatch.ts` — not schema
 Continual harness store for self-improving lessons (prompt notes, memories, **rejected** paths, skill stubs, subagent specs). Front door: `core/arl.ts`.
 
 - Mode: `/arl on|off|status` (default **off**). Env `AXI_ARL=on|off` overrides disk.
+- Browse: `/arl browse` (alias `/harness`) — searchable TUI of the harness dataset (prompt / memory / rejected / skill / subagent); type to filter, enter → show. `/arl list [query]` text dump.
 - Global: `~/.axi/arl/harness_state.json` + `mode.json`; local: `~/.axi/chats/<id>/arl/`.
 - Kinds: `prompt` · `memory` · `rejected` (file-drawer negatives: tried + why) · `skill` · `subagent`.
 - Digest: when on, a ranked `[arl-digest]` user row is injected at cold boundaries (chat start/resume, post-`/compact`, `axi ask`) — never merged into `BASE_PROMPT`. Rejected entries warn against rediscovering dead ends.

@@ -4,7 +4,7 @@ import { aquinLoginUrl, normalizeAquinToken, parseAquinHandoff } from "./aquin-a
 
 describe("aquin-auth", () => {
   it("builds the desktop login URL", () => {
-    assert.match(aquinLoginUrl(), /\/aq\/\?view=desktop&client=axi$/)
+    assert.match(aquinLoginUrl(), /\/axi\/\?view=desktop&client=axi$/)
   })
 
   it("parses aquin:// handoff and bare codes", () => {

@@ -190,3 +190,11 @@ export {
   type BridgedMemoryHit,
   type ResolvedArlSubagent,
 } from "./arl/bridge.js"
+
+export {
+  arlMenuRows,
+  formatArlBoard,
+  formatArlEntryDetail,
+  parseArlRowId,
+  type ArlBrowseRow,
+} from "./arl/view.js"

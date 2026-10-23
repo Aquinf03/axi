@@ -209,7 +209,11 @@ export const SLASH_SPECS: SlashSpec[] = [
     hint: "mark last turn · accept|edit|undo|retry|deny · status|clear  (feeds /refine)",
     aliases: ["/trajectory", "/traj"],
   },
-  { name: "/arl", hint: "auto RL · on|off|status · interval · cooldown · compact" },
+  {
+    name: "/arl",
+    hint: "auto RL · browse|list · on|off|status · interval · cooldown · compact",
+    aliases: ["/harness"],
+  },
   {
     name: "/refine",
     hint: "arl learn · falsify · convergent · deploy · preship · rollback · [--global] [--force]",

@@ -35,6 +35,7 @@ import {
 import {
   arlModeStatusText,
   countArlEntries,
+  formatArlBoard,
   loadAutoRefineSettings,
   convergentGateStatusText,
   denyPendingDeploy,
@@ -306,6 +307,8 @@ export type MenuId =
   | "spawn-agent"
   | "agents"
   | "agents-agent"
+  | "arl"
+  | "arl-entry"
 
 export type Choice = {
   id: string
@@ -338,6 +341,8 @@ export type Choice = {
     | "agent-log"
     | "agent-cancel"
     | "agents-refresh"
+    | "focus-arl"
+    | "arl-show"
   open?: MenuId
 }
 
@@ -358,10 +363,32 @@ export function menuChoices(
     /** Prebuilt agents-view rows (glyph + sections). */
     agentRows?: { id: string; label: string; hint: string; section?: string }[]
     agentFocus?: { id: string; name: string; status: string }
+    /** Prebuilt arl harness-view rows. */
+    arlRows?: { id: string; label: string; hint: string; section?: string }[]
+    arlFocus?: string
   },
 ): Choice[] {
   const cfg = load()
   const active = activeId()
+  if (screen === "arl") {
+    const rows: Choice[] = (ctx?.arlRows ?? []).map((a) => {
+      const header = a.section === "header" || a.section === "meta" || a.id.startsWith("_")
+      return {
+        id: a.id,
+        label: a.label,
+        hint: a.hint,
+        kind: header ? ("info" as const) : ("focus-arl" as const),
+      }
+    })
+    rows.push({ id: "back", label: "back", hint: "", kind: "back" })
+    return rows
+  }
+  if (screen === "arl-entry") {
+    return [
+      { id: "show", label: "show", hint: ctx?.arlFocus ?? "", kind: "arl-show" },
+      { id: "back", label: "back", hint: "", kind: "open", open: "arl" },
+    ]
+  }
   if (screen === "agents") {
     const rows: Choice[] = (ctx?.agentRows ?? []).map((a) => {
       const header = a.section === "header" || a.section === "meta" || a.id.startsWith("_")
@@ -603,6 +630,8 @@ export function applyChoice(c: Choice): {
   agentLog?: boolean
   agentCancel?: boolean
   agentsRefresh?: boolean
+  focusArl?: string
+  arlShow?: boolean
 } {
   if (c.kind === "open") return { open: c.open ?? "root" }
   if (c.kind === "compact") return { compact: true }
@@ -615,6 +644,8 @@ export function applyChoice(c: Choice): {
   if (c.kind === "agent-log") return { agentLog: true }
   if (c.kind === "agent-cancel") return { agentCancel: true }
   if (c.kind === "agents-refresh") return { agentsRefresh: true }
+  if (c.kind === "focus-arl") return { open: "arl-entry", focusArl: c.id }
+  if (c.kind === "arl-show") return { arlShow: true }
   if (c.kind === "focus-chat") return { open: "chat", focusChat: c.id }
   if (c.kind === "open-chat") return { resumeChat: true }
   if (c.kind === "new-chat") return { newChat: true }
@@ -663,7 +694,7 @@ export function applyChoice(c: Choice): {
         "  sound      click + message cues",
         "  notify     desktop alert when a reply finishes (if terminal unfocused)",
         "",
-        "slash: /new /rename /open /delete [/delete all] /compact /undo /image /status /doctor /spawn /agents /daemon /provider /model /temp /key /sound /notify /arl /refine /codemode /stance /investigate /revise /pivot /evidence /reconcile /ledger /audit /config /steer /turn /factory /mission /decision /mode",
+        "slash: /new /rename /open /delete [/delete all] /compact /undo /image /status /doctor /spawn /agents /daemon /provider /model /temp /key /sound /notify /arl /harness /refine /codemode /stance /investigate /revise /pivot /evidence /reconcile /ledger /audit /config /steer /turn /factory /mission /decision /mode",
         "",
         "keys: axi provider openai",
         "now: " + activeLabel(),
@@ -754,6 +785,8 @@ export type SlashResult = {
   factoryStopTick?: boolean
   /** Open interactive agents roster screen. */
   agentsView?: boolean
+  /** Open searchable arl harness browser. */
+  arlView?: boolean
 }
 
 function resolveSlash(cmd: string): string {
@@ -1010,11 +1043,22 @@ export function runSlash(line: string, opts: SlashOpts = {}): SlashResult {
   if (cmd === "/arl") {
     const tokens = arg.trim().split(/\s+/).filter(Boolean)
     const head = (tokens[0] ?? "").toLowerCase()
+    const rawCmd = (raw ?? "").toLowerCase()
+    // /harness alone (alias) → browse; /arl browse|view same
+    if ((!head && rawCmd === "/harness") || head === "browse" || head === "view") {
+      return { arlView: true }
+    }
+    if (head === "list" || head === "ls") {
+      const q = tokens.slice(1).join(" ")
+      return { text: formatArlBoard(opts.sessionId, q) }
+    }
     if (!head || head === "status") {
       const merged = loadMergedArlState(opts.sessionId)
       const n = countArlEntries(merged)
       const scope = opts.sessionId ? `session ${opts.sessionId}` : "global only (no session)"
-      return { text: `${arlModeStatusText()}\nentries  ${n}  (${scope})` }
+      return {
+        text: `${arlModeStatusText()}\nentries  ${n}  (${scope})\n  /arl browse  searchable harness · /arl list [query]`,
+      }
     }
     // Options (not flags): /arl interval N · /arl cooldown M · /arl compact on|off
     if (head === "interval") {
@@ -1047,7 +1091,8 @@ export function runSlash(line: string, opts: SlashOpts = {}): SlashResult {
     const enabled = parseArlModeArg(head)
     if (enabled == null) {
       return {
-        text: "usage: /arl on|off|status · /arl interval <n> · /arl cooldown <m> · /arl compact on|off",
+        text:
+          "usage: /arl on|off|status · /arl browse · /arl list [query] · /arl interval <n> · /arl cooldown <m> · /arl compact on|off",
       }
     }
     setArlEnabled(enabled)

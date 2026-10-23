@@ -699,6 +699,22 @@ const clBody = `<!DOCTYPE html>
 
     <div class="cl-content">
       <ol class="cl-timeline">
+        <li class="cl-entry" id="cl-0-0-3">
+          <div class="cl-meta">
+            <span class="cl-badge">axi v0.0.3</span>
+            <time datetime="2026-10">Oct 2026</time>
+          </div>
+          <div class="cl-body">
+            <h2 class="cl-title">Searchable harness browser</h2>
+            <p class="cl-prose">Browse the learned arl dataset in a filterable TUI.</p>
+            <h3 class="cl-section"><span>New</span></h3>
+            <ul class="cl-list">
+              <li><span><code class="chip">/arl browse</code> · alias <code class="chip">/harness</code> — type to filter, enter to show</span></li>
+              <li><span><code class="chip">/arl list [query]</code> — text board of prompt / memory / rejected / skill / subagent</span></li>
+            </ul>
+            <p class="cl-prose"><a href="v0.0.3.md">Markdown notes →</a></p>
+          </div>
+        </li>
         <li class="cl-entry" id="cl-0-0-2">
           <div class="cl-meta">
             <span class="cl-badge">axi v0.0.2</span>
@@ -736,6 +752,19 @@ const clBody = `<!DOCTYPE html>
 </html>
 `
 write("changelog/index.html", clBody)
+
+write(
+  "changelog/v0.0.3.md",
+  `# axi v0.0.3 — 2026-10
+
+See root [CHANGELOG.md](../../CHANGELOG.md) for the full list.
+
+Highlights:
+
+- \`/arl browse\` (alias \`/harness\`) — searchable harness TUI
+- \`/arl list [query]\` — text dump of the learned dataset
+`,
+)
 
 write(
   "changelog/v0.0.2.md",

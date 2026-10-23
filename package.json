@@ -1,6 +1,6 @@
 {
   "name": "axi",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "axi — coding / research agent. Optional aq train tools via the framework CLI.",
   "type": "module",
   "homepage": "https://aquinf03.github.io/axi/documentation/",
