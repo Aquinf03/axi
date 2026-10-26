@@ -42,7 +42,7 @@ Thumbs.db
 credentials.json
 secrets.json
 
-# Local runs / caches
+# Local runs / caches / binaries
 temp/
 .cache/
 wandb/
@@ -52,3 +52,6 @@ checkpoints/
 *.pth
 *.ckpt
 *.safetensors
+bin/
+jobs/
+
