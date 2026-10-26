@@ -3,9 +3,10 @@
 internals/
 .tools/
 
-# Node
+# Node and locks
 node_modules/
 dist/
+package-lock.json
 
 # Virtualenvs
 .venv/
@@ -41,6 +42,9 @@ Thumbs.db
 *.key
 credentials.json
 secrets.json
+
+# Generated / poly-repo(s)
+.axi_root
 
 # Local runs / caches / binaries
 temp/
