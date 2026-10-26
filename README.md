@@ -21,7 +21,7 @@ Good first contributions: docs under `docs/documentation/` (regen with `npm run 
 curl -fsSL https://aquin.app/axi/download/install.sh | bash
 ```
 
-From a checkout: `npm i && npm link` or `./install.sh`. Publish path matches **aq** (Cloudflare R2 + shared Worker) — see [`scripts/helpers/cloudflare/README.md`](./scripts/helpers/cloudflare/README.md).
+From a checkout: `cd BACKEND && npm i && npm link` or `./BACKEND/install.sh`. Publish path matches **aq** (Cloudflare R2 + shared Worker) — see [`BACKEND/scripts/helpers/cloudflare/README.md`](./BACKEND/scripts/helpers/cloudflare/README.md).
 
 Needs **Node ≥ 18**. Talks to `aq` via:
 
@@ -54,29 +54,30 @@ In TTY chat, `/web` starts the same browser UI if it isn’t already running.
 Static GitHub Pages site under [`docs/`](./docs/) (same chrome as aq). Install, chat, [web UI](https://aquinf03.github.io/axi/documentation/web/), CLI, mission, arl, daemon, factory, and more.
 
 ```bash
-npm run docs          # regenerate docs/documentation + changelog HTML
-axi web               # preferred — deps + Next + open browser
-# checkout alternate: npm run build && npm run web
+cd BACKEND && npm run docs   # regenerate docs/documentation + changelog HTML
+axi web                      # preferred — deps + Next + open browser
+# checkout alternate: cd BACKEND && npm run build && npm run web
 ```
 
-Browse docs locally: open `docs/documentation/index.html` or serve `docs/`. Edit via `scripts/build-docs.mjs`, then regen.
+Browse docs locally: open `docs/documentation/index.html` or serve `docs/`. Edit via `BACKEND/scripts/build-docs.mjs`, then regen.
 
 ## Layout
 
 ```
-src/cli.ts           composition root → core/commands/dispatch
-src/builtins/        command/slash specs, providers, system prompt (data)
-src/core/            sessions, skills, tool_specs, permissions, config, output, agent loop
-src/tools/           tool implementations (schemas in core/tooling/tool_specs)
-src/ui/              TTY render / input / notify (no product state)
-src/gateway/         provider HTTP + keys (import via gateway.ts)
-docs/                GitHub Pages: documentation/ + changelog/ + assets/
+BACKEND/             agent package (CLI + core)
+  src/cli.ts         composition root → core/commands/dispatch
+  src/builtins/      command/slash specs, providers, system prompt (data)
+  src/core/          sessions, skills, tool_specs, permissions, config, output, agent loop
+  src/tools/         tool implementations (schemas in core/tooling/tool_specs)
+  src/gateway/       provider HTTP + keys (import via gateway.ts)
+  scripts/tests/     agent evals (ours only, not user evals/)
+src/ui/              TTY render / input / notify (terminal frontend; no product state)
 web/                 Next.js App Router + shadcn (browser UI → local runTurn)
-scripts/tests/       agent evals (ours only, not user evals/)
+docs/                GitHub Pages: documentation/ + changelog/ + assets/
 internals/           local checklists (gitignored — not published)
 ```
 
-Fat subsystems have front doors (`core/tooling.ts`, `core/skills.ts`, `core/session.ts`, `core/compact.ts`, `core/output.ts`, `core/permissions.ts`, `core/config.ts`, `gateway.ts`). `npm run check:boundaries` forbids reaching past them. `npm run check:public-surface` rejects personal paths and secret-shaped strings in tracked files. `npm run check:budgets` fails CI if `dist/` or fast CLI startup exceeds `scripts/budgets.json`.
+Fat subsystems have front doors (`core/tooling.ts`, `core/skills.ts`, `core/session.ts`, `core/compact.ts`, `core/output.ts`, `core/permissions.ts`, `core/config.ts`, `gateway.ts`). `npm run check:boundaries` (from `BACKEND/`) forbids reaching past them. `npm run check:public-surface` rejects personal paths and secret-shaped strings in tracked files. `npm run check:budgets` fails CI if `dist/` or fast CLI startup exceeds `scripts/budgets.json`.
 
 Permission mode: `AXI_PERMISSION_MODE=ask|auto|plan|full-access` (or `/mode` in chat). `plan` is fail-closed read-only (no write/run even if you would approve). Project `.axi.json` is repo-safe keys only; keys stay in `~/.axi`.
 
