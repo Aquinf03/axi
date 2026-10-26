@@ -1,9 +1,0 @@
-{
-  "distBytes": 1572864,
-  "startupMs": {
-    "version": 250,
-    "help": 250,
-    "doctor --json": 500
-  },
-  "startupRuns": 5
-}
