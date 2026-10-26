@@ -1,11 +1,17 @@
 import { spawn } from "node:child_process"
+import { existsSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { createInterface } from "node:readline"
 
 const webRoot = path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.url))))
-/** axi repo root (parent of web/). */
-export const axiRoot = path.resolve(webRoot, "..")
+/** axi backend package root — `axi-backend/` in this monorepo, or parent of `web/` when nested in a release. */
+export const axiRoot = (() => {
+  const parent = path.resolve(webRoot, "..")
+  const backend = path.join(parent, "axi-backend")
+  if (existsSync(path.join(backend, "package.json"))) return backend
+  return parent
+})()
 
 export type ChatHistoryMsg = { role: "user" | "assistant"; content: string }
 
