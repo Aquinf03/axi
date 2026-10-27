@@ -1800,8 +1800,11 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         return name.startsWith("aq_") ? `aq ${name.slice(3)}` : name
       }
       const flushPending = () => {
+        // Live onDelta already wrote tokens; only paint markdown for a trailing
+        // partial line if we never opened the stream (shouldn't happen).
         if (!pending) return
-        write(renderMarkdown(pending, md, { baseDir: train }) + "\n")
+        if (!started) write(renderMarkdown(pending, md, { baseDir: train }) + "\n")
+        else if (!pending.endsWith("\n")) write("\n")
         pending = ""
       }
       try {
@@ -1823,9 +1826,8 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
               } else write(`\r\x1b[K`)
             }
             pending += chunk
-            const parts = pending.split("\n")
-            pending = parts.pop() ?? ""
-            for (const line of parts) write(renderMarkdown(line, md, { baseDir: train }) + "\n")
+            // Paint immediately — line-buffering hid tokens until \n (felt frozen).
+            write(chunk)
           },
           onToolStart: (name, args) => {
             stopSpin()
@@ -2000,6 +2002,9 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
           clearInterval(timer)
           timer = null
         }
+        // Show tokens already streamed before the failure (line-buffer would hide them).
+        stopSpin()
+        flushPending()
         const aborted = isSteerAbortError(err)
         if (!aborted) history.pop()
         commitUndo()
