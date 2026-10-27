@@ -126,18 +126,34 @@ type Key =
       kind:
         | "enter"
         | "backspace"
+        | "delete"
         | "left"
         | "right"
         | "home"
         | "end"
         | "clear"
         | "clear-line"
+        | "kill-eol"
+        | "kill-word-back"
+        | "kill-word-fwd"
+        | "yank"
+        | "transpose"
+        | "word-left"
+        | "word-right"
+        | "upcase-word"
+        | "downcase-word"
+        | "capitalize-word"
+        | "suspend"
         | "ctrl-c"
         | "ctrl-d"
         | "escape"
         | "up"
         | "down"
     }
+
+function isWordChar(ch: string): boolean {
+  return /[A-Za-z0-9_]/.test(ch)
+}
 
 function size(): { cols: number } {
   return { cols: Math.max(20, stdout.columns ?? 80) }
@@ -216,9 +232,35 @@ function parseKeys(chunk: Buffer, carry: Buffer): { keys: Key[]; carry: Buffer }
         continue
       }
       if (rest.startsWith("\x1b[3~")) {
-        keys.push({ kind: "backspace" })
+        keys.push({ kind: "delete" })
         i += 4
         continue
+      }
+      // Esc/Alt + key (GNU readline meta): Esc-b/f/d/u/l/c, Esc-Backspace
+      if (i + 1 < buf.length && !rest.startsWith("\x1b[") && !rest.startsWith("\x1bO")) {
+        const m = buf[i + 1]!
+        const meta: Record<number, Exclude<Key, { text: string }>["kind"]> = {
+          0x08: "kill-word-back",
+          0x7f: "kill-word-back",
+          0x62: "word-left", // b
+          0x66: "word-right", // f
+          0x64: "kill-word-fwd", // d
+          0x75: "upcase-word", // u
+          0x6c: "downcase-word", // l
+          0x63: "capitalize-word", // c
+          0x42: "word-left",
+          0x46: "word-right",
+          0x44: "kill-word-fwd",
+          0x55: "upcase-word",
+          0x4c: "downcase-word",
+          0x43: "capitalize-word",
+        }
+        const kind = meta[m]
+        if (kind) {
+          keys.push({ kind })
+          i += 2
+          continue
+        }
       }
       keys.push({ kind: "escape" })
       i += csi ? Buffer.byteLength(csi[0], "utf8") : 1
@@ -241,6 +283,41 @@ function parseKeys(chunk: Buffer, carry: Buffer): { keys: Key[]; carry: Buffer }
     }
     if (b === 0x15) {
       keys.push({ kind: "clear-line" })
+      i += 1
+      continue
+    }
+    if (b === 0x0b) {
+      keys.push({ kind: "kill-eol" })
+      i += 1
+      continue
+    }
+    if (b === 0x17) {
+      keys.push({ kind: "kill-word-back" })
+      i += 1
+      continue
+    }
+    if (b === 0x19) {
+      keys.push({ kind: "yank" })
+      i += 1
+      continue
+    }
+    if (b === 0x14) {
+      keys.push({ kind: "transpose" })
+      i += 1
+      continue
+    }
+    if (b === 0x1a) {
+      keys.push({ kind: "suspend" })
+      i += 1
+      continue
+    }
+    if (b === 0x02) {
+      keys.push({ kind: "left" })
+      i += 1
+      continue
+    }
+    if (b === 0x06) {
+      keys.push({ kind: "right" })
       i += 1
       continue
     }
@@ -291,6 +368,15 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
   let restored = false
   const chars: string[] = []
   let cursor = 0
+  /** Last killed text for Ctrl+Y (readline yank). */
+  let killBuf = ""
+  /** Submitted input lines for ↑/↓ recall (newest at end). */
+  const inputHistory: string[] = []
+  const HIST_MAX = 500
+  /** -1 = editing current draft; else index into inputHistory. */
+  let histIndex = -1
+  /** Draft saved when ↑ first enters history browse. */
+  let histDraft = ""
   let armed = false
   let pick = 0
   let screen: MenuId | null = null
@@ -1392,6 +1478,18 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         paintComposer()
         return
       }
+      if (r.history) {
+        if (!inputHistory.length) note("history empty")
+        else {
+          const lines = inputHistory.map((line, i) => {
+            const n = String(i + 1).padStart(4)
+            return `${n}  ${line}`
+          })
+          note(`history  ${inputHistory.length}/${HIST_MAX}\n${lines.join("\n")}`)
+        }
+        paintComposer()
+        return
+      }
       if (r.status) {
         note(sessionStatus())
         paintComposer()
@@ -1514,6 +1612,24 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       paintComposer()
     }
 
+    const pushInputHistory = (line: string) => {
+      const t = line.trimEnd()
+      if (!t) return
+      if (inputHistory[inputHistory.length - 1] !== t) {
+        inputHistory.push(t)
+        while (inputHistory.length > HIST_MAX) inputHistory.shift()
+      }
+      histIndex = -1
+      histDraft = ""
+    }
+
+    const loadInputHistory = (index: number) => {
+      const text = index < 0 ? histDraft : (inputHistory[index] ?? "")
+      chars.length = 0
+      chars.push(...Array.from(text))
+      cursor = chars.length
+    }
+
     const submit = async (text: string) => {
       if (busy) return
       if (renameFor) {
@@ -1576,6 +1692,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         leaveScreen()
         pick = 0
         if (t.startsWith("/steer")) {
+          pushInputHistory(t)
           playCue("click")
           await applySlash(t)
           return
@@ -1585,6 +1702,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
           paintComposer()
           return
         }
+        pushInputHistory(t)
         const st = steerFor(spec.id)
         st.enqueue(t)
         playCue("click")
@@ -1593,6 +1711,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         return
       }
       if (t.startsWith("/") && t !== "/") {
+        pushInputHistory(t)
         chars.length = 0
         cursor = 0
         leaveScreen()
@@ -1602,6 +1721,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         return
       }
       if (!t.startsWith("/") && (await blockIfFull())) return
+      pushInputHistory(t)
       chars.length = 0
       cursor = 0
       armed = false
@@ -1997,8 +2117,24 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
           continue
         }
         if (k.kind === "ctrl-d") {
-          if (chars.length === 0) quit()
-          return
+          if (chars.length === 0) {
+            quit()
+            return
+          }
+          if (nested() && screen !== "chats") continue
+          if (cursor < chars.length) chars.splice(cursor, 1)
+          paintComposer()
+          continue
+        }
+        if (k.kind === "suspend") {
+          if (process.platform !== "win32") {
+            try {
+              process.kill(process.pid, "SIGTSTP")
+            } catch {
+              /* no job control */
+            }
+          }
+          continue
         }
         if (k.kind === "clear") {
           if (busy) continue
@@ -2038,6 +2174,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         }
         if (k.kind === "clear-line") {
           if (nested() && screen !== "chats") continue
+          if (chars.length) killBuf = chars.join("")
           chars.length = 0
           cursor = 0
           if (!nested()) {
@@ -2047,20 +2184,134 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
           paintComposer()
           continue
         }
+        if (k.kind === "kill-eol") {
+          if (nested() && screen !== "chats") continue
+          if (cursor < chars.length) {
+            killBuf = chars.splice(cursor).join("")
+          }
+          paintComposer()
+          continue
+        }
+        if (k.kind === "kill-word-back") {
+          if (nested() && screen !== "chats") continue
+          let i = cursor
+          while (i > 0 && !isWordChar(chars[i - 1]!)) i -= 1
+          while (i > 0 && isWordChar(chars[i - 1]!)) i -= 1
+          if (i < cursor) {
+            killBuf = chars.splice(i, cursor - i).join("")
+            cursor = i
+          }
+          if (!keyFor && !renameFor && !nested() && chars.join("") === "") leaveScreen()
+          paintComposer()
+          continue
+        }
+        if (k.kind === "kill-word-fwd") {
+          if (nested() && screen !== "chats") continue
+          let i = cursor
+          while (i < chars.length && !isWordChar(chars[i]!)) i += 1
+          while (i < chars.length && isWordChar(chars[i]!)) i += 1
+          if (i > cursor) killBuf = chars.splice(cursor, i - cursor).join("")
+          paintComposer()
+          continue
+        }
+        if (k.kind === "yank") {
+          if (nested() && screen !== "chats" && !keyFor && !renameFor) continue
+          if (killBuf) {
+            const add = Array.from(killBuf)
+            chars.splice(cursor, 0, ...add)
+            cursor += add.length
+          }
+          paintComposer()
+          continue
+        }
+        if (k.kind === "transpose") {
+          if (nested() && screen !== "chats") continue
+          if (chars.length >= 2) {
+            let i = cursor === 0 ? 1 : cursor
+            if (i >= chars.length) i = chars.length - 1
+            const tmp = chars[i - 1]!
+            chars[i - 1] = chars[i]!
+            chars[i] = tmp
+            cursor = i + 1
+          }
+          paintComposer()
+          continue
+        }
+        if (k.kind === "word-left") {
+          let i = cursor
+          while (i > 0 && !isWordChar(chars[i - 1]!)) i -= 1
+          while (i > 0 && isWordChar(chars[i - 1]!)) i -= 1
+          cursor = i
+          paintComposer()
+          continue
+        }
+        if (k.kind === "word-right") {
+          let i = cursor
+          while (i < chars.length && !isWordChar(chars[i]!)) i += 1
+          while (i < chars.length && isWordChar(chars[i]!)) i += 1
+          cursor = i
+          paintComposer()
+          continue
+        }
+        if (k.kind === "upcase-word" || k.kind === "downcase-word" || k.kind === "capitalize-word") {
+          if (nested() && screen !== "chats") continue
+          let i = cursor
+          while (i < chars.length && !isWordChar(chars[i]!)) i += 1
+          const start = i
+          while (i < chars.length && isWordChar(chars[i]!)) i += 1
+          if (start < i) {
+            const word = chars.slice(start, i)
+            if (k.kind === "upcase-word") {
+              for (let j = 0; j < word.length; j++) chars[start + j] = word[j]!.toUpperCase()
+            } else if (k.kind === "downcase-word") {
+              for (let j = 0; j < word.length; j++) chars[start + j] = word[j]!.toLowerCase()
+            } else {
+              chars[start] = word[0]!.toUpperCase()
+              for (let j = 1; j < word.length; j++) chars[start + j] = word[j]!.toLowerCase()
+            }
+            cursor = i
+          }
+          paintComposer()
+          continue
+        }
         if (k.kind === "up") {
           if (screen && !renameFor) {
             const n = menuChoices(screen, menuCtx()).length
-            if (n) pick = (pick + n - 1) % n
-            paintComposer()
+            if (n) {
+              pick = (pick + n - 1) % n
+              paintComposer()
+              continue
+            }
           }
+          if (keyFor || renameFor || spawnFor || !inputHistory.length) continue
+          if (histIndex < 0) {
+            histDraft = chars.join("")
+            histIndex = inputHistory.length - 1
+          } else if (histIndex > 0) {
+            histIndex -= 1
+          }
+          loadInputHistory(histIndex)
+          paintComposer()
           continue
         }
         if (k.kind === "down") {
           if (screen && !renameFor) {
             const n = menuChoices(screen, menuCtx()).length
-            if (n) pick = (pick + 1) % n
-            paintComposer()
+            if (n) {
+              pick = (pick + 1) % n
+              paintComposer()
+              continue
+            }
           }
+          if (keyFor || renameFor || spawnFor || histIndex < 0) continue
+          if (histIndex < inputHistory.length - 1) {
+            histIndex += 1
+            loadInputHistory(histIndex)
+          } else {
+            histIndex = -1
+            loadInputHistory(-1)
+          }
+          paintComposer()
           continue
         }
         if (k.kind === "enter") {
@@ -2074,6 +2325,12 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
             cursor -= 1
           }
           if (!keyFor && !renameFor && !nested() && chars.join("") === "") leaveScreen()
+          paintComposer()
+          continue
+        }
+        if (k.kind === "delete") {
+          if (nested() && screen !== "chats") continue
+          if (cursor < chars.length) chars.splice(cursor, 1)
           paintComposer()
           continue
         }
@@ -2099,6 +2356,8 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         }
         if (k.kind === "paste" || k.kind === "char") {
           if (nested() && screen !== "chats" && !keyFor && !renameFor) continue
+          histIndex = -1
+          histDraft = ""
           const add = Array.from(k.text)
           chars.splice(cursor, 0, ...add)
           cursor += add.length
