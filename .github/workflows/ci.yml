@@ -27,8 +27,16 @@ jobs:
         with:
           node-version: "22"
 
+      # .axi_root + axi-backend/bin/axi are gitignored; create them like local `npm run setup`.
+      - name: Materialize generated workspace files
+        working-directory: .
+        run: |
+          bash ./gen.sh
+          bash ./post_setup.sh
+
+      # Resolve deps on the runner — do not require a committed lockfile.
       - name: Install
-        run: npm ci
+        run: npm install --ignore-scripts
 
       - name: Build
         run: npm run build
