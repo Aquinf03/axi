@@ -18,10 +18,10 @@ Good first contributions: docs under `docs/documentation/` (regen with `npm run 
 ## Install
 
 ```bash
-curl -fsSL https://aquin.app/axi/download/install.sh | bash
+curl -fsSL https://github.com/Aquinf03/axi/releases/latest/download/install.sh | bash
 ```
 
-From a checkout: `cd BACKEND && npm i && npm link` or `./BACKEND/install.sh`. Publish path matches **aq** (Cloudflare R2 + shared Worker) — see [`BACKEND/scripts/helpers/cloudflare/README.md`](./BACKEND/scripts/helpers/cloudflare/README.md).
+From a checkout: `cd axi-backend && npm i && npm link` or `./axi-backend/install.sh`. Publish path matches **aq** (GitHub Releases via `gh`) — see [`axi-backend/scripts/helpers/release.sh`](./axi-backend/scripts/helpers/release.sh).
 
 Needs **Node ≥ 18**. Talks to `aq` via:
 
@@ -54,17 +54,17 @@ In TTY chat, `/web` starts the same browser UI if it isn’t already running.
 Static GitHub Pages site under [`docs/`](./docs/) (same chrome as aq). Install, chat, [web UI](https://aquinf03.github.io/axi/documentation/web/), CLI, mission, arl, daemon, factory, and more.
 
 ```bash
-cd BACKEND && npm run docs   # regenerate docs/documentation + changelog HTML
-axi web                      # preferred — deps + Next + open browser
-# checkout alternate: cd BACKEND && npm run build && npm run web
+cd axi-backend && npm run docs   # regenerate docs/documentation + changelog HTML
+axi web                          # preferred — deps + Next + open browser
+# checkout alternate: cd axi-backend && npm run build && npm run web
 ```
 
-Browse docs locally: open `docs/documentation/index.html` or serve `docs/`. Edit via `BACKEND/scripts/build-docs.mjs`, then regen.
+Browse docs locally: open `docs/documentation/index.html` or serve `docs/`. Edit via `axi-backend/scripts/build-docs.mjs`, then regen.
 
 ## Layout
 
 ```
-BACKEND/             agent package (CLI + core)
+axi-backend/         agent package (CLI + core) — git submodule
   src/cli.ts         composition root → core/commands/dispatch
   src/builtins/      command/slash specs, providers, system prompt (data)
   src/core/          sessions, skills, tool_specs, permissions, config, output, agent loop
@@ -77,7 +77,7 @@ docs/                GitHub Pages: documentation/ + changelog/ + assets/
 internals/           local checklists (gitignored — not published)
 ```
 
-Fat subsystems have front doors (`core/tooling.ts`, `core/skills.ts`, `core/session.ts`, `core/compact.ts`, `core/output.ts`, `core/permissions.ts`, `core/config.ts`, `gateway.ts`). `npm run check:boundaries` (from `BACKEND/`) forbids reaching past them. `npm run check:public-surface` rejects personal paths and secret-shaped strings in tracked files. `npm run check:budgets` fails CI if `dist/` or fast CLI startup exceeds `scripts/budgets.json`.
+Fat subsystems have front doors (`core/tooling.ts`, `core/skills.ts`, `core/session.ts`, `core/compact.ts`, `core/output.ts`, `core/permissions.ts`, `core/config.ts`, `gateway.ts`). `npm run check:boundaries` (from `axi-backend/`) forbids reaching past them. `npm run check:public-surface` rejects personal paths and secret-shaped strings in tracked files. `npm run check:budgets` fails CI if `dist/` or fast CLI startup exceeds `scripts/budgets.json`.
 
 Permission mode: `AXI_PERMISSION_MODE=ask|auto|plan|full-access` (or `/mode` in chat). `plan` is fail-closed read-only (no write/run even if you would approve). Project `.axi.json` is repo-safe keys only; keys stay in `~/.axi`.
 

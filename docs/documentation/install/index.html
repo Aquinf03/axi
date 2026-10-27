@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Install · axi Docs</title>
-  <meta name="description" content="Install axi via curl (Cloudflare R2) or from a checkout. Node ≥ 18. Optional aq for train tools." />
+  <meta name="description" content="Install axi via curl (GitHub Releases) or from a checkout. Node ≥ 18. Optional aq for train tools." />
   <link rel="icon" href="../../assets/favicon.ico" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -45,30 +45,30 @@
 </nav>
     </aside>
     <main class="docs-main"><h1>Install</h1>
-<p class="lead">Same publish path as aq: tarball on Cloudflare R2, install script on <code class="chip">aquin.app</code>. Needs Node ≥ 18. After install, run <code class="chip">axi doctor</code>.</p>
+<p class="lead">Same publish path as aq: tarball + install script on <strong>GitHub Releases</strong> (<code class="chip">gh</code>). Needs Node ≥ 18. After install, run <code class="chip">axi doctor</code>.</p>
 <div class="prereq"><span class="prereq-label">Prerequisite</span>Node ≥ 18 · npm · curl · (optional) aq for train tools</div>
 <section class="tool" id="curl">
   <h3 class="tool-cmd">curl … | bash</h3>
-  <p class="tool-desc">Team install — downloads <code>axi-latestv.tar.gz</code> from <code>aquin.app/releases</code> and links <code>axi</code> under <code>~/.local</code>.</p>
+  <p class="tool-desc">Team install — downloads <code>axi-latestv.tar.gz</code> from GitHub Releases and links <code>axi</code> under <code>~/.local</code>.</p>
 <div class="codeblock" data-shell="1">
   <div class="codeblock-bar">
     <span>example</span>
     <button type="button" class="copy-btn">Copy</button>
   </div>
-  <pre><code><span class="line"><span class="prompt">$</span><span>curl -fsSL https://aquin.app/axi/download/install.sh | bash</span></span>
+  <pre><code><span class="line"><span class="prompt">$</span><span>curl -fsSL https://github.com/Aquinf03/axi/releases/latest/download/install.sh | bash</span></span>
 <span class="line"><span class="prompt">$</span><span>axi version</span></span>
 <span class="line"><span class="prompt">$</span><span>axi doctor</span></span></code></pre>
 </div>
 </section>
 <section class="tool" id="from-source">
   <h3 class="tool-cmd">npm i &amp;&amp; npm link</h3>
-  <p class="tool-desc">Install from an axi checkout (or <code>./install.sh</code> in the repo).</p>
+  <p class="tool-desc">Install from an axi-backend checkout (or <code>./install.sh</code> in that package).</p>
 <div class="codeblock" data-shell="1">
   <div class="codeblock-bar">
     <span>example</span>
     <button type="button" class="copy-btn">Copy</button>
   </div>
-  <pre><code><span class="line"><span class="prompt">$</span><span>cd axi &amp;&amp; npm i &amp;&amp; npm link</span></span>
+  <pre><code><span class="line"><span class="prompt">$</span><span>cd axi-backend &amp;&amp; npm i &amp;&amp; npm link</span></span>
 <span class="line"><span class="prompt">$</span><span>axi version</span></span>
 <span class="line"><span class="prompt">$</span><span>axi doctor</span></span></code></pre>
 </div>
@@ -77,7 +77,7 @@
     <span>example</span>
     <button type="button" class="copy-btn">Copy</button>
   </div>
-  <pre><code><span class="line"><span class="prompt">$</span><span>cd axi &amp;&amp; ./install.sh</span></span></code></pre>
+  <pre><code><span class="line"><span class="prompt">$</span><span>cd axi-backend &amp;&amp; ./install.sh</span></span></code></pre>
 </div>
 </section>
 <section class="tool" id="provider">

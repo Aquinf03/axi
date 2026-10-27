@@ -13,16 +13,20 @@ Format is inspired by [Keep a Changelog](https://keepachangelog.com/). Versions 
 - `web/` — Next.js App Router + shadcn browser shell (chat + file viewer); bridge `/api/chat` → `runTurn`
 - `axi web` / `/web` — install web deps if needed, start Next, open http://127.0.0.1:3000; `/web` is session-owned (stops when the TTY chat exits; `axi web --detach` stays up)
 
+### Changed
+
+- Install / release matches **aq**: GitHub Releases (`gh`) instead of Cloudflare R2 — `curl -fsSL https://github.com/Aquinf03/axi/releases/latest/download/install.sh | bash`
+
 ### Fixed
 
-- Aquin desktop login URL test expects `/axi/?view=desktop` (matches auth cutover)
+- Aquin desktop login URL is `aquin.app/login?view=desktop` (was `/axi/?view=desktop`)
 
 ## [0.0.2] — 2026-10
 
 ### Added
 
 - Product docs site under `docs/` (GitHub Pages; `npm run docs`) — getting started, CLI, mission, arl, daemon, …
-- Cloudflare release path (same as aq): `install.sh` · `npm run release` → R2 `axi-*v.tar.gz` · `curl …/axi/download/install.sh | bash`
+- Release path (same as aq): GitHub Releases via `gh` — `install.sh` · `npm run release` → `axi-*v.tar.gz` · `curl -fsSL https://github.com/Aquinf03/axi/releases/latest/download/install.sh | bash` (Cloudflare R2 retired)
 - PGSO corpus deepen: shared `corpus.mjs`, stricter case checks, optional `expect.json` / `meta.json` goldens (still no native fx pipeline)
 - Mission product: Objective / Drive / Pulse under `/mission` (shell gates, durable pulse schedules + tick, objective no-progress streak / backoff)
 - arl (auto RL): harness store, digest, `/refine`, auto-refine, unify with memory / skills / spawn
