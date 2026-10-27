@@ -125,6 +125,7 @@ type Key =
   | {
       kind:
         | "enter"
+        | "tab"
         | "backspace"
         | "delete"
         | "left"
@@ -341,6 +342,11 @@ function parseKeys(chunk: Buffer, carry: Buffer): { keys: Key[]; carry: Buffer }
       i += 1
       continue
     }
+    if (b === 0x09) {
+      keys.push({ kind: "tab" })
+      i += 1
+      continue
+    }
     if (b < 32) {
       i += 1
       continue
@@ -551,6 +557,12 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
     menuRows = 0
   }
 
+  /** Leave the submitted composer line in scrollback, then continue below. */
+  const commitPromptLine = (line: string) => {
+    write(`\r\x1b[J${BOLD}${PREFIX}${line}${RESET}\n`)
+    menuRows = 0
+  }
+
   const leaveScreen = () => {
     screen = null
   }
@@ -694,9 +706,13 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
     if (slashHint) {
       const hits = slashMatches(draft)
       const rows = hits.length ? hits : [{ name: draft.split(/\s/)[0] ?? draft, hint: "unknown" }]
+      if (pick >= rows.length) pick = 0
       for (let i = 0; i < rows.length; i++) {
         const o = rows[i]!
-        write(`\n${DIM}  ${o.name.padEnd(10)}  ${o.hint}${RESET}\x1b[K`)
+        const on = i === pick
+        const mark = on ? "▸" : " "
+        const sty = on ? BOLD : DIM
+        write(`\n${sty}${mark} ${o.name.padEnd(10)}${RESET}${DIM}  ${o.hint}${RESET}\x1b[K`)
       }
       painted = rows.length
     } else if (screen && !keyFor && !renameFor) {
@@ -720,6 +736,28 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       write("\x1b[?25l")
     else write("\x1b[?25h")
     write(`\x1b[${promptPlain.length + cur + 1}G`)
+  }
+
+  const slashHintRows = (): { name: string; hint: string }[] => {
+    if (keyFor || renameFor || spawnFor || nested()) return []
+    const draft = chars.join("")
+    if (!draft.startsWith("/") || draft === "/") return []
+    const hits = slashMatches(draft)
+    return hits.length ? hits : [{ name: draft.split(/\s/)[0] ?? draft, hint: "unknown" }]
+  }
+
+  /** Fill the composer with the selected completion. Never changes `pick`. */
+  const completeSlashToken = (name: string) => {
+    const draft = chars.join("")
+    const sp = draft.indexOf(" ")
+    const args = sp >= 0 ? draft.slice(sp) : ""
+    const next = args.startsWith(" ") ? `${name}${args}` : `${name} `
+    chars.length = 0
+    chars.push(...Array.from(next))
+    cursor = chars.length
+    leaveScreen()
+    histIndex = -1
+    histDraft = ""
   }
 
   const headerLine = () => {
@@ -1694,10 +1732,12 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         if (t.startsWith("/steer")) {
           pushInputHistory(t)
           playCue("click")
+          commitPromptLine(t)
           await applySlash(t)
           return
         }
         if (t.startsWith("/")) {
+          commitPromptLine(t)
           note("busy — wait, esc abort, or /steer …")
           paintComposer()
           return
@@ -1706,6 +1746,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         const st = steerFor(spec.id)
         st.enqueue(t)
         playCue("click")
+        commitPromptLine(t)
         note(`queued  (${st.queueLength()})`)
         paintComposer()
         return
@@ -1717,6 +1758,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         leaveScreen()
         pick = 0
         playCue("click")
+        commitPromptLine(t)
         await applySlash(t)
         return
       }
@@ -2280,6 +2322,12 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
           continue
         }
         if (k.kind === "up") {
+          const slashRows = slashHintRows()
+          if (slashRows.length) {
+            pick = (pick + slashRows.length - 1) % slashRows.length
+            paintComposer()
+            continue
+          }
           if (screen && !renameFor) {
             const n = menuChoices(screen, menuCtx()).length
             if (n) {
@@ -2300,6 +2348,12 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
           continue
         }
         if (k.kind === "down") {
+          const slashRows = slashHintRows()
+          if (slashRows.length) {
+            pick = (pick + 1) % slashRows.length
+            paintComposer()
+            continue
+          }
           if (screen && !renameFor) {
             const n = menuChoices(screen, menuCtx()).length
             if (n) {
@@ -2317,6 +2371,37 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
             loadInputHistory(-1)
           }
           paintComposer()
+          continue
+        }
+        if (k.kind === "tab") {
+          // Complete exactly the highlighted row. Never pick+1 / never skip ahead.
+          const slashRows = slashHintRows()
+          if (slashRows.length) {
+            if (pick < 0 || pick >= slashRows.length) pick = 0
+            completeSlashToken(slashRows[pick]!.name)
+            pick = 0
+            paintComposer()
+            continue
+          }
+          if (screen && !renameFor && !keyFor && !spawnFor) {
+            const opts = menuChoices(screen, menuCtx())
+            if (!opts.length) continue
+            if (pick < 0 || pick >= opts.length) pick = 0
+            const c = opts[pick]!
+            // Do not jump to another row — info/back under ▸ is a no-op.
+            if (c.kind === "info" || c.kind === "back") continue
+            if (screen === "root" && chars.join("") === "/") {
+              const name = `/${c.id}`
+              if (slashMatches(name).some((h) => h.name === name)) {
+                completeSlashToken(name)
+                pick = 0
+                paintComposer()
+                continue
+              }
+            }
+            pickItem()
+            continue
+          }
           continue
         }
         if (k.kind === "enter") {
@@ -2373,6 +2458,9 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
               pick = 0
             } else if (screen) {
               leaveScreen()
+              pick = 0
+            } else if (d.startsWith("/")) {
+              pick = 0
             }
           }
           paintComposer()
@@ -2385,3 +2473,4 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
     process.once("SIGTERM", quit)
   })
 }
+
