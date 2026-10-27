@@ -1,19 +1,21 @@
-# axi
+# Axi
 
 [![CI](https://github.com/Aquinf03/axi/actions/workflows/ci.yml/badge.svg)](https://github.com/Aquinf03/axi/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](./LICENSE)
 
 Coding / research / chat agent for the current folder.  
-Model **train / eval / fleet** stay in the **aq** CLI (separate install). axi shells out to `aq` when you work in a train (`recipe.yaml`).
+Model **train / eval / fleet** stay in the **axi-backend** CLI (separate install). Axi shells out to `axi-backend` when you work in a train (`recipe.yaml`).
+
+This checkout is the workspace: TTY UI in [`src/ui`](./src/ui), browser UI in [`web`](./web), static docs in [`docs`](./docs), and the agent package as the [`axi-backend`](https://github.com/Aquinf03/axi-backend) submodule.
 
 Chats, keys, and memory live in **`~/.axi`** (first run migrates `~/.aq` if present).
 
 **Repo:** https://github.com/Aquinf03/axi · **Docs:** https://aquinf03.github.io/axi/documentation/ · **Changelog:** https://aquinf03.github.io/axi/changelog/  
-**aq:** https://github.com/aquinf03/aq · **Notes:** [`CHANGELOG.md`](./CHANGELOG.md)
+**Backend:** https://github.com/Aquinf03/axi-backend · **Notes:** [`CHANGELOG.md`](./CHANGELOG.md)
 
 **Contributing** · [`CONTRIBUTING.md`](./CONTRIBUTING.md) · **Code of conduct** · [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md) · **Security** · [`SECURITY.md`](./SECURITY.md) · **License** · [`LICENSE`](./LICENSE)
 
-Good first contributions: docs under `docs/documentation/` (regen with `npm run docs`), tighter unit tests next to `src/`, small slash/CLI fixes with a reproduction, and eval cases under `scripts/tests/`.
+Good first contributions: docs under `docs/documentation/` (regen with `npm run docs` inside `axi-backend/`), unit tests next to `src/ui/`, small slash/CLI fixes with a reproduction, and eval cases under `axi-backend/scripts/tests/`.
 
 ## Install
 
@@ -21,9 +23,34 @@ Good first contributions: docs under `docs/documentation/` (regen with `npm run 
 curl -fsSL https://aquin.app/axi/download/install.sh | bash
 ```
 
-From a checkout: `cd BACKEND && npm i && npm link` or `./BACKEND/install.sh`. Publish path matches **aq** (Cloudflare R2 + shared Worker) — see [`BACKEND/scripts/helpers/cloudflare/README.md`](./BACKEND/scripts/helpers/cloudflare/README.md).
+From a checkout (needs **Node ≥ 18**). Clone with the submodule so `axi-backend/` is present:
 
-Needs **Node ≥ 18**. Talks to `aq` via:
+```bash
+git clone --recurse-submodules https://github.com/Aquinf03/axi.git
+cd axi
+npm run setup	# same as npm i at the repo root
+```
+
+`npm run setup` runs, in order:
+
+| Script | What it does |
+| --- | --- |
+| [`gen.sh`](./gen.sh) | Writes necessary files when missing. `./gen.sh ungen` deletes generated files after you confirm (`y` / `yes`, or pass `y` as the second argument). |
+| [`install_deps.sh`](./install_deps.sh) | `npm install` in `web/` and in `axi-backend/`. |
+| [`post_setup.sh`](./post_setup.sh) | Creates `axi-backend/bin/axi` when it is absent (`#!/usr/bin/env node` loading `../dist/cli.js`) and links `./bin` → `axi-backend/bin`. Leaves an existing `./bin` file alone and warns. |
+
+To run the CLI directly without re-building:
+
+```bash
+./run.sh			  # TTY chat, caller's cwd
+./run.sh doctor
+```
+
+[`run.sh`](./run.sh) executes `axi-backend/src/cli.ts` through tsx, runs `axi-backend/scripts/link-ui.mjs` when that file exists, and sets `--preserve-symlinks` so `src/ui` imports such as `../core/…` resolve inside `axi-backend/src`.
+
+Publish path matches **aq** (Cloudflare R2 + shared Worker). Release helpers live in the `axi-backend` package.
+
+Talks to `aq` via:
 
 - `AQ_ROOT` — path to the `aq` package (contains `bin/aq`)
 - `AQ_BIN` — path to the `aq` binary
@@ -38,46 +65,55 @@ axi doctor
 
 ```bash
 cd /path/to/project   # any folder — or a train with recipe.yaml
-axi                   # TTY chat
-axi web               # browser UI (chat + viewer) → http://127.0.0.1:3000
+axi				   # TTY chat
+axi web			   # browser UI (chat + viewer) → http://127.0.0.1:3000
 axi ask "how does src/cli.ts wire commands?"
 axi provider openai
 axi doctor
 ```
 
-In TTY chat, `/web` starts the same browser UI if it isn’t already running.
+In TTY chat, `/web` starts the same browser UI for this session. Leaving the chat (`/exit`, ctrl+c) stops that server. `axi web --detach` keeps Next running after axi exits. `--port N` changes the listen port (default `3000`); `--no-open` skips the browser. Workspace is the cwd, or the directory you pass: `axi web /path/to/project`.
 
 ## Docs
 
 **Live:** https://aquinf03.github.io/axi/documentation/ · **Changelog:** https://aquinf03.github.io/axi/changelog/
 
-Static GitHub Pages site under [`docs/`](./docs/) (same chrome as aq). Install, chat, [web UI](https://aquinf03.github.io/axi/documentation/web/), CLI, mission, arl, daemon, factory, and more.
+Static GitHub Pages site under [`docs/`](./docs/) (same chrome as `aq`). Install, chat, [web UI](https://aquinf03.github.io/axi/documentation/web/), CLI, mission, arl, daemon, factory, and more. [`docs/index.html`](./docs/index.html) redirects to `documentation/`.
 
 ```bash
-cd BACKEND && npm run docs   # regenerate docs/documentation + changelog HTML
-axi web                      # preferred — deps + Next + open browser
-# checkout alternate: cd BACKEND && npm run build && npm run web
+cd axi-backend && npm run docs   # regenerate docs/documentation + changelog HTML
+axi web						   # preferred — deps + Next + open browser
+# checkout alternate, from axi-backend/: npm run build && npm run web
 ```
 
-Browse docs locally: open `docs/documentation/index.html` or serve `docs/`. Edit via `BACKEND/scripts/build-docs.mjs`, then regen.
+Browse docs locally: open `docs/documentation/index.html` or serve `docs/`. Edit through `axi-backend/scripts/build-docs.mjs`, then regen. See [`docs/README.md`](./docs/README.md).
 
 ## Layout
 
 ```
-BACKEND/             agent package (CLI + core)
-  src/cli.ts         composition root → core/commands/dispatch
-  src/builtins/      command/slash specs, providers, system prompt (data)
-  src/core/          sessions, skills, tool_specs, permissions, config, output, agent loop
-  src/tools/         tool implementations (schemas in core/tooling/tool_specs)
-  src/gateway/       provider HTTP + keys (import via gateway.ts)
-  scripts/tests/     agent evals (ours only, not user evals/)
-src/ui/              TTY render / input / notify (terminal frontend; no product state)
-web/                 Next.js App Router + shadcn (browser UI → local runTurn)
-docs/                GitHub Pages: documentation/ + changelog/ + assets/
-internals/           local checklists (gitignored — not published)
+axi-backend/		 agent package (git submodule): CLI, core, tools, gateway, evals
+src/ui/			  TTY frontend. Linked into the backend so ../core resolves under axi-backend/src
+web/				 Next.js App Router + shadcn. Browser UI → local runTurn
+docs/				GitHub Pages: documentation/ + changelog/ + assets/
+gen.sh			   create .axi_root
+install_deps.sh	  npm install in web/ and axi-backend/
+post_setup.sh		axi-backend/bin/axi launcher and ./bin symlink
+run.sh			   run axi-backend/src/cli.ts via tsx
+internals/		   local checklists (gitignored — not published)
 ```
 
-Fat subsystems have front doors (`core/tooling.ts`, `core/skills.ts`, `core/session.ts`, `core/compact.ts`, `core/output.ts`, `core/permissions.ts`, `core/config.ts`, `gateway.ts`). `npm run check:boundaries` (from `BACKEND/`) forbids reaching past them. `npm run check:public-surface` rejects personal paths and secret-shaped strings in tracked files. `npm run check:budgets` fails CI if `dist/` or fast CLI startup exceeds `scripts/budgets.json`.
+Inside `axi-backend/` (after the submodule is checked out):
+
+```
+src/cli.ts		   composition root → core/commands/dispatch
+src/builtins/		command/slash specs, providers, system prompt (data)
+src/core/			sessions, skills, tool specs, permissions, config, output, agent loop
+src/tools/		   tool implementations (schemas in core/tooling/tool_specs)
+src/gateway/		 provider HTTP + keys (import via gateway.ts)
+scripts/tests/	   agent evals shipped with axi
+```
+
+Fat subsystems have front doors (`core/tooling.ts`, `core/skills.ts`, `core/session.ts`, `core/compact.ts`, `core/output.ts`, `core/permissions.ts`, `core/config.ts`, `gateway.ts`). From `axi-backend/`, `npm run check:boundaries` forbids reaching past them. `npm run check:public-surface` rejects personal paths and secret-shaped strings in tracked files. `npm run check:budgets` fails CI if `dist/` or fast CLI startup exceeds `scripts/budgets.json`.
 
 Permission mode: `AXI_PERMISSION_MODE=ask|auto|plan|full-access` (or `/mode` in chat). `plan` is fail-closed read-only (no write/run even if you would approve). Project `.axi.json` is repo-safe keys only; keys stay in `~/.axi`.
 
@@ -89,16 +125,3 @@ TTY layout: chat and `/` menus stay in normal scrollback; permits and confirms u
 
 Sessions: portable ids under `~/.axi/chats/<id>/` with `workspace_root`. Spawn workers are child sessions (bounded parent registry); hidden from the normal chat list.
 
-## Tests
-
-```bash
-npm run ready            # build + gates + unit + smoke (real bin/axi)
-npm run smoke            # happy-path on built binary only
-npm test                 # agent evals (corpus: training + verification)
-npm run test:training    # core cases only
-npm run check:corpus     # every case classified in scripts/tests/corpus.json
-```
-
-`ready` / `smoke` exercise the built `bin/axi`, not whatever is on PATH. Needs a configured provider (`axi provider …`) for agent evals. Train-related evals also need a reachable `aq`. Cases are classified training / verification / excluded — see `scripts/tests/README.md`.
-
-See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for PR expectations and higher-bar areas.
