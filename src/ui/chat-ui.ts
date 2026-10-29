@@ -92,7 +92,7 @@ import { extraTools, listSkills, shutdownSkills } from "../core/skills.js"
 import { clearDeferredTools } from "../core/tooling.js"
 import { agentLog, cancelAgent, formatAgents, listAgents, startAgent } from "../core/agent/spawn.js"
 import { formatDoctor, runDoctor } from "../core/commands/doctor.js"
-import { stopSessionOwnedWeb } from "../core/commands/web.js"
+import { stopSessionOwnedWeb, webRuntimeStatus } from "../core/commands/web.js"
 import { isTrain } from "../core/schema.js"
 import {
   createChat,
@@ -790,6 +790,10 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       ...snap.parts.map((p) => `  ${("ctx." + p.label).padEnd(12)}  ${p.tokens}`),
       row("sound", soundEnabled() ? "on" : "off"),
       row("notify", notifyEnabled() ? "on" : "off"),
+      row("web", (() => {
+        const s = webRuntimeStatus()
+        return `${s.running ? "on" : "off"} · :${s.port}`
+      })()),
       row("mode", resolveConfig(train).permission_mode),
       row("codemode", codemodeModeStatusText().replace(/^codemode\s+/, "")),
       row("stance", stanceStatusText(spec.id).replace(/^stance\s+/, "")),
@@ -1295,19 +1299,69 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
         return
       }
       if (r.web) {
+        const {
+          getWebPort,
+          launchWeb,
+          setWebPort,
+          stopSessionOwnedWeb,
+          webRuntimeStatus,
+          webRuntimeStatusAsync,
+          webStatusText,
+        } = await import("../core/commands/web.js")
+        if (r.web === "status") {
+          note(webStatusText(await webRuntimeStatusAsync()))
+          paintComposer()
+          return
+        }
+        if (r.web === "off") {
+          const before = await webRuntimeStatusAsync()
+          if (!before.running) {
+            note(webStatusText(before))
+            paintComposer()
+            return
+          }
+          if (!before.sessionOwned) {
+            note(
+              `${webStatusText(before)}\nweb UI  not owned by this session — stop the process on :${before.port} yourself`,
+            )
+            paintComposer()
+            return
+          }
+          stopSessionOwnedWeb()
+          note(webStatusText(webRuntimeStatus()))
+          paintComposer()
+          return
+        }
+        // on (bare /web, /web on, or /web <port>)
+        if (r.webPort != null) {
+          try {
+            const saved = setWebPort(r.webPort)
+            if (saved.includes("\n\n")) note(saved)
+          } catch (err) {
+            note(`web UI  ${err instanceof Error ? err.message : String(err)}`)
+            paintComposer()
+            return
+          }
+          const before = webRuntimeStatus()
+          if (before.sessionOwned && before.port !== r.webPort) {
+            stopSessionOwnedWeb()
+          }
+        }
         note("web UI  starting…")
         paintComposer()
         try {
-          const { launchWeb } = await import("../core/commands/web.js")
           const launched = await launchWeb({
             workspace: hostEnv.workspaceRoot,
+            port: r.webPort,
             open: true,
             ownership: "session",
           })
+          const port =
+            Number(new URL(launched.url).port) || r.webPort || getWebPort()
           note(
             launched.alreadyRunning
-              ? `web UI  already running · ${launched.url} (not owned by this session)`
-              : `web UI  ${launched.url} · stops when you exit`,
+              ? `${webStatusText({ running: true, sessionOwned: false, port, url: launched.url })} (not owned by this session)`
+              : `${webStatusText({ running: true, sessionOwned: true, port, url: launched.url })} · stops when you exit`,
           )
         } catch (err) {
           note(`web UI  ${err instanceof Error ? err.message : String(err)}`)
