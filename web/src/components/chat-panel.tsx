@@ -206,6 +206,7 @@ export function ChatPanel() {
   const scrollRootRef = useRef<HTMLDivElement>(null)
   const tabsScrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const slashListRef = useRef<HTMLUListElement>(null)
   const [slashPick, setSlashPick] = useState(0)
   /** Bump after recording usage so the menu re-sorts most→least used. */
   const [slashUsageTick, setSlashUsageTick] = useState(0)
@@ -230,6 +231,14 @@ export function ChatPanel() {
   useEffect(() => {
     if (slashPick >= slashRows.length) setSlashPick(0)
   }, [slashPick, slashRows.length])
+
+  useEffect(() => {
+    if (!slashOpen) return
+    const root = slashListRef.current
+    if (!root) return
+    const el = root.querySelector<HTMLElement>(`[data-slash-index="${slashPick}"]`)
+    el?.scrollIntoView({ block: "nearest" })
+  }, [slashPick, slashOpen, slashRows.length])
 
   const updateChat = (id: string, fn: (c: ChatTab) => ChatTab) => {
     setChats((all) => all.map((c) => (c.id === id ? fn(c) : c)))
@@ -721,7 +730,7 @@ export function ChatPanel() {
             role="listbox"
             aria-label="Slash commands"
           >
-            <ul className="max-h-56 overflow-y-auto py-1.5">
+            <ul ref={slashListRef} className="max-h-56 overflow-y-auto py-1.5">
               {slashRows.map((row, i) => {
                 const on = i === slashPick
                 return (
@@ -730,6 +739,7 @@ export function ChatPanel() {
                       type="button"
                       role="option"
                       aria-selected={on}
+                      data-slash-index={i}
                       onMouseEnter={() => setSlashPick(i)}
                       onMouseDown={(e) => {
                         // Prevent input blur before click applies.
