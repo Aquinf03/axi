@@ -1,9 +1,18 @@
 import { spawn } from "node:child_process"
+import { existsSync } from "node:fs"
 import { NextResponse } from "next/server"
 import { defaultWorkspace } from "@/lib/axi-local"
 import { resolveWorkspace } from "@/lib/workspace-fs"
 
 export const dynamic = "force-dynamic"
+
+/** User/login shell from the environment; fall back to a POSIX sh. */
+function defaultShell(): string {
+  const fromEnv = process.env.SHELL?.trim()
+  if (fromEnv && existsSync(fromEnv)) return fromEnv
+  if (existsSync("/bin/sh")) return "/bin/sh"
+  return process.platform === "win32" ? "cmd.exe" : "/bin/sh"
+}
 
 /** Run a one-shot shell command in the workspace (interactive PTY later). */
 export async function POST(req: Request) {
@@ -20,13 +29,15 @@ export async function POST(req: Request) {
     typeof o.workspace === "string" ? o.workspace : defaultWorkspace(),
   )
 
+  const shell = defaultShell()
+  const args = process.platform === "win32" ? ["/d", "/s", "/c", cmd] : ["-lc", cmd]
   const result = await new Promise<{
     ok: boolean
     code: number | null
     stdout: string
     stderr: string
   }>((resolve) => {
-    const child = spawn("/bin/zsh", ["-lc", cmd], {
+    const child = spawn(shell, args, {
       cwd: workspace,
       env: { ...process.env, TERM: "xterm-256color" },
       stdio: ["ignore", "pipe", "pipe"],
