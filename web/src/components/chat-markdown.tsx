@@ -45,6 +45,56 @@ function CodeBlock({
   )
 }
 
+/** Monospace output block for slash-command replies (TTY-style). */
+export function SlashResultBlock({
+  command,
+  children,
+  className,
+}: {
+  command?: string
+  children: string
+  className?: string
+}) {
+  const [copied, setCopied] = useState(false)
+  const onCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(children)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      /* ignore */
+    }
+  }
+  const label = command?.trim() || "slash"
+
+  return (
+    <div
+      className={cn(
+        "my-0 overflow-hidden rounded-xl border border-[#e0e0dc] bg-[#1c1c1a] shadow-sm",
+        className,
+      )}
+    >
+      <div className="flex items-center justify-between border-b border-white/10 px-3 py-1.5 font-mono text-[10px] tracking-wider text-[#a8a8a0] uppercase">
+        <span className="truncate">{label}</span>
+        <button
+          type="button"
+          onClick={() => void onCopy()}
+          className="inline-flex shrink-0 items-center gap-1 text-[#a8a8a0] hover:text-white"
+          aria-label="Copy output"
+        >
+          {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
+          {copied ? "copied" : "copy"}
+        </button>
+      </div>
+      <pre className="overflow-x-auto p-3.5">
+        <code className="font-mono text-[12px] leading-relaxed whitespace-pre text-[#e8e8e2]">
+          {children}
+        </code>
+      </pre>
+    </div>
+  )
+}
+
 export function ChatMarkdown({ content, className }: { content: string; className?: string }) {
   return (
     <div

@@ -1,13 +1,19 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import Image from "next/image"
 import { ArrowUp, ChevronDown, Loader2, Plus, X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useWorkspace } from "./workspace-context"
-import { ChatMarkdown } from "./chat-markdown"
+import { ChatMarkdown, SlashResultBlock } from "./chat-markdown"
 import { cn } from "@/lib/utils"
+import {
+  completeSlashToken,
+  isSlashLine,
+  recordSlashUsage,
+  slashHintRows,
+} from "@/lib/slash-commands"
 
 type Step =
   | { kind: "thought" }
@@ -29,6 +35,10 @@ type AsstMsg = {
   steps: Step[]
   durationMs?: number
   open?: boolean
+  /** Slash-command reply — render as a mono output block. */
+  slash?: boolean
+  /** Original slash line (e.g. `/status`) for the block header. */
+  slashCmd?: string
 }
 type Msg = UserMsg | AsstMsg
 
@@ -195,6 +205,10 @@ export function ChatPanel() {
   const bottomRef = useRef<HTMLDivElement>(null)
   const scrollRootRef = useRef<HTMLDivElement>(null)
   const tabsScrollRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [slashPick, setSlashPick] = useState(0)
+  /** Bump after recording usage so the menu re-sorts most→least used. */
+  const [slashUsageTick, setSlashUsageTick] = useState(0)
 
   const active = chats.find((c) => c.id === activeId) ?? chats[0]!
   const messages = active.messages
@@ -202,8 +216,38 @@ export function ChatPanel() {
   const busy = active.busy
   const error = active.error
 
+  const slashRows = useMemo(
+    () => slashHintRows(draft),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- slashUsageTick refreshes localStorage order
+    [draft, slashUsageTick],
+  )
+  const slashOpen = slashRows.length > 0 && !busy
+
+  useEffect(() => {
+    setSlashPick(0)
+  }, [draft, activeId])
+
+  useEffect(() => {
+    if (slashPick >= slashRows.length) setSlashPick(0)
+  }, [slashPick, slashRows.length])
+
   const updateChat = (id: string, fn: (c: ChatTab) => ChatTab) => {
     setChats((all) => all.map((c) => (c.id === id ? fn(c) : c)))
+  }
+
+  const setDraft = (next: string) => {
+    updateChat(activeId, (c) => ({ ...c, draft: next }))
+  }
+
+  const noteSlashUse = (nameOrLine: string) => {
+    recordSlashUsage(nameOrLine)
+    setSlashUsageTick((n) => n + 1)
+  }
+
+  const applySlashCompletion = (name: string) => {
+    setDraft(completeSlashToken(draft, name))
+    setSlashPick(0)
+    requestAnimationFrame(() => inputRef.current?.focus())
   }
 
   useEffect(() => {
@@ -254,13 +298,107 @@ export function ChatPanel() {
     if (!text || !chat || chat.busy || !connected) return
 
     const userMsg: UserMsg = { role: "user", text }
+    const started = Date.now()
+    const prior = chat.messages
+
+    // Slash commands — same path as TTY / runline (not an agent turn).
+    if (isSlashLine(text)) {
+      noteSlashUse(text)
+      updateChat(chatId, (c) => ({
+        ...c,
+        draft: "",
+        error: null,
+        busy: true,
+        title: c.title === "New chat" ? titleFromText(text) : c.title,
+        messages: [...c.messages, userMsg],
+      }))
+      try {
+        const history = prior
+          .filter((m) => m.role === "user" || (m.role === "assistant" && m.text))
+          .map((m) => ({ role: m.role as "user" | "assistant", content: m.text }))
+        const r = await fetch("/api/slash", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            line: text,
+            workspace,
+            sessionId: chatId,
+            history,
+          }),
+        })
+        const j = (await r.json()) as {
+          ok?: boolean
+          text?: string
+          kick?: string
+          error?: string
+        }
+        if (!r.ok || !j.ok) {
+          const err = String(j.error || `slash failed (${r.status})`)
+          updateChat(chatId, (c) => ({
+            ...c,
+            error: err,
+            messages: [
+              ...c.messages,
+              {
+                role: "assistant",
+                text: err,
+                steps: [],
+                durationMs: Date.now() - started,
+                slash: true,
+                slashCmd: text.split(/\s/)[0] || text,
+              },
+            ],
+          }))
+          return
+        }
+        const reply = String(j.text || "").trim() || "(ok)"
+        updateChat(chatId, (c) => ({
+          ...c,
+          messages: [
+            ...c.messages,
+            {
+              role: "assistant",
+              text: reply,
+              steps: [],
+              durationMs: Date.now() - started,
+              slash: true,
+              slashCmd: text.split(/\s/)[0] || text,
+            },
+          ],
+        }))
+        if (j.kick?.trim()) {
+          updateChat(chatId, (c) => ({ ...c, busy: false }))
+          await sendText(j.kick.trim())
+          return
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        updateChat(chatId, (c) => ({
+          ...c,
+          error: msg,
+          messages: [
+            ...c.messages,
+            {
+              role: "assistant",
+              text: msg,
+              steps: [],
+              durationMs: Date.now() - started,
+              slash: true,
+              slashCmd: text.split(/\s/)[0] || text,
+            },
+          ],
+        }))
+      } finally {
+        updateChat(chatId, (c) => ({ ...c, busy: false }))
+      }
+      return
+    }
+
     const asstStub: AsstMsg = {
       role: "assistant",
       text: "",
       steps: [{ kind: "thought" }],
     }
-    const started = Date.now()
-    const prior = chat.messages
 
     updateChat(chatId, (c) => ({
       ...c,
@@ -545,6 +683,10 @@ export function ChatPanel() {
                   >
                     {m.text}
                   </div>
+                ) : m.slash ? (
+                  <div key={i} className="flex flex-col gap-2">
+                    <SlashResultBlock command={m.slashCmd}>{m.text}</SlashResultBlock>
+                  </div>
                 ) : (
                   <div key={i} className="flex flex-col gap-3">
                     <StatusTimeline
@@ -562,7 +704,7 @@ export function ChatPanel() {
                   </div>
                 ),
               )}
-              {error && !messages.some((m) => m.role === "assistant" && m.text.startsWith("Error:")) ? (
+              {error && !messages.some((m) => m.role === "assistant" && (m.slash || m.text.startsWith("Error:"))) ? (
                 <p className="text-destructive font-mono text-xs">{error}</p>
               ) : null}
               <div ref={bottomRef} aria-hidden className="h-px w-full shrink-0" />
@@ -571,7 +713,50 @@ export function ChatPanel() {
         </div>
       </div>
 
-      <div className="px-4 pb-4 pt-1">
+      <div className="relative px-4 pb-4 pt-1">
+        {slashOpen ? (
+          <div
+            id="slash-command-list"
+            className="absolute inset-x-4 bottom-full z-20 mb-1.5 overflow-hidden rounded-2xl border border-[#e0e0dc] bg-white shadow-[0_8px_24px_rgba(0,0,0,0.06)]"
+            role="listbox"
+            aria-label="Slash commands"
+          >
+            <ul className="max-h-56 overflow-y-auto py-1.5">
+              {slashRows.map((row, i) => {
+                const on = i === slashPick
+                return (
+                  <li key={row.name}>
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={on}
+                      onMouseEnter={() => setSlashPick(i)}
+                      onMouseDown={(e) => {
+                        // Prevent input blur before click applies.
+                        e.preventDefault()
+                        applySlashCompletion(row.name)
+                      }}
+                      className={cn(
+                        "flex w-full items-baseline gap-3 px-3.5 py-1.5 text-left text-[13px]",
+                        on ? "bg-[#f3f3f0]" : "hover:bg-[#f7f7f5]",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "w-[7.5rem] shrink-0 font-mono",
+                          on ? "text-foreground font-medium" : "text-foreground/80",
+                        )}
+                      >
+                        {row.name}
+                      </span>
+                      <span className="text-muted-foreground min-w-0 flex-1 truncate">{row.hint}</span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        ) : null}
         <div className="flex items-center gap-2 rounded-full border border-[#e0e0dc] bg-white py-1.5 pr-1.5 pl-3 focus-within:border-[#c8c8c4]">
           <button
             type="button"
@@ -582,9 +767,34 @@ export function ChatPanel() {
             <Plus className="size-4" strokeWidth={1.75} />
           </button>
           <input
+            ref={inputRef}
             value={draft}
-            onChange={(e) => updateChat(activeId, (c) => ({ ...c, draft: e.target.value }))}
+            onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
+              if (slashOpen) {
+                if (e.key === "ArrowDown") {
+                  e.preventDefault()
+                  setSlashPick((p) => (p + 1) % slashRows.length)
+                  return
+                }
+                if (e.key === "ArrowUp") {
+                  e.preventDefault()
+                  setSlashPick((p) => (p - 1 + slashRows.length) % slashRows.length)
+                  return
+                }
+                if (e.key === "Tab") {
+                  e.preventDefault()
+                  const row = slashRows[slashPick] ?? slashRows[0]
+                  if (row) applySlashCompletion(row.name)
+                  return
+                }
+                if (e.key === "Escape") {
+                  e.preventDefault()
+                  setDraft("")
+                  setSlashPick(0)
+                  return
+                }
+              }
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault()
                 send()
@@ -593,6 +803,9 @@ export function ChatPanel() {
             placeholder={connected ? "Ask anything..." : "Build axi to connect…"}
             disabled={busy || !connected}
             className="text-foreground placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-[14px] outline-none disabled:opacity-50"
+            aria-autocomplete="list"
+            aria-expanded={slashOpen}
+            aria-controls={slashOpen ? "slash-command-list" : undefined}
           />
           <button
             type="button"
