@@ -14,7 +14,10 @@ function defaultShell(): string {
   return process.platform === "win32" ? "cmd.exe" : "/bin/sh"
 }
 
-/** Run a one-shot shell command in the workspace (interactive PTY later). */
+/**
+ * One-shot shell command in the workspace.
+ * Interactive shells use `/api/term/session` + xterm (node-pty).
+ */
 export async function POST(req: Request) {
   let body: unknown
   try {

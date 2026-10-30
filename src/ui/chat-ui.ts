@@ -1300,6 +1300,7 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
       }
       if (r.web) {
         const {
+          forceStopWeb,
           getWebPort,
           launchWeb,
           setWebPort,
@@ -1320,15 +1321,9 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
             paintComposer()
             return
           }
-          if (!before.sessionOwned) {
-            note(
-              `${webStatusText(before)}\nweb UI  not owned by this session — stop the process on :${before.port} yourself`,
-            )
-            paintComposer()
-            return
-          }
-          stopSessionOwnedWeb()
-          note(webStatusText(webRuntimeStatus()))
+          note("web UI  stopping…")
+          paintComposer()
+          note(webStatusText(await forceStopWeb(before.port)))
           paintComposer()
           return
         }

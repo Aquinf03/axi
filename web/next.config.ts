@@ -6,6 +6,7 @@ const root = path.dirname(fileURLToPath(import.meta.url))
 
 const nextConfig: NextConfig = {
   // Local /api/chat spawns axi — keep Node route handlers dynamic.
+  serverExternalPackages: ["node-pty"],
   images: {
     remotePatterns: [
       {
