@@ -8,17 +8,51 @@ export const dynamic = "force-dynamic"
 
 type SlashBody = {
   line?: unknown
+  resolve?: unknown
   workspace?: unknown
   sessionId?: unknown
+  chatName?: unknown
   history?: unknown
 }
 
+export type InteractiveOption = {
+  id: string
+  label: string
+  hint?: string
+  disabled?: boolean
+}
+
+export type InteractiveSpec = {
+  kind: string
+  prompt: string
+  options: InteractiveOption[]
+  input?: { value?: string; placeholder?: string }
+  context?: Record<string, string>
+}
+
+export type SlashAction = {
+  type: string
+  [key: string]: unknown
+}
+
+type SlashOk = {
+  ok: true
+  text: string
+  kick?: string
+  interactive?: InteractiveSpec
+  action?: SlashAction
+}
+
+type SlashErr = { ok: false; error: string }
+
 function runWebSlash(payload: {
-  line: string
+  line?: string
+  resolve?: Record<string, unknown>
   workspace: string
   sessionId: string
+  chatName?: string
   history: { role: string; content: string }[]
-}): Promise<{ ok: true; text: string; kick?: string } | { ok: false; error: string }> {
+}): Promise<SlashOk | SlashErr> {
   const script = path.join(axiRoot, "scripts", "web-slash.mjs")
   if (!existsSync(script)) {
     return Promise.resolve({ ok: false, error: "web-slash bridge missing" })
@@ -60,6 +94,8 @@ function runWebSlash(payload: {
           ok?: boolean
           text?: string
           kick?: string
+          interactive?: InteractiveSpec
+          action?: SlashAction
           error?: string
         }
         if (j.ok) {
@@ -67,6 +103,8 @@ function runWebSlash(payload: {
             ok: true,
             text: String(j.text || ""),
             kick: typeof j.kick === "string" ? j.kick : undefined,
+            interactive: j.interactive,
+            action: j.action,
           })
         } else {
           resolve({ ok: false, error: String(j.error || stderr.trim() || "slash failed") })
@@ -92,7 +130,12 @@ export async function POST(req: Request) {
   }
 
   const line = typeof body.line === "string" ? body.line.trim() : ""
-  if (!line.startsWith("/") || line === "/") {
+  const resolve =
+    body.resolve && typeof body.resolve === "object"
+      ? (body.resolve as Record<string, unknown>)
+      : undefined
+
+  if (!resolve && (!line.startsWith("/") || line === "/")) {
     return NextResponse.json(
       { ok: false, error: "line must be a slash command" },
       { status: 400 },
@@ -107,6 +150,10 @@ export async function POST(req: Request) {
     typeof body.sessionId === "string" && body.sessionId.trim()
       ? body.sessionId.trim()
       : `web_${Date.now().toString(36)}`
+  const chatName =
+    typeof body.chatName === "string" && body.chatName.trim()
+      ? body.chatName.trim()
+      : undefined
   const history = Array.isArray(body.history)
     ? (body.history as { role: string; content: string }[]).filter(
         (m) =>
@@ -116,6 +163,13 @@ export async function POST(req: Request) {
       )
     : []
 
-  const result = await runWebSlash({ line, workspace, sessionId, history })
+  const result = await runWebSlash({
+    ...(line ? { line } : {}),
+    ...(resolve ? { resolve } : {}),
+    workspace,
+    sessionId,
+    ...(chatName ? { chatName } : {}),
+    history,
+  })
   return NextResponse.json(result, { status: result.ok ? 200 : 500 })
 }

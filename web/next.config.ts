@@ -6,6 +6,15 @@ const root = path.dirname(fileURLToPath(import.meta.url))
 
 const nextConfig: NextConfig = {
   // Local /api/chat spawns axi — keep Node route handlers dynamic.
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "www.aquin.app",
+        pathname: "/**",
+      },
+    ],
+  },
   turbopack: {
     root,
     rules: {

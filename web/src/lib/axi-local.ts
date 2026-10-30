@@ -13,7 +13,17 @@ export const axiRoot = (() => {
   return parent
 })()
 
-export type ChatHistoryMsg = { role: "user" | "assistant"; content: string }
+export type ChatImagePayload = {
+  path: string
+  mime: string
+  data: string
+}
+
+export type ChatHistoryMsg = {
+  role: "user" | "assistant"
+  content: string
+  images?: ChatImagePayload[]
+}
 
 export type TurnOk = {
   ok: true
@@ -28,6 +38,7 @@ export type TurnErr = { ok: false; error: string }
 
 export type TurnProgressEvent =
   | { type: "status"; phase: "thinking" | "running" }
+  | { type: "delta"; text: string }
   | {
       type: "tool_start"
       name: string
@@ -64,7 +75,11 @@ export function streamLocalTurn(opts: {
 }): Promise<TurnOk | TurnErr> {
   const script = path.join(axiRoot, "scripts", "web-turn.mjs")
   const payload = JSON.stringify({
-    history: opts.history,
+    history: opts.history.map((m) => ({
+      role: m.role,
+      content: m.content,
+      ...(m.images?.length ? { images: m.images } : {}),
+    })),
     workspace: opts.workspace?.trim() || defaultWorkspace(),
     autoYes: opts.autoYes !== false,
   })

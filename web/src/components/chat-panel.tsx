@@ -1,12 +1,16 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import Image from "next/image"
 import { ArrowUp, ChevronDown, Loader2, Plus, X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { AquinLogo } from "./aquin-logo"
 import { useWorkspace } from "./workspace-context"
 import { ChatMarkdown, SlashResultBlock } from "./chat-markdown"
+import {
+  InteractivePrompt,
+  type InteractiveOption,
+} from "./interactive-prompt"
 import { cn } from "@/lib/utils"
 import {
   completeSlashToken,
@@ -14,6 +18,27 @@ import {
   recordSlashUsage,
   slashHintRows,
 } from "@/lib/slash-commands"
+
+type PendingImage = { path: string; mime: string; data: string }
+
+type InteractiveSpec = {
+  kind: string
+  prompt: string
+  options: InteractiveOption[]
+  input?: { value?: string; placeholder?: string }
+  context?: Record<string, string>
+}
+
+type SlashAction = {
+  type: string
+  id?: string
+  name?: string
+  messages?: { role: "user" | "assistant"; content: string }[]
+  image?: PendingImage
+  caption?: string
+  text?: string
+  count?: number
+}
 
 type Step =
   | { kind: "thought" }
@@ -49,6 +74,7 @@ type ChatTab = {
   draft: string
   error: string | null
   busy: boolean
+  pendingImages: PendingImage[]
 }
 
 function newChatId() {
@@ -63,8 +89,13 @@ function makeChat(partial?: Partial<ChatTab>): ChatTab {
     draft: "",
     error: null,
     busy: false,
+    pendingImages: [],
     ...partial,
   }
+}
+
+function firstSelectable(options: InteractiveOption[]): string | null {
+  return options.find((o) => !o.disabled)?.id ?? null
 }
 
 function titleFromText(text: string) {
@@ -206,16 +237,23 @@ export function ChatPanel() {
   const scrollRootRef = useRef<HTMLDivElement>(null)
   const tabsScrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const slashListRef = useRef<HTMLUListElement>(null)
   const [slashPick, setSlashPick] = useState(0)
   /** Bump after recording usage so the menu re-sorts most→least used. */
   const [slashUsageTick, setSlashUsageTick] = useState(0)
+  const [interactive, setInteractive] = useState<{
+    spec: InteractiveSpec
+    selectedId: string | null
+    inputValue: string
+  } | null>(null)
 
   const active = chats.find((c) => c.id === activeId) ?? chats[0]!
   const messages = active.messages
   const draft = active.draft
   const busy = active.busy
   const error = active.error
+  const pendingImages = active.pendingImages
 
   const slashRows = useMemo(
     () => slashHintRows(draft),
@@ -227,6 +265,10 @@ export function ChatPanel() {
   useEffect(() => {
     setSlashPick(0)
   }, [draft, activeId])
+
+  useEffect(() => {
+    setInteractive(null)
+  }, [activeId])
 
   useEffect(() => {
     if (slashPick >= slashRows.length) setSlashPick(0)
@@ -257,6 +299,237 @@ export function ChatPanel() {
     setDraft(completeSlashToken(draft, name))
     setSlashPick(0)
     requestAnimationFrame(() => inputRef.current?.focus())
+  }
+
+  const openInteractive = (spec: InteractiveSpec) => {
+    setInteractive({
+      spec,
+      selectedId: firstSelectable(spec.options),
+      inputValue: spec.input?.value ?? "",
+    })
+  }
+
+  const pushSlashNote = (chatId: string, cmd: string, text: string, started: number) => {
+    if (!text.trim()) return
+    updateChat(chatId, (c) => ({
+      ...c,
+      messages: [
+        ...c.messages,
+        {
+          role: "assistant",
+          text,
+          steps: [],
+          durationMs: Date.now() - started,
+          slash: true,
+          slashCmd: cmd.split(/\s/)[0] || cmd,
+        },
+      ],
+    }))
+  }
+
+  const applySlashAction = async (
+    chatId: string,
+    action: SlashAction | undefined,
+    opts?: { captionKick?: boolean },
+  ): Promise<string | void> => {
+    if (!action) return
+    if (action.type === "new-chat" && action.id) {
+      const c = makeChat({
+        id: action.id,
+        title: action.name || "New chat",
+      })
+      setChats((all) => [...all, c])
+      setActiveId(c.id)
+      return
+    }
+    if (action.type === "open-chat" && action.id) {
+      const msgs: Msg[] = (action.messages ?? []).map((m) =>
+        m.role === "user"
+          ? { role: "user" as const, text: m.content }
+          : { role: "assistant" as const, text: m.content, steps: [] },
+      )
+      setChats((all) => {
+        const existing = all.find((c) => c.id === action.id)
+        if (existing) {
+          return all.map((c) =>
+            c.id === action.id
+              ? { ...c, title: action.name || c.title, messages: msgs, draft: "", error: null }
+              : c,
+          )
+        }
+        return [
+          ...all,
+          makeChat({
+            id: action.id!,
+            title: action.name || "Chat",
+            messages: msgs,
+          }),
+        ]
+      })
+      setActiveId(action.id)
+      return
+    }
+    if (action.type === "rename-chat" && action.name) {
+      const id = action.id || chatId
+      updateChat(id, (c) => ({ ...c, title: action.name! }))
+      return
+    }
+    if (action.type === "delete-chat" && action.id) {
+      setChats((all) => {
+        const next = all.filter((c) => c.id !== action.id)
+        if (!next.length) {
+          const fresh = makeChat()
+          setActiveId(fresh.id)
+          return [fresh]
+        }
+        if (activeId === action.id) {
+          setActiveId(next[0]!.id)
+        }
+        return next
+      })
+      return
+    }
+    if (action.type === "delete-all-chats") {
+      const fresh = makeChat(
+        action.id ? { id: action.id, title: action.name || "New chat" } : undefined,
+      )
+      setChats([fresh])
+      setActiveId(fresh.id)
+      return
+    }
+    if (action.type === "attach-image" && action.image) {
+      updateChat(chatId, (c) => ({
+        ...c,
+        pendingImages: [...c.pendingImages, action.image!],
+      }))
+      if (action.caption?.trim() && opts?.captionKick !== false) {
+        // Caller finishes the slash turn, then kicks with bypassBusy.
+        return action.caption.trim()
+      }
+      return
+    }
+    if (action.type === "arl-detail" && action.text) {
+      pushSlashNote(chatId, "/arl", action.text, Date.now())
+    }
+  }
+
+  const historyPayload = (chat: ChatTab) =>
+    chat.messages
+      .filter((m) => m.role === "user" || (m.role === "assistant" && m.text))
+      .map((m) => ({ role: m.role as "user" | "assistant", content: m.text }))
+
+  const callSlash = async (
+    chatId: string,
+    body: Record<string, unknown>,
+  ): Promise<{
+    ok: boolean
+    text?: string
+    kick?: string
+    interactive?: InteractiveSpec
+    action?: SlashAction
+    error?: string
+  }> => {
+    const tab = chats.find((c) => c.id === chatId)
+    const r = await fetch("/api/slash", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        ...body,
+        sessionId: body.sessionId ?? chatId,
+        chatName: body.chatName ?? tab?.title ?? "new chat",
+      }),
+    })
+    return (await r.json()) as {
+      ok: boolean
+      text?: string
+      kick?: string
+      interactive?: InteractiveSpec
+      action?: SlashAction
+      error?: string
+    }
+  }
+
+  const onInteractiveCancel = () => {
+    setInteractive(null)
+  }
+
+  const onInteractiveOk = async (optionIdOverride?: string) => {
+    if (!interactive) return
+    const chatId = activeId
+    const chat = chats.find((c) => c.id === chatId)
+    if (!chat) return
+    const { spec, selectedId, inputValue } = interactive
+    const chosen = optionIdOverride || selectedId
+    const started = Date.now()
+
+    setInteractive(null)
+    updateChat(chatId, (c) => ({ ...c, busy: true, error: null }))
+    try {
+      const j = await callSlash(chatId, {
+        resolve: {
+          kind: spec.kind,
+          optionId: chosen || undefined,
+          input: inputValue,
+          query: inputValue,
+          context: spec.context,
+        },
+        workspace,
+        sessionId: chatId,
+        history: historyPayload(chat),
+      })
+      if (!j.ok) {
+        pushSlashNote(chatId, spec.kind, String(j.error || "failed"), started)
+        return
+      }
+      if (j.interactive) openInteractive(j.interactive)
+      const captionKick = await applySlashAction(chatId, j.action, { captionKick: true })
+      if (j.text?.trim() && !j.interactive) {
+        pushSlashNote(chatId, spec.kind, j.text, started)
+      }
+      const follow = j.kick?.trim() || captionKick
+      if (follow) {
+        updateChat(chatId, (c) => ({ ...c, busy: false }))
+        await sendText(follow, {
+          bypassBusy: true,
+          ...(j.action?.type === "attach-image" && j.action.image && captionKick
+            ? { images: [j.action.image] }
+            : {}),
+        })
+        return
+      }
+    } catch (err) {
+      pushSlashNote(
+        chatId,
+        spec.kind,
+        err instanceof Error ? err.message : String(err),
+        started,
+      )
+    } finally {
+      updateChat(chatId, (c) => ({ ...c, busy: false }))
+    }
+  }
+
+  const attachFiles = async (files: FileList | null) => {
+    if (!files?.length) return
+    const chatId = activeId
+    const loaded: PendingImage[] = []
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith("image/")) continue
+      const buf = await file.arrayBuffer()
+      const bytes = new Uint8Array(buf)
+      let binary = ""
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]!)
+      loaded.push({
+        path: file.name,
+        mime: file.type || "image/png",
+        data: btoa(binary),
+      })
+    }
+    if (!loaded.length) return
+    updateChat(chatId, (c) => ({
+      ...c,
+      pendingImages: [...c.pendingImages, ...loaded],
+    }))
   }
 
   useEffect(() => {
@@ -300,11 +573,21 @@ export function ChatPanel() {
     })
   }
 
-  const sendText = async (raw: string) => {
+  const sendText = async (
+    raw: string,
+    opts?: { images?: PendingImage[]; skipUserEcho?: boolean; bypassBusy?: boolean },
+  ) => {
     const text = raw.trim()
     const chatId = activeId
     const chat = chats.find((c) => c.id === chatId)
-    if (!text || !chat || chat.busy || !connected) return
+    if (!text || !chat || !connected) return
+    if (chat.busy && !opts?.bypassBusy) return
+
+    const attach = opts?.images?.length
+      ? opts.images
+      : chat.pendingImages.length
+        ? [...chat.pendingImages]
+        : []
 
     const userMsg: UserMsg = { role: "user", text }
     const started = Date.now()
@@ -319,84 +602,44 @@ export function ChatPanel() {
         error: null,
         busy: true,
         title: c.title === "New chat" ? titleFromText(text) : c.title,
-        messages: [...c.messages, userMsg],
+        messages: opts?.skipUserEcho ? c.messages : [...c.messages, userMsg],
       }))
       try {
-        const history = prior
-          .filter((m) => m.role === "user" || (m.role === "assistant" && m.text))
-          .map((m) => ({ role: m.role as "user" | "assistant", content: m.text }))
-        const r = await fetch("/api/slash", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            line: text,
-            workspace,
-            sessionId: chatId,
-            history,
-          }),
+        const j = await callSlash(chatId, {
+          line: text,
+          workspace,
+          sessionId: chatId,
+          history: historyPayload({ ...chat, messages: prior }),
         })
-        const j = (await r.json()) as {
-          ok?: boolean
-          text?: string
-          kick?: string
-          error?: string
-        }
-        if (!r.ok || !j.ok) {
-          const err = String(j.error || `slash failed (${r.status})`)
-          updateChat(chatId, (c) => ({
-            ...c,
-            error: err,
-            messages: [
-              ...c.messages,
-              {
-                role: "assistant",
-                text: err,
-                steps: [],
-                durationMs: Date.now() - started,
-                slash: true,
-                slashCmd: text.split(/\s/)[0] || text,
-              },
-            ],
-          }))
+        if (!j.ok) {
+          const err = String(j.error || "slash failed")
+          updateChat(chatId, (c) => ({ ...c, error: err }))
+          pushSlashNote(chatId, text, err, started)
           return
         }
-        const reply = String(j.text || "").trim() || "(ok)"
-        updateChat(chatId, (c) => ({
-          ...c,
-          messages: [
-            ...c.messages,
-            {
-              role: "assistant",
-              text: reply,
-              steps: [],
-              durationMs: Date.now() - started,
-              slash: true,
-              slashCmd: text.split(/\s/)[0] || text,
-            },
-          ],
-        }))
-        if (j.kick?.trim()) {
+        if (j.interactive) {
+          openInteractive(j.interactive)
+        } else if (j.text?.trim()) {
+          pushSlashNote(chatId, text, j.text, started)
+        } else if (!j.action) {
+          pushSlashNote(chatId, text, "(ok)", started)
+        }
+        const captionKick = await applySlashAction(chatId, j.action, { captionKick: true })
+        const follow = j.kick?.trim() || captionKick
+        if (follow) {
           updateChat(chatId, (c) => ({ ...c, busy: false }))
-          await sendText(j.kick.trim())
+          await sendText(follow, {
+            bypassBusy: true,
+            ...(j.action?.type === "attach-image" && j.action.image && captionKick
+              ? { images: [j.action.image] }
+              : {}),
+          })
           return
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
-        updateChat(chatId, (c) => ({
-          ...c,
-          error: msg,
-          messages: [
-            ...c.messages,
-            {
-              role: "assistant",
-              text: msg,
-              steps: [],
-              durationMs: Date.now() - started,
-              slash: true,
-              slashCmd: text.split(/\s/)[0] || text,
-            },
-          ],
-        }))
+        updateChat(chatId, (c) => ({ ...c, error: msg }))
+        pushSlashNote(chatId, text, msg, started)
       } finally {
         updateChat(chatId, (c) => ({ ...c, busy: false }))
       }
@@ -414,8 +657,11 @@ export function ChatPanel() {
       draft: "",
       error: null,
       busy: true,
+      pendingImages: [],
       title: c.title === "New chat" ? titleFromText(text) : c.title,
-      messages: [...c.messages, userMsg, asstStub],
+      messages: opts?.skipUserEcho
+        ? [...c.messages, asstStub]
+        : [...c.messages, userMsg, asstStub],
     }))
 
     const patchAsst = (fn: (a: AsstMsg) => AsstMsg) => {
@@ -434,7 +680,11 @@ export function ChatPanel() {
         ...prior
           .filter((m) => m.role === "user" || (m.role === "assistant" && m.text))
           .map((m) => ({ role: m.role as "user" | "assistant", content: m.text })),
-        { role: "user" as const, content: text },
+        {
+          role: "user" as const,
+          content: text,
+          ...(attach.length ? { images: attach } : {}),
+        },
       ]
 
       const r = await fetch("/api/chat", {
@@ -475,6 +725,15 @@ export function ChatPanel() {
                 s.kind === "tool" && s.running ? { ...s, running: false } : s,
               )
               return { ...a, steps: [...closed, { kind: "thought" }] }
+            })
+          } else if (ev.type === "delta") {
+            const chunk = String(ev.text || "")
+            if (!chunk) continue
+            patchAsst((a) => {
+              const steps = a.steps.filter(
+                (s, i) => !(s.kind === "thought" && i === a.steps.length - 1),
+              )
+              return { ...a, text: a.text + chunk, steps }
             })
           } else if (ev.type === "tool_start") {
             const verb = String(ev.verb || ev.name || "Tool")
@@ -582,9 +841,7 @@ export function ChatPanel() {
     <div className="flex h-full min-h-0 flex-col bg-[#f2f2f2]">
       <div className="flex items-center justify-between gap-2 px-4 py-3">
         <div className="text-foreground flex items-center gap-1.5" title="Aquin Labs">
-          <Image
-            src="/mainlogo2.png"
-            alt=""
+          <AquinLogo
             width={27}
             height={22}
             className="h-[22px] w-auto max-w-none"
@@ -671,9 +928,7 @@ export function ChatPanel() {
             className="pointer-events-none absolute inset-0 flex items-center justify-center"
             aria-hidden
           >
-            <Image
-              src="/mainlogo2.png"
-              alt=""
+            <AquinLogo
               width={96}
               height={78}
               className="h-16 w-auto opacity-[0.12]"
@@ -723,7 +978,29 @@ export function ChatPanel() {
       </div>
 
       <div className="relative px-4 pb-4 pt-1">
-        {slashOpen ? (
+        {interactive ? (
+          <div className="absolute inset-x-4 bottom-full z-30 mb-1.5">
+            <InteractivePrompt
+              prompt={interactive.spec.prompt}
+              options={interactive.spec.options}
+              selectedId={interactive.selectedId}
+              onSelect={(id) => setInteractive((cur) => (cur ? { ...cur, selectedId: id } : cur))}
+              input={
+                interactive.spec.input
+                  ? {
+                      value: interactive.inputValue,
+                      placeholder: interactive.spec.input.placeholder,
+                      onChange: (value) =>
+                        setInteractive((cur) => (cur ? { ...cur, inputValue: value } : cur)),
+                    }
+                  : undefined
+              }
+              onCancel={onInteractiveCancel}
+              onOk={(optionId) => void onInteractiveOk(optionId)}
+              okDisabled={busy}
+            />
+          </div>
+        ) : slashOpen ? (
           <div
             id="slash-command-list"
             className="absolute inset-x-4 bottom-full z-20 mb-1.5 overflow-hidden rounded-2xl border border-[#e0e0dc] bg-white shadow-[0_8px_24px_rgba(0,0,0,0.06)]"
@@ -767,12 +1044,53 @@ export function ChatPanel() {
             </ul>
           </div>
         ) : null}
+
+        {pendingImages.length ? (
+          <div className="mb-2 flex flex-wrap gap-1.5">
+            {pendingImages.map((img, i) => (
+              <span
+                key={`${img.path}-${i}`}
+                className="text-muted-foreground inline-flex items-center gap-1 rounded-full border border-[#e0e0dc] bg-white px-2 py-0.5 font-mono text-[11px]"
+              >
+                +{img.path.split(/[/\\]/).pop() || "image"}
+                <button
+                  type="button"
+                  aria-label="Remove attachment"
+                  className="hover:text-foreground"
+                  onClick={() =>
+                    updateChat(activeId, (c) => ({
+                      ...c,
+                      pendingImages: c.pendingImages.filter((_, j) => j !== i),
+                    }))
+                  }
+                >
+                  <X className="size-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : null}
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/gif,image/webp"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            void attachFiles(e.target.files)
+            e.target.value = ""
+          }}
+        />
+
         <div className="flex items-center gap-2 rounded-full border border-[#e0e0dc] bg-white py-1.5 pr-1.5 pl-3 focus-within:border-[#c8c8c4]">
           <button
             type="button"
             className="text-foreground/70 hover:text-foreground flex size-7 shrink-0 items-center justify-center rounded-full"
-            aria-label="Add"
-            tabIndex={-1}
+            aria-label="Attach image"
+            title="Attach image"
+            disabled={busy || !connected || Boolean(interactive)}
+            onClick={() => fileInputRef.current?.click()}
           >
             <Plus className="size-4" strokeWidth={1.75} />
           </button>
@@ -781,6 +1099,13 @@ export function ChatPanel() {
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
+              if (interactive) {
+                if (e.key === "Escape") {
+                  e.preventDefault()
+                  onInteractiveCancel()
+                  return
+                }
+              }
               if (slashOpen) {
                 if (e.key === "ArrowDown") {
                   e.preventDefault()
@@ -810,8 +1135,14 @@ export function ChatPanel() {
                 send()
               }
             }}
-            placeholder={connected ? "Ask anything..." : "Build axi to connect…"}
-            disabled={busy || !connected}
+            placeholder={
+              pendingImages.length
+                ? `Ask anything…  +${pendingImages.length} image${pendingImages.length === 1 ? "" : "s"}`
+                : connected
+                  ? "Ask anything..."
+                  : "Build axi to connect…"
+            }
+            disabled={busy || !connected || Boolean(interactive)}
             className="text-foreground placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-[14px] outline-none disabled:opacity-50"
             aria-autocomplete="list"
             aria-expanded={slashOpen}
@@ -820,7 +1151,7 @@ export function ChatPanel() {
           <button
             type="button"
             onClick={send}
-            disabled={!canSend}
+            disabled={!canSend || Boolean(interactive)}
             aria-label="Send"
             className="bg-[#ececeb] text-foreground hover:bg-[#e2e2df] disabled:text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-60"
           >
