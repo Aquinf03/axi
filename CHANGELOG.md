@@ -5,6 +5,27 @@ Format is inspired by [Keep a Changelog](https://keepachangelog.com/). Versions 
 
 **Pages:** https://aquinf03.github.io/axi/changelog/ · **Docs:** https://aquinf03.github.io/axi/documentation/
 
+## [0.0.4] — 2026-10
+
+### Added
+
+- Slash command help in the WebUI; tab autocompletion for slash commands
+- `axi runline` — run a chat turn from the CLI
+- `/config reload` — reload config without reopening axi
+- Proper xterm.js + PTY terminal wrapper in the WebUI
+- `/history` — persist and recall local chat history
+
+### Changed
+
+- `/web` params: `on|off|<port>|status` (`/web off` force-stops the UI in the TTY session)
+- Install tarballs use a `v` prefix (`axi-v0.0.4.tar.gz`, `axi-vlatest.tar.gz`); `install.sh` at the workspace root for GitHub Releases
+
+### Fixed
+
+- Ollama inference (faster / correct streaming path)
+- Default shell bugs
+- Major WebUI ↔ backend communication bugs
+
 ## [0.0.3] — 2026-10
 
 ### Added

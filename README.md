@@ -20,7 +20,7 @@ Good first contributions: docs under `docs/documentation/` (regen with `npm run 
 ## Install
 
 ```bash
-curl -fsSL https://aquin.app/axi/download/install.sh | bash
+curl -fsSL https://github.com/Aquinf03/axi/releases/latest/download/install.sh | bash
 ```
 
 From a checkout (needs **Node ≥ 18**). Clone with the submodule so `axi-backend/` is present:
@@ -28,7 +28,7 @@ From a checkout (needs **Node ≥ 18**). Clone with the submodule so `axi-backen
 ```bash
 git clone --recurse-submodules https://github.com/Aquinf03/axi.git
 cd axi
-npm run setup	# same as npm i at the repo root
+./install.sh		# or: npm run setup
 ```
 
 `npm run setup` runs, in order:
@@ -48,7 +48,7 @@ To run the CLI directly without re-building:
 
 [`run.sh`](./run.sh) executes `axi-backend/src/cli.ts` through tsx, runs `axi-backend/scripts/link-ui.mjs` when that file exists, and sets `--preserve-symlinks` so `src/ui` imports such as `../core/…` resolve inside `axi-backend/src`.
 
-Publish path matches **aq** (Cloudflare R2 + shared Worker). Release helpers live in the `axi-backend` package.
+Publish path matches **aq** (GitHub Releases via `gh`). `install.sh` lives at this repo root; `npm run release -- 0.0.3` uploads it with the tarball.
 
 Talks to `aq` via:
 

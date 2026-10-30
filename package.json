@@ -4,7 +4,8 @@
   "description": "axi workspace — npm i / npm run setup from the repo root",
   "scripts": {
     "setup": "bash ./gen.sh && bash ./install_deps.sh && bash ./post_setup.sh",
-    "install": "npm run setup"
+    "install": "npm run setup",
+    "release": "bash ./axi-backend/scripts/helpers/release.sh"
   },
   "engines": {
     "node": ">=18"
