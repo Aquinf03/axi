@@ -66,8 +66,6 @@ ensure_path_hint() {
 write_launcher() {
   local cli="$1"
   local launcher="$NPM_PREFIX/bin/axi"
-  local node_bin
-  node_bin="$(command -v node)"
   mkd "$NPM_PREFIX/bin"
 
   if [ ! -f "$cli" ]; then
@@ -75,28 +73,30 @@ write_launcher() {
     exit 1
   fi
 
+  # Resolve node at *runtime* via PATH (/usr/bin/env). Never bake
+  # `command -v node` from the installer shell — that can be Cursor/agent
+  # node under $HOME and breaks every other machine.
   if is_windows; then
     cat >"$launcher" <<EOF
 #!/usr/bin/env bash
-exec "$node_bin" "$cli" "\$@"
+exec node "$cli" "\$@"
 EOF
     chmod +x "$launcher" 2>/dev/null || true
-    local cli_win node_win
+    local cli_win
     cli_win="$(cygpath -w "$cli" 2>/dev/null || echo "$cli")"
-    node_win="$(cygpath -w "$node_bin" 2>/dev/null || echo "$node_bin")"
     cat >"${launcher}.cmd" <<EOF
 @echo off
-"$node_win" "$cli_win" %*
+node "$cli_win" %*
 EOF
   else
     cat >"$launcher" <<EOF
 #!/usr/bin/env bash
-exec "$node_bin" "$cli" "\$@"
+exec /usr/bin/env node "$cli" "\$@"
 EOF
     chmod +x "$launcher"
   fi
 
-  if ! node "$cli" version >/dev/null 2>&1 && ! node "$cli" help >/dev/null 2>&1; then
+  if ! /usr/bin/env node "$cli" version >/dev/null 2>&1 && ! /usr/bin/env node "$cli" help >/dev/null 2>&1; then
     echo "axi failed to run via node $cli" >&2
     exit 1
   fi
@@ -314,3 +314,4 @@ echo "  AXI_SOURCE=/path/to/root ./install.sh" >&2
 echo "  AXI_REPO=<git-url> ./install.sh" >&2
 echo "  curl -fsSL ${DEFAULT_INSTALL_SH_URL} | bash" >&2
 exit 1
+

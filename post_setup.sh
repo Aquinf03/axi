@@ -9,13 +9,10 @@ LAUNCHER="$BACKEND_BIN/axi"
 
 mkdir -p "$BACKEND_BIN"
 
-if [ ! -f "$LAUNCHER" ]; then
-	printf '%s\n' '#!/usr/bin/env node' 'import "../dist/cli.js"' >"$LAUNCHER"
-	chmod +x "$LAUNCHER"
-	echo "[ * ] Created axi-backend/bin/axi"
-else
-	echo "[ * ] axi-backend/bin/axi already present"
-fi
+# Always rewrite — never keep a machine-local absolute node path.
+printf '%s\n' '#!/usr/bin/env node' 'import "../dist/cli.js"' >"$LAUNCHER"
+chmod +x "$LAUNCHER"
+echo "[ * ] Wrote axi-backend/bin/axi (#!/usr/bin/env node)"
 
 if [ ! -e "$ROOT/bin" ]; then
 	ln -sv ./axi-backend/bin/ ./bin
