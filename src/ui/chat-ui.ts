@@ -72,7 +72,6 @@ import {
   activeLabel,
   applyChoice,
   contextWindow,
-  hasAquinLogin,
   hasCreds,
   soundEnabled,
   notifyEnabled,
@@ -826,14 +825,13 @@ export async function startChatUi(train: string, resumeId?: string): Promise<voi
   stdin.resume()
   write(ENABLE)
 
-  // Prime-style setup: Login with Aquin → Welcome {name} + connect providers / Continue.
-  if (!hasAquinLogin() || !activeId()) {
+  // Prime-style setup: Welcome → connect providers / Continue.
+  if (!activeId()) {
     const decision = await runWelcomeSplash({
       write,
       stdin,
       cols: () => Math.max(40, stdout.columns ?? 80),
       rows: () => Math.max(16, stdout.rows ?? 24),
-      openUrl: (url) => hostEnv.openUrl(url),
     })
     if (decision === "exit") {
       write(DISABLE)

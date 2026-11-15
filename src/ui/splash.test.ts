@@ -7,12 +7,13 @@ function stripAnsi(s: string): string {
 }
 
 describe("splash", () => {
-  it("renders brand, description, login action, and static mark", () => {
+  it("renders brand, description, start action, and static mark", () => {
     const raw = renderSplashFrame({ frame: 0, cols: 80, rows: 28 })
     const frame = stripAnsi(raw)
     assert.match(frame, /Welcome to/)
     assert.match(frame, /AXI by Aquin Labs/)
-    assert.match(frame, /Login with Aquin/)
+    assert.match(frame, /Get started/)
+    assert.equal(frame.includes("Login with Aquin"), false)
     assert.equal(frame.includes("—"), false)
     for (const line of LOGO_LINES) {
       const mark = line.trim()
@@ -33,7 +34,6 @@ describe("splash", () => {
         rows: 32,
         state: {
           phase: "providers",
-          paste: "",
           pick: 0,
           keyFor: null,
           keyBuf: "",

@@ -1,18 +1,14 @@
 /**
  * First-run welcome splash (Prime-style):
- * 1) Welcome + Login with Aquin (browser handoff)
- * 2) Welcome {name} to AXI + connect providers / Continue
+ * 1) Welcome + Get started
+ * 2) Welcome to AXI + connect providers / Continue
  */
 
 import { ALT_ENTER, ALT_LEAVE } from "./alt-screen.js"
 import {
   activeId,
-  aquinDisplayName,
-  aquinLoginUrl,
   CATALOG,
-  completeAquinLogin,
   entry,
-  hasAquinLogin,
   hasCreds,
   setActive,
   setKey,
@@ -44,7 +40,7 @@ const LOGO_INDENT = 3
 const WELCOME_DESCRIPTION = [
   "Developer agent for foundation models. Design, test, and refine with precision and intent.",
 ] as const
-const LOGIN_ACTION = "Login with Aquin"
+const START_ACTION = "Get started"
 const PROVIDERS_PROMPT = "Connect other providers, or continue."
 const PROVIDERS_NOTE = "You can add providers anytime with /provider."
 const CONTINUE_LABEL = "Continue"
@@ -52,7 +48,7 @@ const DESC_WRAP = 56
 
 export type SplashDecision = "begin" | "exit"
 
-type Phase = "welcome" | "login" | "busy" | "providers" | "key"
+type Phase = "welcome" | "providers" | "key"
 
 function wrapWords(text: string, width: number): string[] {
   const rows: string[] = []
@@ -85,7 +81,7 @@ function brandLine(): string {
   return ` ${RESET}Welcome to ${BOLD}AXI${RESET} by Aquin Labs`
 }
 
-/** Personalized heading after Aquin auth — "Welcome Ash to AXI". */
+/** Personalized heading — "Welcome Ash to AXI", or generic when name is empty. */
 export function welcomeUserLine(name: string): string {
   const who = name.trim()
   if (!who) return ` ${RESET}Welcome to ${BOLD}AXI${RESET}`
@@ -111,7 +107,6 @@ function padLine(s: string): string {
 
 export type SplashFrameState = {
   phase: Phase
-  paste: string
   pick: number
   keyFor: ProviderId | null
   keyBuf: string
@@ -139,7 +134,6 @@ export function renderSplashFrame(opts: {
   const rows = Math.max(18, opts.rows)
   const state: SplashFrameState = opts.state ?? {
     phase: "welcome",
-    paste: "",
     pick: 0,
     keyFor: null,
     keyBuf: "",
@@ -152,25 +146,7 @@ export function renderSplashFrame(opts: {
   if (state.phase === "welcome") {
     lines.push(brandLine())
     lines.push(...descriptionRows(cols, WELCOME_DESCRIPTION))
-    lines.push(` ${BOLD}> ${LOGIN_ACTION}${RESET}`)
-  } else if (state.phase === "login" || state.phase === "busy") {
-    lines.push(` ${BOLD}Login with Aquin${RESET}`)
-    lines.push(
-      ...descriptionRows(cols, [
-        "Sign in at aquin.app, then paste aquin://auth?code=… or the one-time code here.",
-      ]),
-    )
-    if (state.status) {
-      lines.push(` ${DIM}${state.status}${RESET}`, "")
-    }
-    if (state.error) {
-      lines.push(` ${ERR}${state.error}${RESET}`, "")
-    }
-    const shown = state.paste.length > 48 ? `…${state.paste.slice(-47)}` : state.paste
-    const cursor = state.phase === "busy" ? "" : "▋"
-    lines.push(` ${BOLD}>${RESET} ${shown}${cursor}`)
-    lines.push("")
-    lines.push(` ${DIM}enter submit · esc back · ctrl-c quit${RESET}`)
+    lines.push(` ${BOLD}> ${START_ACTION}${RESET}`)
   } else if (state.phase === "key" && state.keyFor) {
     lines.push(welcomeUserLine(state.userName))
     lines.push("")
@@ -213,7 +189,6 @@ export type SplashIo = {
   stdin: NodeJS.ReadStream
   cols: () => number
   rows: () => number
-  openUrl?: (url: string) => Promise<boolean> | boolean
   intervalMs?: number
 }
 
@@ -299,14 +274,12 @@ export async function runWelcomeSplash(io: SplashIo): Promise<SplashDecision> {
   let frame = 0
   let settled = false
   let phase: Phase = "welcome"
-  let paste = ""
   let status = ""
   let error = ""
-  let busy = false
   let pick = 0
   let keyFor: ProviderId | null = null
   let keyBuf = ""
-  let userName = aquinDisplayName()
+  let userName = ""
   let carry: Buffer = Buffer.alloc(0)
 
   const paint = () => {
@@ -315,8 +288,7 @@ export async function runWelcomeSplash(io: SplashIo): Promise<SplashDecision> {
       cols: io.cols(),
       rows: io.rows(),
       state: {
-        phase: busy ? "busy" : phase,
-        paste,
+        phase,
         pick,
         keyFor,
         keyBuf,
@@ -332,32 +304,10 @@ export async function runWelcomeSplash(io: SplashIo): Promise<SplashDecision> {
   const enterProviders = () => {
     phase = "providers"
     pick = 0
-    paste = ""
     keyFor = null
     keyBuf = ""
     error = ""
     status = ""
-    busy = false
-    userName = aquinDisplayName()
-    paint()
-  }
-
-  const startBrowserLogin = async () => {
-    phase = "login"
-    paste = ""
-    error = ""
-    status = "Opening aquin.app…"
-    paint()
-    const url = aquinLoginUrl()
-    let opened = false
-    try {
-      opened = Boolean(await io.openUrl?.(url))
-    } catch {
-      opened = false
-    }
-    status = opened
-      ? `Browser opened · ${url}`
-      : `Open ${url} in a browser, then paste the code.`
     paint()
   }
 
@@ -369,33 +319,6 @@ export async function runWelcomeSplash(io: SplashIo): Promise<SplashDecision> {
       io.stdin.off("data", onData)
       io.write(ALT_LEAVE)
       resolve(decision)
-    }
-
-    const submitPaste = () => {
-      if (busy) return
-      const raw = paste.trim()
-      if (!raw) {
-        error = "paste aquin://auth?code=… or the one-time code"
-        paint()
-        return
-      }
-      busy = true
-      error = ""
-      status = "Signing in…"
-      paint()
-      void completeAquinLogin(raw)
-        .then((r) => {
-          userName = aquinDisplayName() || r.label.split(/\s+/)[0] || r.label
-          status = `Signed in as ${r.label}`
-          paint()
-          setTimeout(() => enterProviders(), 450)
-        })
-        .catch((e: unknown) => {
-          busy = false
-          error = e instanceof Error ? e.message : String(e)
-          status = ""
-          paint()
-        })
     }
 
     const confirmProvider = () => {
@@ -458,39 +381,11 @@ export async function runWelcomeSplash(io: SplashIo): Promise<SplashDecision> {
 
         if (phase === "welcome") {
           if (k.kind === "enter") {
-            if (hasAquinLogin()) {
-              userName = aquinDisplayName()
-              if (!activeId()) enterProviders()
-              else finish("begin")
+            if (activeId()) {
+              finish("begin")
               return
             }
-            void startBrowserLogin()
-          }
-          continue
-        }
-
-        if (phase === "login" || phase === "busy") {
-          if (k.kind === "escape" && !busy) {
-            phase = "welcome"
-            paste = ""
-            error = ""
-            status = ""
-            paint()
-            continue
-          }
-          if (busy) continue
-          if (k.kind === "enter") {
-            submitPaste()
-            continue
-          }
-          if (k.kind === "backspace") {
-            paste = paste.slice(0, -1)
-            paint()
-            continue
-          }
-          if (k.kind === "char" || k.kind === "paste") {
-            paste += k.text.replace(/\r?\n/g, "")
-            paint()
+            enterProviders()
           }
           continue
         }
